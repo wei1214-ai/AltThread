@@ -32,7 +32,6 @@ fun LoginScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(350.dp)
-
         ) {
             Image(
                 painter = painterResource(id = R.drawable.banner),
