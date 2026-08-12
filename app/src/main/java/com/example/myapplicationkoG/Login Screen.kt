@@ -59,21 +59,76 @@ fun LoginScreen() {
             }
         }
 
-        Spacer(modifier = Modifier.height(70.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(modifier = Modifier.padding(horizontal = 24.dp)) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .clip(RoundedCornerShape(25.dp))
+                        .background(LightGray)
+                ) {
 
-        Column(modifier = Modifier.padding(horizontal = 24.dp)) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(50.dp)
-                    .clip(RoundedCornerShape(25.dp))
-                    .background(LightGray)
-            ) {
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight()
+                            .clip(RoundedCornerShape(25.dp))
+                            .background(NeonGreen),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Log In", fontWeight = FontWeight.Bold, color = Color.Black)
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .fillMaxHeight(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "Register", color = Color.Gray)
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(24.dp))
 
                 Box(
                     modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight()
+                        .fillMaxWidth()
+                        .height(55.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LightGray)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(text = "Email address", color = Color.Gray)
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(55.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(LightGray)
+                        .padding(horizontal = 16.dp),
+                    contentAlignment = Alignment.CenterStart
+                ) {
+                    Text(text = "Password", color = Color.Gray)
+                }
+
+                Spacer(modifier = Modifier.height(32.dp))
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(55.dp)
                         .clip(RoundedCornerShape(25.dp))
                         .background(NeonGreen),
                     contentAlignment = Alignment.Center
@@ -81,61 +136,11 @@ fun LoginScreen() {
                     Text(text = "Log In", fontWeight = FontWeight.Bold, color = Color.Black)
                 }
 
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .fillMaxHeight(),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(text = "Register", color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Text(text = "Forgot password?", color = Color.Black, fontSize = 14.sp)
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(LightGray)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(text = "Email address", color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp)
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(LightGray)
-                    .padding(horizontal = 16.dp),
-                contentAlignment = Alignment.CenterStart
-            ) {
-                Text(text = "Password", color = Color.Gray)
-            }
-
-            Spacer(modifier = Modifier.height(32.dp))
-
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(55.dp)
-                    .clip(RoundedCornerShape(25.dp))
-                    .background(NeonGreen),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(text = "Log In", fontWeight = FontWeight.Bold, color = Color.Black)
-            }
-
-            Spacer(modifier = Modifier.height(16.dp))
-
-            Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                Text(text = "Forgot password?", color = Color.Black, fontSize = 14.sp)
             }
         }
     }
