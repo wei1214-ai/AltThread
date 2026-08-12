@@ -13,3 +13,5 @@ val Pink40 = Color(0xFF7D5260)
 val NeonGreen = Color(0xFFBFFF00)
 
 val LightGray = Color(0xFFE0E0E0)
+
+val Cyan = Color(0x000000FFFF)

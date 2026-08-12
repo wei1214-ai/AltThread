@@ -1,3 +1,4 @@
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -5,13 +6,22 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.R
 import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.NeonGreen
+import com.example.myapplicationkoG.ui.theme.Cyan
+import com.example.myapplicationkoG.ui.theme.Pink40
+import com.example.myapplicationkoG.ui.theme.Pink80
+import com.example.myapplicationkoG.ui.theme.Purple40
 
 @Composable
 fun LoginScreen() {
@@ -21,9 +31,14 @@ fun LoginScreen() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(250.dp)
-                .background(Color.Gray) 
+                .height(350.dp)
         ) {
+            Image(
+                painter = painterResource(id = R.drawable.banner),
+                contentDescription = "Banner Image",
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -31,19 +46,20 @@ fun LoginScreen() {
             ) {
                 Text(
                     text = "AltThread",
-                    fontSize = 36.sp,
+                    fontSize = 45.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = NeonGreen
                 )
                 Text(
                     text = "Upcycle. Design. Inspire.",
-                    fontSize = 16.sp,
-                    color = Color.DarkGray
+                    fontSize = 25.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = Color.White
                 )
             }
         }
 
-        Spacer(modifier = Modifier.height(32.dp))
+        Spacer(modifier = Modifier.height(70.dp))
 
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Row(
