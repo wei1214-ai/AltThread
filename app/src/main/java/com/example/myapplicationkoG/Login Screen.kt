@@ -45,7 +45,6 @@ fun LoginScreen() {
 
         Spacer(modifier = Modifier.height(32.dp))
 
-
         Column(modifier = Modifier.padding(horizontal = 24.dp)) {
             Row(
                 modifier = Modifier
