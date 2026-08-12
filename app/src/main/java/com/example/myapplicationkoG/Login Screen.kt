@@ -51,7 +51,7 @@ fun LoginScreen() {
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp)
-                    .clip(RoundedCornerShape(25.dp)) // 大圆角
+                    .clip(RoundedCornerShape(25.dp))
                     .background(LightGray)
             ) {
 
