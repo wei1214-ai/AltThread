@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
             AltThreadTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding)) {
-                            HomeScreen()
+                            AuthScreen()
                     }
                 }
             }
@@ -33,5 +33,5 @@ class MainActivity : ComponentActivity() {
 @Preview(showBackground = true)
 @Composable
 fun LoginScreenPreview() {
-    HomeScreen()
+    AuthScreen()
 }

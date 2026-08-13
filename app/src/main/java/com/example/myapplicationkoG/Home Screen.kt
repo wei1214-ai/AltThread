@@ -31,28 +31,10 @@ fun HomeScreen() {
             .fillMaxSize()
             .background(color = Color.White)
     ) {
-        Spacer(modifier = Modifier.height(16.dp))
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp)
-                .drawBehind{
-                    val strokeWidth = 2.dp.toPx()
-
-                    drawLine(
-                        color = NeonGreen,
-                        start = Offset(x = 0f, y = strokeWidth / 2),
-                        end = Offset(x = size.width, y = strokeWidth / 2),
-                        strokeWidth = strokeWidth
-                    )
-
-                    drawLine(
-                        color = NeonGreen,
-                        start = Offset(x = 0f, y = size.height - strokeWidth / 2),
-                        end = Offset(x = size.width, y = size.height - strokeWidth / 2),
-                        strokeWidth = strokeWidth
-                    )
-                },
+                .height(100.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
