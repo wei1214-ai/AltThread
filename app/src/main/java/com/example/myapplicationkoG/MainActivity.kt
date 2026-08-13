@@ -1,6 +1,5 @@
 package com.example.myapplicationkoG
 
-import LoginScreen
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -21,17 +20,10 @@ class MainActivity : ComponentActivity() {
         setContent {
             AltThreadTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Box(modifier = Modifier.padding(innerPadding)) {
-                            AuthScreen()
-                    }
+                    Box(modifier = Modifier.padding(innerPadding))
+                    AuthScreen()
                 }
             }
         }
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun LoginScreenPreview() {
-    AuthScreen()
 }
