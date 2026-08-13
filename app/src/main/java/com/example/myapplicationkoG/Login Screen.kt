@@ -6,9 +6,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
@@ -18,15 +16,13 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.R
 import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.NeonGreen
-import com.example.myapplicationkoG.ui.theme.Cyan
-import com.example.myapplicationkoG.ui.theme.Pink40
-import com.example.myapplicationkoG.ui.theme.Pink80
-import com.example.myapplicationkoG.ui.theme.Purple40
 
 @Composable
 fun LoginScreen() {
     Column(
-        modifier = Modifier.fillMaxSize().background(Color.White)
+        modifier = Modifier
+            .fillMaxSize().
+            background(Color.White)
     ) {
         Box(
             modifier = Modifier
@@ -35,13 +31,13 @@ fun LoginScreen() {
         ) {
             Image(
                 painter = painterResource(id = R.drawable.banner),
-                contentDescription = "Banner Image",
-                contentScale = ContentScale.Crop,
+                contentDescription = null,
+                contentScale = ContentScale.Crop,   //Crop and fills the image nicely
                 modifier = Modifier.fillMaxSize()
             )
             Column(
                 modifier = Modifier
-                    .align(Alignment.BottomStart)
+                    .align(Alignment.BottomStart)   //Pins the UI in the bottom-left corner
                     .padding(24.dp)
             ) {
                 Text(
@@ -62,7 +58,7 @@ fun LoginScreen() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                    .weight(1f),    //all remaining empty space
             contentAlignment = Alignment.Center
         ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -95,7 +91,7 @@ fun LoginScreen() {
                     }
                 }
 
-                Spacer(modifier = Modifier.height(24.dp))
+                Spacer(modifier = Modifier.height(32.dp))
 
                 Box(
                     modifier = Modifier
@@ -106,7 +102,7 @@ fun LoginScreen() {
                         .padding(horizontal = 16.dp),
                     contentAlignment = Alignment.CenterStart
                 ) {
-                    Text(text = "Email address", color = Color.Gray)
+                    Text(text = "Username", color = Color.Gray)
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
