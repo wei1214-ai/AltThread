@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.paddingFromBaseline
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
@@ -52,7 +53,7 @@ fun FilterChip(
 
         Text(
             text = label,
-            fontWeight = FontWeight.Bold,
+            fontWeight = FontWeight.SemiBold,
             maxLines = 1
         )
     }
@@ -65,6 +66,7 @@ fun HomeScreen() {
             .fillMaxSize()
             .background(color = Color.White)
             .navigationBarsPadding()
+            .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier
@@ -92,6 +94,7 @@ fun HomeScreen() {
             FilterChip(label = "Trend")
             FilterChip(label = "Challenge")
             FilterChip(label = "Vintage")
+            FilterChip(label = "Streetwear")
         }
 
         Column(
