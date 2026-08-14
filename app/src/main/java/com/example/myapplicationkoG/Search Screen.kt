@@ -56,13 +56,13 @@ fun SearchScreen(){
                     .weight(1f)
                     .height(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(color = Cyan),
+                    .background(color = LightGray),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.search),
                     contentDescription = "Icon Description",
-                    tint = MidnightBlue,
+                    tint = Gray,
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(30.dp)
@@ -71,7 +71,7 @@ fun SearchScreen(){
                 Text(
                     text = "Search",
                     fontSize = 26.sp,
-                    color = MidnightBlue
+                    color = Gray
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
