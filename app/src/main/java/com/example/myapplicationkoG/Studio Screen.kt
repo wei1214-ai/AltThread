@@ -50,7 +50,7 @@ fun ColumnScope.StudioCard(
 ) {
     Card(
         shape = RoundedCornerShape(25.dp),
-        colors = CardDefaults.cardColors(containerColor = Cyan),
+        colors = CardDefaults.cardColors(containerColor = White),
         modifier = modifier
             .fillMaxWidth()
             .weight(1f)
@@ -77,7 +77,7 @@ fun ColumnScope.StudioCard(
                 text = title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = Color.Black,
+                color = MidnightBlue,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
