@@ -1,5 +1,6 @@
 package com.example.myapplicationkoG
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -30,11 +31,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.modifier.modifierLocalConsumer
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
+import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import com.example.myapplicationkoG.ui.theme.NeonGreen
 
 @Composable
@@ -46,14 +53,14 @@ fun FilterChip(
         modifier = modifier
             .height(40.dp)
             .clip(RoundedCornerShape(12.dp))    // 12 = corner radius
-            .background(color = NeonGreen)
+            .background(color = Cyan)
             .padding(horizontal = 16.dp),   // Adds space on the left and the right side of the text
         contentAlignment = Alignment.Center
     ) {
-
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
+            color = MidnightBlue,
             maxLines = 1
         )
     }
@@ -64,21 +71,21 @@ fun HomeScreen() {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(color = Color.White)
+            .background(color = White)
             .navigationBarsPadding()
             .statusBarsPadding()
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(80.dp),
+                .height(100.dp),
             contentAlignment = Alignment.Center
         ) {
             Text(
                 text = "AltThread",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = NeonGreen
+                color = MidnightBlue
             )
         }
 
@@ -96,19 +103,6 @@ fun HomeScreen() {
             FilterChip(label = "Vintage")
             FilterChip(label = "Streetwear")
         }
-
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-        ) { }
-
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(60.dp)
-                .background(color = NeonGreen)
-        ) { }
     }
 
 }

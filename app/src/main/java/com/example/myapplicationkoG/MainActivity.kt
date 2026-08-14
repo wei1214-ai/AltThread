@@ -21,7 +21,7 @@ class MainActivity : ComponentActivity() {
             AltThreadTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding))
-                    SearchScreen()
+                    AuthScreen()
                 }
             }
         }

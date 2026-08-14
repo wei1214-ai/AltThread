@@ -24,27 +24,91 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
-import com.example.myapplicationkoG.ui.theme.NeonGreen
+import com.example.myapplicationkoG.ui.theme.MidnightBlue
+
+
+@Composable
+private fun AuthTabItem(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxHeight()
+            .clip(shape = RoundedCornerShape(size = 25.dp))
+            .background(color = if (isSelected) Cyan else Color.Transparent)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) MidnightBlue else Color.Gray
+        )
+    }
+}
+
+@Composable
+private fun AuthInputField(
+    placeholder: String,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(55.dp)
+            .clip(shape = RoundedCornerShape(size = 12.dp))
+            .background(color = LightGray)
+            .padding(horizontal = 16.dp),
+        contentAlignment = Alignment.CenterStart
+    ) {
+        Text(text = placeholder, color = Color.Gray)
+    }
+}
+
+@Composable
+private fun AuthPrimaryButton(
+    text: String,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(55.dp)
+            .clip(shape = RoundedCornerShape(size = 25.dp))
+            .background(color = Cyan)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(text = text, fontWeight = FontWeight.Bold, color = MidnightBlue)
+    }
+}
 
 @Composable
 fun AuthScreen() {
-    var isLogin by remember { mutableStateOf(true) }
+    var isLogin by remember { mutableStateOf(value = true) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White)
             .navigationBarsPadding()
             .statusBarsPadding()
     ) {
+        // Upper Border
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -56,26 +120,40 @@ fun AuthScreen() {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        brush = Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                Color.Transparent,
+                                MidnightBlue.copy(alpha = 1.0f)
+                            )
+                        )
+                    )
+            )
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(24.dp)
+                    .padding(all = 24.dp)
             ) {
                 Text(
                     text = "AltThread",
                     fontSize = 45.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = NeonGreen
+                    color = Cyan
                 )
                 Text(
                     text = "Upcycle. Design. Inspire.",
                     fontSize = 25.sp,
                     fontWeight = FontWeight.ExtraBold,
-                    color = Color.White
+                    color = White
                 )
             }
         }
 
+        // Lower Border
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -87,143 +165,54 @@ fun AuthScreen() {
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(50.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                        .background(LightGray)
+                        .clip(shape = RoundedCornerShape(size = 25.dp))
+                        .background(color = LightGray)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(if (isLogin) NeonGreen else Color.Transparent)
-                            .clickable { isLogin = true },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Log In",
-                            fontWeight = if (isLogin) FontWeight.Bold else FontWeight.Normal,
-                            color = if (isLogin) Color.Black else Color.Gray
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxHeight()
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(if (!isLogin) NeonGreen else Color.Transparent)
-                            .clickable { isLogin = false },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "Register",
-                            fontWeight = if (!isLogin) FontWeight.Bold else FontWeight.Normal,
-                            color = if (!isLogin) Color.Black else Color.Gray
-                        )
-                    }
+                    AuthTabItem(
+                        text = "Log In",
+                        isSelected = isLogin,
+                        onClick = { isLogin = true },
+                        modifier = Modifier.weight(1f)
+                    )
+                    AuthTabItem(
+                        text = "Register",
+                        isSelected = !isLogin,
+                        onClick = { isLogin = false },
+                        modifier = Modifier.weight(1f)
+                    )
                 }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (isLogin) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LightGray)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(text = "Username", color = Color.Gray)
-                    }
-
+                    AuthInputField(placeholder = "Username")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LightGray)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(text = "Password", color = Color.Gray)
-                    }
-
+                    AuthInputField(placeholder = "Password")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(NeonGreen),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "Log In", fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
-
+                    AuthPrimaryButton(text = "Log In", onClick = { /* TODO */ })
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
-                        Text(text = "Forgot password?", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                        Text(
+                            text = "Forgot password?",
+                            color = MidnightBlue,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 14.sp
+                        )
                     }
-
                 } else {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LightGray)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(text = "Email address", color = Color.Gray)
-                    }
-
+                    AuthInputField(placeholder = "Email address")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LightGray)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(text = "Password", color = Color.Gray)
-                    }
-
+                    AuthInputField(placeholder = "Password")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(LightGray)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Text(text = "Confirm Password", color = Color.Gray)
-                    }
-
+                    AuthInputField(placeholder = "Confirm Password")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(55.dp)
-                            .clip(RoundedCornerShape(25.dp))
-                            .background(NeonGreen),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "Create Account", fontWeight = FontWeight.Bold, color = Color.Black)
-                    }
+                    AuthPrimaryButton(text = "Create Account", onClick = { /* TODO */ })
                 }
             }
         }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -22,11 +23,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Gray
+import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
+import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import com.example.myapplicationkoG.ui.theme.NeonGreen
 
 @Composable
@@ -38,23 +43,26 @@ fun SearchScreen(){
             .navigationBarsPadding()
             .statusBarsPadding()
     ) {
+        //First Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
+            //Search Bar
             Row(
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
                     .clip(RoundedCornerShape(12.dp))
-                    .background(color = LightGray),
+                    .background(color = Cyan),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Image(
+                Icon(
                     painter = painterResource(id = R.drawable.search),
-                    contentDescription = "Search",
+                    contentDescription = "Icon Description",
+                    tint = MidnightBlue,
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(30.dp)
@@ -63,21 +71,23 @@ fun SearchScreen(){
                 Text(
                     text = "Search",
                     fontSize = 26.sp,
-                    color = Gray
+                    color = MidnightBlue
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
+            //Filter Button
             Box(
                 modifier = Modifier
                     .width(40.dp)
                     .height(40.dp)
                     .clip(shape = RoundedCornerShape(size = 12.dp))
-                    .background(color = NeonGreen),
+                    .background(color = Cyan),
                 contentAlignment = Alignment.Center
             ) {
-                Image(
+                Icon(
                     painter = painterResource(id = R.drawable.filter),
-                    contentDescription = "Filter",
+                    contentDescription = "Icon Description",
+                    tint = MidnightBlue,
                     modifier = Modifier
                         .size(30.dp)
                 )
