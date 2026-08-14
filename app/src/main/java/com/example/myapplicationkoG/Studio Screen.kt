@@ -82,6 +82,7 @@ fun ColumnScope.StudioCard(
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
             )
+
         }
     }
 }
