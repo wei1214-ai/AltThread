@@ -109,7 +109,7 @@ fun StudioScreen() {
                 text = "Design Studio",
                 color = MidnightBlue,
                 fontWeight = FontWeight.ExtraBold,
-                fontSize = 45.sp,
+                fontSize = 40.sp,
                 modifier = Modifier.padding(all = 40.dp)
             )
             Column(

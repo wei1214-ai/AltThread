@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -76,12 +77,12 @@ fun HomeScreen() {
             .background(color = White)
             .navigationBarsPadding()
             .statusBarsPadding()
+            .padding(16.dp)
     ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp)
-                .padding(16.dp),
+                .height(100.dp),
         ) {
             // Title
             Text(
@@ -101,20 +102,24 @@ fun HomeScreen() {
                     .align(Alignment.CenterEnd),
                 contentAlignment = Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.notice),
-                    contentDescription = "Notice",
-                    tint = MidnightBlue,
-                    modifier = Modifier.size(30.dp)
-                )
+                IconButton(
+                    onClick = { /* Handle click action here */ },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(id = R.drawable.notice),
+                        contentDescription = "Notice",
+                        tint = MidnightBlue,
+                        modifier = Modifier.size(30.dp)
+                    )
+                }
             }
         }
 
         Row(
             modifier = Modifier
                 .height(40.dp)
-                .horizontalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp), // Ensures padding remains at the start/end of scroll
+                .horizontalScroll(rememberScrollState()),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(16.dp)
         ) {
