@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -36,6 +37,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.modifier.modifierLocalConsumer
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -78,15 +80,34 @@ fun HomeScreen() {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(100.dp),
-            contentAlignment = Alignment.Center
+                .height(100.dp)
+                .padding(16.dp),
         ) {
+            // Title
             Text(
                 text = "AltThread",
                 fontSize = 40.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = MidnightBlue
+                color = MidnightBlue,
+                modifier = Modifier.align(Alignment.Center)
             )
+
+            // Notice Button
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(shape = RoundedCornerShape(size = 12.dp))
+                    .background(color = Cyan)
+                    .align(Alignment.CenterEnd),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    painter = painterResource(id = R.drawable.notice),
+                    contentDescription = "Notice",
+                    tint = MidnightBlue,
+                    modifier = Modifier.size(30.dp)
+                )
+            }
         }
 
         Row(

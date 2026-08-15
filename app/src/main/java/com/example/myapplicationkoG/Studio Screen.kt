@@ -39,6 +39,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.ui.theme.Cyan
+import com.example.myapplicationkoG.ui.theme.LightCyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import com.example.myapplicationkoG.ui.theme.NeonGreen
 
@@ -49,7 +50,7 @@ fun ColumnScope.StudioCard(
     modifier: Modifier = Modifier
 ) {
     Card(
-        shape = RoundedCornerShape(25.dp),
+        shape = RoundedCornerShape(size = 25.dp),
         colors = CardDefaults.cardColors(containerColor = White),
         modifier = modifier
             .fillMaxWidth()
@@ -109,7 +110,7 @@ fun StudioScreen() {
                 color = MidnightBlue,
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 45.sp,
-                modifier = Modifier.padding(40.dp)
+                modifier = Modifier.padding(all = 40.dp)
             )
             Column(
                 modifier = Modifier

@@ -47,7 +47,7 @@ fun SearchScreen(){
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(16.dp),
+                .padding(all = 16.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             //Search Bar
@@ -55,7 +55,7 @@ fun SearchScreen(){
                 modifier = Modifier
                     .weight(1f)
                     .height(40.dp)
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(shape = RoundedCornerShape(size = 12.dp))
                     .background(color = LightGray),
                 verticalAlignment = Alignment.CenterVertically
             ) {
