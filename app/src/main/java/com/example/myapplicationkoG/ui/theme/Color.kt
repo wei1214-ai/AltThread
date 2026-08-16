@@ -19,4 +19,4 @@ val MidnightBlue = Color(0xFF013232)
 
 val Cyan = Color(0xFF00F2FF)
 
-val LightCyan = Color(0xFFb9f8fa)
+val LightCyan = Color(0xFFdefcfb)
