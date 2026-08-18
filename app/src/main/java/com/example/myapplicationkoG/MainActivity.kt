@@ -37,14 +37,11 @@ fun AltThreadApp() {
     Scaffold(
         modifier = Modifier.fillMaxSize(),
         bottomBar = {
-            // 只有 Home / Search / Studio / Profile 才显示底部导航栏
-            if (currentRoute in bottomBarRoutes) {
+            if (currentRoute in bottomBarRoutes && currentRoute != Screen.Upload.route) {
                 BottomNavBar(navController = navController, currentRoute = currentRoute)
             }
         }
     ) { innerPadding ->
-        // innerPadding 已经把状态栏、导航栏、底部 NavigationBar 占用的空间都算好了
-        // 每个 Screen 不需要再自己 statusBarsPadding()/navigationBarsPadding()
         NavHost(
             navController = navController,
             startDestination = Screen.Auth.route,
@@ -54,7 +51,6 @@ fun AltThreadApp() {
                 AuthScreen(
                     onLoginSuccess = {
                         navController.navigate(Screen.Home.route) {
-                            // 把 Auth 从返回栈里移除，登录后按返回键不会又跳回登录页
                             popUpTo(Screen.Auth.route) { inclusive = true }
                         }
                     }

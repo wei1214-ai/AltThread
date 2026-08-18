@@ -1,6 +1,5 @@
 package com.example.myapplicationkoG
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,10 +8,8 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -23,16 +20,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.Gray
-import androidx.compose.ui.graphics.Color.Companion.White
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.ui.theme.Cyan
-import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
-import com.example.myapplicationkoG.ui.theme.NeonGreen
 
 @Composable
 fun SearchScreen(){
@@ -54,13 +47,13 @@ fun SearchScreen(){
                     .weight(1f)
                     .height(40.dp)
                     .clip(shape = RoundedCornerShape(size = 12.dp))
-                    .background(color = LightGray),
+                    .background(color = Color.LightGray),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Icon(
                     painter = painterResource(id = R.drawable.search),
                     contentDescription = "Icon Description",
-                    tint = Gray,
+                    tint = Color.Gray,
                     modifier = Modifier
                         .padding(start = 12.dp)
                         .size(30.dp)
@@ -69,7 +62,7 @@ fun SearchScreen(){
                 Text(
                     text = "Search",
                     fontSize = 26.sp,
-                    color = Gray
+                    color = Color.Gray
                 )
             }
             Spacer(modifier = Modifier.width(16.dp))
