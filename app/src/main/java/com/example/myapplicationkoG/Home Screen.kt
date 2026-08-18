@@ -1,6 +1,7 @@
 package com.example.myapplicationkoG
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,6 +21,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -37,20 +42,23 @@ import com.example.myapplicationkoG.ui.theme.MidnightBlue
 @Composable
 fun FilterChip(
     label: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Box(
         modifier = modifier
             .height(40.dp)
             .clip(shape = RoundedCornerShape(size = 12.dp))
-            .background(color = Cyan)
+            .background(color = if (isSelected) Cyan else Color.LightGray)
+            .clickable { onClick() }
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
-            color = MidnightBlue,
+            color = if (isSelected) MidnightBlue else Color.Gray,
             maxLines = 1
         )
     }
@@ -58,6 +66,9 @@ fun FilterChip(
 
 @Composable
 fun HomeScreen() {
+    var selectedFilter by remember { mutableStateOf("For You") }
+    val filters = listOf("For You", "Trend", "Challenge", "Vintage", "Streetwear")
+
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
@@ -70,7 +81,7 @@ fun HomeScreen() {
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(100.dp),
+                        .height(80.dp),
                 ) {
                     // Title
                     Text(
@@ -120,11 +131,13 @@ fun HomeScreen() {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    FilterChip(label = "For You")
-                    FilterChip(label = "Trend")
-                    FilterChip(label = "Challenge")
-                    FilterChip(label = "Vintage")
-                    FilterChip(label = "Streetwear")
+                    filters.forEach { filter ->
+                        FilterChip(
+                            label = filter,
+                            isSelected = selectedFilter == filter,
+                            onClick = { selectedFilter = filter }
+                        )
+                    }
                 }
             }
         }
