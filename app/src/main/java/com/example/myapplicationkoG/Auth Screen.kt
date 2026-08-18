@@ -99,14 +99,14 @@ private fun AuthPrimaryButton(
 }
 
 @Composable
-fun AuthScreen() {
+fun AuthScreen(
+    onLoginSuccess: () -> Unit = {}
+) {
     var isLogin by remember { mutableStateOf(value = true) }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .navigationBarsPadding()
-            .statusBarsPadding()
     ) {
         // Upper Border
         Box(
@@ -191,7 +191,7 @@ fun AuthScreen() {
                     AuthInputField(placeholder = "Password")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthPrimaryButton(text = "Log In", onClick = { /* TODO */ })
+                    AuthPrimaryButton(text = "Log In", onClick = { onLoginSuccess() })
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -212,7 +212,7 @@ fun AuthScreen() {
                     AuthInputField(placeholder = "Confirm Password")
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthPrimaryButton(text = "Create Account", onClick = { /* TODO */ })
+                    AuthPrimaryButton(text = "Create Account", onClick = { onLoginSuccess() })
                 }
             }
         }

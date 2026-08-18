@@ -20,23 +20,23 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
-fun UploadScreen() {
+fun UploadScreen(
+    onClose: () -> Unit = {}
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
-            .navigationBarsPadding()
-            .statusBarsPadding()
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(80.dp)
-                .padding(horizontal = 16.dp, vertical = 16.dp),
+                .padding(all = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            ActionIcon(iconResId = R.drawable.close, contentDescription = "Close") { }
+            ActionIcon(iconResId = R.drawable.close, contentDescription = "Close") { onClose() }
             ActionIcon(iconResId = R.drawable.flash_off, contentDescription = "Flash") { }
             ActionIcon(iconResId = R.drawable.setting, contentDescription = "Settings") { }
         }
@@ -56,7 +56,7 @@ fun UploadScreen() {
             modifier = Modifier
                 .fillMaxWidth()
                 .height(140.dp)
-                .padding(horizontal = 16.dp, vertical = 16.dp)
+                .padding(all = 16.dp)
         ) {
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
@@ -72,7 +72,7 @@ fun UploadScreen() {
                     .size(80.dp)
                     .clip(CircleShape)
                     .background(Color.White.copy(alpha = 0.2f))
-                    .border(4.dp, Color.White, CircleShape)
+                    .border(width = 4.dp, Color.White, CircleShape)
                     .clickable { },
                 contentAlignment = Alignment.Center
             ) {

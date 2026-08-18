@@ -40,8 +40,6 @@ fun SearchScreen(){
         modifier = Modifier
             .fillMaxSize()
             .background(color = Color.White)
-            .navigationBarsPadding()
-            .statusBarsPadding()
     ) {
         //First Row
         Row(

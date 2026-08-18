@@ -95,9 +95,7 @@ fun ProfileScreen() {
         columns = GridCells.Fixed(3),
         modifier = Modifier
             .fillMaxSize()
-            .background(color = Color.White)
-            .navigationBarsPadding()
-            .statusBarsPadding(),
+            .background(color = Color.White),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
