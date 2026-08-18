@@ -1,17 +1,11 @@
 package com.example.myapplicationkoG
 
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Checkroom
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.FlashOff
-import androidx.compose.material.icons.filled.FlipCameraAndroid
-import androidx.compose.material.icons.filled.PhotoLibrary
-import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -20,7 +14,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -35,37 +31,15 @@ fun UploadScreen() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black)
+                .height(80.dp)
                 .padding(horizontal = 16.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            IconButton(onClick = { }) {
-                Icon(
-                    imageVector = Icons.Default.Close,
-                    contentDescription = "Close",
-                    tint = Color.White,
-                    modifier = Modifier.size(32.dp)
-                )
-            }
-            IconButton(onClick = { }) {
-                Icon(
-                    imageVector = Icons.Default.FlashOff,
-                    contentDescription = "Flash",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
-            IconButton(onClick = { }) {
-                Icon(
-                    imageVector = Icons.Default.Settings,
-                    contentDescription = "Settings",
-                    tint = Color.White,
-                    modifier = Modifier.size(28.dp)
-                )
-            }
+            ActionIcon(iconResId = R.drawable.close, contentDescription = "Close") { }
+            ActionIcon(iconResId = R.drawable.flash_off, contentDescription = "Flash") { }
+            ActionIcon(iconResId = R.drawable.setting, contentDescription = "Settings") { }
         }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -78,36 +52,20 @@ fun UploadScreen() {
                 modifier = Modifier.align(Alignment.Center)
             )
         }
-
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color.Black)
-                .padding(horizontal = 12.dp, vertical = 24.dp)
+                .height(140.dp)
+                .padding(horizontal = 16.dp, vertical = 16.dp)
         ) {
             Row(
                 modifier = Modifier.align(Alignment.CenterStart),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.PhotoLibrary,
-                        contentDescription = "Gallery",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
-                IconButton(onClick = { }) {
-                    Icon(
-                        imageVector = Icons.Default.Checkroom,
-                        contentDescription = "Tag Clothes",
-                        tint = Color.White,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                ActionIcon(iconResId = R.drawable.gallery, contentDescription = "Gallery") { }
+                ActionIcon(iconResId = R.drawable.wardrobebutton, contentDescription = "Tag Clothes") { }
             }
-
             Box(
                 modifier = Modifier
                     .align(Alignment.Center)
@@ -125,19 +83,34 @@ fun UploadScreen() {
                         .background(Color.White)
                 )
             }
-
-            IconButton(
-                onClick = { },
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.FlipCameraAndroid,
-                    contentDescription = "Flip Camera",
-                    tint = Color.White,
-                    modifier = Modifier.size(36.dp)
-                )
-            }
+            ActionIcon(
+                modifier = Modifier.align(Alignment.CenterEnd),
+                iconResId = R.drawable.flip_camera,
+                contentDescription = "Flip Camera"
+            ) { }
         }
+    }
+}
+
+@Composable
+fun ActionIcon(
+    modifier: Modifier = Modifier,
+    @DrawableRes iconResId: Int,
+    contentDescription: String,
+    size: Dp = 30.dp,
+    tint: Color = Color.White,
+    onClick: () -> Unit
+) {
+    IconButton(
+        onClick = onClick,
+        modifier = modifier
+    ) {
+        Icon(
+            painter = painterResource(id = iconResId),
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(size)
+        )
     }
 }
 
