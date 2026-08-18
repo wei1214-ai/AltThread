@@ -98,6 +98,6 @@ fun SearchScreen(){
 
 @Preview(showBackground = true)
 @Composable
-fun SScreen(){
+fun SeScreenPreview(){
     SearchScreen()
 }

@@ -259,6 +259,6 @@ fun ProfileScreen() {
 
 @Preview(showBackground = true)
 @Composable
-fun PScreen(){
+fun PScreenPreview(){
     ProfileScreen()
 }

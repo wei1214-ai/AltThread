@@ -6,8 +6,10 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,6 +22,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentSize
 import androidx.compose.foundation.layout.wrapContentWidth
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
@@ -55,9 +58,9 @@ fun FilterChip(
     Box(
         modifier = modifier
             .height(40.dp)
-            .clip(RoundedCornerShape(12.dp))    // 12 = corner radius
+            .clip(RoundedCornerShape(12.dp))
             .background(color = Cyan)
-            .padding(horizontal = 16.dp),   // Adds space on the left and the right side of the text
+            .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
     ) {
         Text(
@@ -71,66 +74,79 @@ fun FilterChip(
 
 @Composable
 fun HomeScreen() {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .background(color = White)
             .navigationBarsPadding()
-            .statusBarsPadding()
-            .padding(16.dp)
+            .statusBarsPadding(),
+        contentPadding = PaddingValues(16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(100.dp),
-        ) {
-            // Title
-            Text(
-                text = "AltThread",
-                fontSize = 40.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MidnightBlue,
-                modifier = Modifier.align(Alignment.Center)
-            )
-
-            // Notice Button
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(shape = RoundedCornerShape(size = 12.dp))
-                    .background(color = Cyan)
-                    .align(Alignment.CenterEnd),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(
-                    onClick = { /* Handle click action here */ },
-                    modifier = Modifier.size(48.dp)
+        item {
+            Column {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(100.dp),
                 ) {
-                    Icon(
-                        painter = painterResource(id = R.drawable.notice),
-                        contentDescription = "Notice",
-                        tint = MidnightBlue,
-                        modifier = Modifier.size(30.dp)
+                    // Title
+                    Text(
+                        text = "AltThread",
+                        fontSize = 40.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        color = MidnightBlue,
+                        modifier = Modifier.align(Alignment.Center)
                     )
+
+                    // Notice Button
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(shape = RoundedCornerShape(size = 12.dp))
+                            .background(color = Cyan)
+                            .align(Alignment.CenterEnd),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = { /* Handle click action here */ },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.notice),
+                                contentDescription = "Notice",
+                                tint = MidnightBlue,
+                                modifier = Modifier.size(30.dp)
+                            )
+                        }
+                    }
+                }
+                // Filter Row
+                Row(
+                    modifier = Modifier
+                        .height(40.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    FilterChip(label = "For You")
+                    FilterChip(label = "Trend")
+                    FilterChip(label = "Challenge")
+                    FilterChip(label = "Vintage")
+                    FilterChip(label = "Streetwear")
                 }
             }
         }
-
-        Row(
-            modifier = Modifier
-                .height(40.dp)
-                .horizontalScroll(rememberScrollState()),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(16.dp)
-        ) {
-            FilterChip(label = "For You")
-            FilterChip(label = "Trend")
-            FilterChip(label = "Challenge")
-            FilterChip(label = "Vintage")
-            FilterChip(label = "Streetwear")
+        items(20) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .aspectRatio(0.8f)
+                    .clip(RoundedCornerShape(25.dp))
+                    .background(Color.LightGray)
+            )
         }
     }
-
 }
 
 @Preview(showBackground = true)

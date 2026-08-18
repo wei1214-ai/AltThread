@@ -140,6 +140,6 @@ fun StudioScreen() {
 
 @Preview(showBackground = true)
 @Composable
-fun SScreenPreview() {
+fun StScreenPreview() {
     StudioScreen()
 }
