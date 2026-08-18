@@ -20,7 +20,7 @@ class MainActivity : ComponentActivity() {
             AltThreadTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
                     Box(modifier = Modifier.padding(innerPadding))
-                    HomeScreen()
+                    UploadScreen()
                 }
             }
         }
