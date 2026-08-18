@@ -34,7 +34,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.layout.ContentScale
@@ -125,6 +127,15 @@ fun HomeScreen() {
                 Row(
                     modifier = Modifier
                         .height(40.dp)
+                        .drawWithContent {
+                            drawContent()
+                            drawRect(
+                                brush = Brush.horizontalGradient(
+                                    0.85f to Color.Transparent,
+                                    1.0f to White
+                                )
+                            )
+                        }
                         .horizontalScroll(rememberScrollState()),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
