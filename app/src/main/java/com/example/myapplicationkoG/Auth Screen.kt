@@ -15,6 +15,8 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -30,6 +32,9 @@ import androidx.compose.ui.graphics.Color.Companion.White
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -64,19 +69,25 @@ private fun AuthTabItem(
 @Composable
 private fun AuthInputField(
     placeholder: String,
+    value: String,
+    onValueChange: (String)-> Unit,
+    isPassword: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    Box(
-        modifier = modifier
-            .fillMaxWidth()
-            .height(55.dp)
-            .clip(shape = RoundedCornerShape(size = 12.dp))
-            .background(color = LightGray)
-            .padding(horizontal = 16.dp),
-        contentAlignment = Alignment.CenterStart
-    ) {
-        Text(text = placeholder, color = Color.Gray)
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        placeholder = {Text(placeholder)},
+        singleLine = true,
+        visualTransformation =
+            if (isPassword) PasswordVisualTransformation()
+            else VisualTransformation.None,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = if (isPassword) KeyboardType.Password
+            else KeyboardType.Email
+        ),
+        modifier = modifier.fillMaxWidth()
+    )
 }
 
 @Composable
@@ -103,6 +114,20 @@ fun AuthScreen(
     onLoginSuccess: () -> Unit = {}
 ) {
     var isLogin by remember { mutableStateOf(value = true) }
+    var email by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var confirmPassword by remember { mutableStateOf("") }
+    var errorMessage by remember { mutableStateOf("") }
+
+
+    fun validateLogin(): Boolean{
+        errorMessage = when{
+            email.isBlank()-> "Email is required"
+            password.isBlank()->"Password is required"
+            else -> ""}
+
+        return errorMessage.isEmpty()
+    }
 
     Column(
         modifier = Modifier
@@ -185,13 +210,21 @@ fun AuthScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 if (isLogin) {
-                    AuthInputField(placeholder = "Username")
+                    AuthInputField(
+                        placeholder = "Email Address",
+                        value = email,
+                        onValueChange = {email = it}
+                        )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthInputField(placeholder = "Password")
+                    AuthInputField(placeholder = "Password",
+                        value = password,
+                        onValueChange = {password=it}
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthPrimaryButton(text = "Log In", onClick = { onLoginSuccess() })
+                    AuthPrimaryButton(text = "Log In", onClick = { if(validateLogin()){
+                        onLoginSuccess() }})
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -203,13 +236,21 @@ fun AuthScreen(
                         )
                     }
                 } else {
-                    AuthInputField(placeholder = "Email address")
+                    AuthInputField(placeholder = "Email address",
+                        value = email,
+                        onValueChange = {email = it})
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthInputField(placeholder = "Password")
+                    AuthInputField(placeholder = "Password",
+                        value = password,
+                        onValueChange = {password = it},
+                        isPassword = true)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthInputField(placeholder = "Confirm Password")
+                    AuthInputField(placeholder = "Confirm Password",
+                        value = confirmPassword,
+                        onValueChange = {confirmPassword = it},
+                        isPassword = true)
                     Spacer(modifier = Modifier.height(16.dp))
 
                     AuthPrimaryButton(text = "Create Account", onClick = { onLoginSuccess() })
@@ -218,6 +259,8 @@ fun AuthScreen(
         }
     }
 }
+
+
 
 @Preview(showBackground = true)
 @Composable
