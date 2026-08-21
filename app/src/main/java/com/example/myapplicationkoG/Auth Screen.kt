@@ -41,6 +41,10 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import androidx.compose.runtime.rememberCoroutineScope
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import kotlinx.coroutines.launch
 
 
 @Composable
@@ -113,11 +117,13 @@ private fun AuthPrimaryButton(
 fun AuthScreen(
     onLoginSuccess: () -> Unit = {}
 ) {
-    var isLogin by remember { mutableStateOf(value = true) }
+    var isLogin by remember { mutableStateOf( true) }
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
+
+    val scope = rememberCoroutineScope ()
 
 
     fun validateLogin(): Boolean{
@@ -126,6 +132,19 @@ fun AuthScreen(
             password.isBlank()->"Password is required"
             else -> ""}
 
+        return errorMessage.isEmpty()
+    }
+
+    fun validateRegister(): Boolean{
+        errorMessage = when{
+            email.isBlank()->"Email is required."
+            !email.contains("@")-> "Enter valid email address."
+            password.isBlank()-> "Password is required."
+            password.length<6 -> "Password must be at least 6 character."
+            confirmPassword.isBlank()->"Please confirm you password."
+            password != confirmPassword->"Password does not match."
+            else ->""
+        }
         return errorMessage.isEmpty()
     }
 
@@ -223,8 +242,25 @@ fun AuthScreen(
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthPrimaryButton(text = "Log In", onClick = { if(validateLogin()){
-                        onLoginSuccess() }})
+                    AuthPrimaryButton(text = "Log In",
+                        onClick = {
+                            if(validateLogin()) {
+                                val enteredEmail = email
+                                val enteredPassword = password
+                                scope.launch {
+                                    try {
+                                        supabase.auth.signInWith(Email){
+                                            email = enteredEmail
+                                            password= enteredPassword
+                                        }
+                                        onLoginSuccess()
+                                    }catch (exception: Exception){
+                                        errorMessage = "Incorrect email or password."
+                                    }
+                                }
+                            }
+                        }
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -253,7 +289,25 @@ fun AuthScreen(
                         isPassword = true)
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    AuthPrimaryButton(text = "Create Account", onClick = { onLoginSuccess() })
+                    AuthPrimaryButton(text = "Create Account",
+                        onClick = {
+                            if (validateRegister()){
+                                val enteredEmail = email
+                                val enteredPassword = password
+                                scope.launch {
+                                    try {
+                                        supabase.auth.signUpWith(Email){
+                                            email = enteredEmail
+                                            password = enteredPassword
+                                        }
+                                        errorMessage = " Account created. Check your email to confirm it."
+                                    } catch (exception: Exception){
+                                        errorMessage= exception.message ?:"Could not create account."
+                                    }
+                                }
+                            }
+                        }
+                    )
                 }
             }
         }
