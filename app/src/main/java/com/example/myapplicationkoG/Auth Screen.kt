@@ -233,7 +233,7 @@ fun AuthScreen(
                         placeholder = "Email Address",
                         value = email,
                         onValueChange = {email = it}
-                        )
+                    )
                     Spacer(modifier = Modifier.height(16.dp))
 
                     AuthInputField(placeholder = "Password",

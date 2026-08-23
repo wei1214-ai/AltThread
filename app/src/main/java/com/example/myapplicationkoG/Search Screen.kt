@@ -1,8 +1,10 @@
 package com.example.myapplicationkoG
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,77 +13,299 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Color.Companion.Gray
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import kotlinx.coroutines.delay
 
 @Composable
-fun SearchScreen(){
+fun SearchScreen() {
+
+    // ==========================================
+    // Search keyword
+    // ==========================================
+
+    var keyword by remember {
+        mutableStateOf("")
+    }
+
+
+    // ==========================================
+    // Search results
+    // ==========================================
+
+    var results by remember {
+        mutableStateOf<List<Post>>(emptyList())
+    }
+
+
+    // ==========================================
+    // Loading
+    // ==========================================
+
+    var isLoading by remember {
+        mutableStateOf(false)
+    }
+
+
+    // ==========================================
+    // Search Supabase
+    // ==========================================
+
+    LaunchedEffect(keyword) {
+
+        if (keyword.isBlank()) {
+
+            results = emptyList()
+            isLoading = false
+
+            return@LaunchedEffect
+        }
+
+
+        isLoading = true
+
+
+        // Wait 500ms before searching.
+        // This prevents sending a request
+        // for every single letter.
+
+        delay(500)
+
+
+        try {
+
+            val repository =
+                PostRepository()
+
+            results =
+                repository.searchPosts(
+                    keyword.trim()
+                )
+
+        } catch (e: Exception) {
+
+            results = emptyList()
+
+        } finally {
+
+            isLoading = false
+        }
+    }
+
+
+    // ==========================================
+    // UI
+    // ==========================================
+
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(color = Color.White)
+            .background(Color.White)
     ) {
-        //First Row
+
+
+        // ======================================
+        // TOP SEARCH BAR
+        // ======================================
+
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(all = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
+                .padding(16.dp),
+
+            verticalAlignment =
+                Alignment.CenterVertically
         ) {
-            //Search Bar
-            Row(
-                modifier = Modifier
-                    .weight(1f)
-                    .height(40.dp)
-                    .clip(shape = RoundedCornerShape(size = 12.dp))
-                    .background(color = Color.LightGray),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.search),
-                    contentDescription = "Icon Description",
-                    tint = Color.Gray,
-                    modifier = Modifier
-                        .padding(start = 12.dp)
-                        .size(30.dp)
-                )
-                Spacer(modifier = Modifier.width(12.dp))
-                Text(
-                    text = "Search",
-                    fontSize = 26.sp,
-                    color = Color.Gray
-                )
-            }
-            Spacer(modifier = Modifier.width(16.dp))
-            //Filter Button
+
+
+            // Search box
+
+            OutlinedTextField(
+
+                value = keyword,
+
+                onValueChange = {
+                    keyword = it
+                },
+
+                modifier =
+                    Modifier.weight(1f),
+
+                singleLine = true,
+
+                placeholder = {
+                    Text(
+                        text =
+                            "Search clothes..."
+                    )
+                },
+
+                leadingIcon = {
+
+                    Icon(
+                        painter =
+                            painterResource(
+                                id =
+                                    R.drawable.search
+                            ),
+
+                        contentDescription =
+                            "Search",
+
+                        tint =
+                            Color.Gray
+                    )
+                },
+
+                shape =
+                    RoundedCornerShape(12.dp)
+            )
+
+
+            Spacer(
+                modifier =
+                    Modifier.width(16.dp)
+            )
+
+
+            // Filter button
+
             Box(
                 modifier = Modifier
-                    .width(40.dp)
-                    .height(40.dp)
-                    .clip(shape = RoundedCornerShape(size = 12.dp))
-                    .background(color = Cyan),
-                contentAlignment = Alignment.Center
+                    .size(40.dp)
+                    .clip(
+                        RoundedCornerShape(12.dp)
+                    )
+                    .background(Cyan),
+
+                contentAlignment =
+                    Alignment.Center
             ) {
-                Icon(
-                    painter = painterResource(id = R.drawable.filter),
-                    contentDescription = "Icon Description",
-                    tint = MidnightBlue,
-                    modifier = Modifier
-                        .size(30.dp)
-                )
+
+                IconButton(
+                    onClick = {
+                        // TODO:
+                        // Open filter page
+                    }
+                ) {
+
+                    Icon(
+                        painter =
+                            painterResource(
+                                id =
+                                    R.drawable.filter
+                            ),
+
+                        contentDescription =
+                            "Filter",
+
+                        tint =
+                            MidnightBlue,
+
+                        modifier =
+                            Modifier.size(25.dp)
+                    )
+                }
+            }
+        }
+
+
+        // ======================================
+        // LOADING
+        // ======================================
+
+        if (isLoading) {
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize(),
+
+                contentAlignment =
+                    Alignment.Center
+            ) {
+
+                CircularProgressIndicator()
+            }
+        }
+
+
+        // ======================================
+        // SEARCH RESULTS
+        // ======================================
+
+        else {
+
+            LazyVerticalGrid(
+
+                columns =
+                    GridCells.Fixed(2),
+
+                modifier =
+                    Modifier.fillMaxSize(),
+
+                contentPadding =
+                    PaddingValues(16.dp),
+
+                horizontalArrangement =
+                    Arrangement.spacedBy(10.dp),
+
+                verticalArrangement =
+                    Arrangement.spacedBy(10.dp)
+            ) {
+
+                items(
+                    items = results,
+
+                    key = {
+                        it.id
+                    }
+                ) { post ->
+
+                    AsyncImage(
+
+                        model =
+                            post.image_url,
+
+                        contentDescription =
+                            post.caption,
+
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(230.dp)
+                            .clip(
+                                RoundedCornerShape(
+                                    15.dp
+                                )
+                            ),
+
+                        contentScale =
+                            ContentScale.Crop
+                    )
+                }
             }
         }
     }
@@ -89,6 +313,6 @@ fun SearchScreen(){
 
 @Preview(showBackground = true)
 @Composable
-fun SeScreenPreview(){
+fun HScreenPreview() {
     SearchScreen()
 }
