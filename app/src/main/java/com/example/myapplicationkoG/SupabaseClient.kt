@@ -10,7 +10,10 @@ val supabase: SupabaseClient = createSupabaseClient(
     supabaseUrl = "https://fqyixgfokvnvpudiruej.supabase.co",
     supabaseKey = "sb_publishable_XvUT9LxMnJ8qSJM6KVun5Q_pfUb-lUE"
 ) {
-    install(Auth)
+    install(Auth){
+        scheme = "altthread"
+        host = "login"
+    }
     install(Postgrest)
     install(Storage)
 }

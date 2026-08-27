@@ -15,10 +15,13 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.handleDeeplinks
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        supabase.handleDeeplinks(intent)
         enableEdgeToEdge()
         setContent {
             AltThreadTheme {
@@ -33,6 +36,12 @@ fun AltThreadApp() {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val startDestination =
+        if (supabase.auth.currentSessionOrNull() != null) {
+            Screen.Home.route
+        } else {
+            Screen.Auth.route
+        }
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),

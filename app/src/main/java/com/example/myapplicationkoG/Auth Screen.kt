@@ -11,11 +11,14 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -123,6 +126,8 @@ fun AuthScreen(
     var confirmPassword by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf("") }
 
+    val scrollState = rememberScrollState()
+
     val scope = rememberCoroutineScope ()
 
 
@@ -151,6 +156,8 @@ fun AuthScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(scrollState)
+            .imePadding()
     ) {
         // Upper Border
         Box(
@@ -201,7 +208,7 @@ fun AuthScreen(
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .weight(1f),
+                .padding(bottom = 24.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -238,7 +245,8 @@ fun AuthScreen(
 
                     AuthInputField(placeholder = "Password",
                         value = password,
-                        onValueChange = {password=it}
+                        onValueChange = {password=it},
+                        isPassword = true
                     )
                     Spacer(modifier = Modifier.height(16.dp))
 
@@ -250,17 +258,18 @@ fun AuthScreen(
                                 scope.launch {
                                     try {
                                         supabase.auth.signInWith(Email){
-                                            email = enteredEmail
-                                            password= enteredPassword
+                                            this.email= enteredEmail.trim()
+                                            this.password= enteredPassword
                                         }
                                         onLoginSuccess()
                                     }catch (exception: Exception){
-                                        errorMessage = "Incorrect email or password."
+                                        errorMessage = exception.message?:"Incorrect email or password."
                                     }
                                 }
                             }
                         }
                     )
+
                     Spacer(modifier = Modifier.height(16.dp))
 
                     Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
@@ -297,16 +306,31 @@ fun AuthScreen(
                                 scope.launch {
                                     try {
                                         supabase.auth.signUpWith(Email){
-                                            email = enteredEmail
-                                            password = enteredPassword
+                                            this.email = enteredEmail.trim()
+                                            this.password = enteredPassword
                                         }
-                                        errorMessage = " Account created. Check your email to confirm it."
+                                        isLogin = true
+                                        password=""
+                                        confirmPassword= ""
+                                        errorMessage = "Account created. Check your email to confirm it."
                                     } catch (exception: Exception){
                                         errorMessage= exception.message ?:"Could not create account."
                                     }
                                 }
                             }
                         }
+                    )
+                }
+
+                if(errorMessage.isNotBlank()){
+                    Text(
+                        text = errorMessage,
+                        color = if (errorMessage.startsWith("Account created")){
+                            Color(0xFF2E7D32)
+                        }else{
+                            Color.Red
+                        },
+                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
             }

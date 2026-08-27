@@ -49,7 +49,7 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:storage-kt")
 
     // Ktor (Must be 2.x for Supabase SDK compatibility)
-    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-android:3.0.0")
 
     // Coil (Image loading)
     implementation("io.coil-kt:coil-compose:2.6.0")
