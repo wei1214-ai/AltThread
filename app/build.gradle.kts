@@ -1,23 +1,29 @@
 plugins {
-    alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.androidApplication)
+    alias(libs.plugins.kotlinAndroid)
+    alias(libs.plugins.kotlinCompose)
+    alias(libs.plugins.kotlinSerialization)
+}
+
+kotlin {
+    // Pin compilation to Android Studio's bundled JBR (JDK 21).
+    // The IDE-hosted JRE (Trae) is missing jlink.exe, which breaks
+    // AGP's JDK image transform. Toolchain 21 resolves to the full JBR.
+    jvmToolchain(21)
 }
 
 android {
     namespace = "com.example.myapplicationkoG"
-    compileSdk = 37
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "com.example.myapplicationkoG"
         minSdk = 26
-        targetSdk = 36
+        targetSdk = 35
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Backend base URL. Android points to YOUR backend, not to AI providers.
-        // 10.0.2.2 is the host loopback for the Android emulator.
         val backendUrl: String = providers.gradleProperty("BACKEND_BASE_URL")
             .getOrElse("http://10.0.2.2:8000/")
         buildConfigField("String", "BACKEND_BASE_URL", "\"$backendUrl\"")
@@ -33,11 +39,11 @@ android {
     }
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
+        // Must match the Kotlin jvmToolchain (21) or Gradle fails with
+        // "Inconsistent JVM-target compatibility".
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
     }
-
-
 
     buildFeatures {
         compose = true
@@ -51,45 +57,37 @@ android {
     }
 }
 
-kotlin {
-    compilerOptions {
-        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
-    }
-}
-
 dependencies {
+    implementation(platform(libs.compose.bom))
+
     // Supabase
-    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
-    implementation("io.github.jan-tennert.supabase:postgrest-kt")
-    implementation("io.github.jan-tennert.supabase:auth-kt")
-    implementation("io.github.jan-tennert.supabase:storage-kt")
+    implementation("io.github.jan-tennert.supabase:postgrest-kt:3.0.1")
+    implementation("io.github.jan-tennert.supabase:auth-kt:3.0.1")
+    implementation("io.github.jan-tennert.supabase:storage-kt:3.0.1")
 
-    // Ktor (Must be 2.x for Supabase SDK compatibility)
-    implementation("io.ktor:ktor-client-android:3.0.0")
+    // Ktor
+    implementation("io.ktor:ktor-client-android:2.3.12")
 
-    // Coil (Image loading)
-    implementation("io.coil-kt:coil-compose:2.6.0")
+    // Coil
+    implementation(libs.coil.compose)
 
-    // Navigation & Compose UI
-    implementation(libs.androidx.activity.compose)
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation("androidx.navigation:navigation-compose:2.7.7")
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.compose.ui)
-    implementation(libs.androidx.compose.ui.graphics)
-    implementation(libs.androidx.compose.ui.tooling.preview)
-    implementation(libs.androidx.compose.material3)
-    implementation(libs.androidx.compose.material.icons.extended)
-    debugImplementation(libs.androidx.compose.ui.tooling)
-    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    // Activity & Compose UI
+    implementation(libs.activity.compose)
+    implementation(libs.ui)
+    implementation(libs.ui.graphics)
+    implementation(libs.ui.tooling.preview)
+    implementation(libs.material3)
+    implementation(libs.material.icons.extended)
+    
+    debugImplementation(libs.ui.tooling)
+    debugImplementation(libs.ui.test.manifest)
 
     // Navigation
-    implementation(libs.androidx.navigation.compose)
+    implementation(libs.navigation.compose)
 
     // Persistence
-    implementation(libs.androidx.datastore)
-    implementation(libs.androidx.datastore.preferences)
+    implementation(libs.datastore.core)
+    implementation(libs.datastore.preferences)
 
     // Network
     implementation(libs.retrofit)
@@ -101,13 +99,10 @@ dependencies {
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
 
-    // Image loading
-    implementation(libs.coil.compose)
-
     // Test
     testImplementation(libs.junit)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    androidTestImplementation(platform(libs.compose.bom))
+    androidTestImplementation(libs.ui.test.junit4)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
 }

@@ -5,11 +5,16 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplicationkoG.di.ServiceLocator
-import com.example.myapplicationkoG.domain.model.ClothingDocument
+import com.example.myapplicationkoG.domain.model.BrushStroke
+import com.example.myapplicationkoG.domain.model.CutLayer
+import com.example.myapplicationkoG.domain.model.DyeLayer
+import com.example.myapplicationkoG.domain.model.EditorLayer
 import com.example.myapplicationkoG.domain.model.GarmentSide
 import com.example.myapplicationkoG.domain.model.GarmentSideId
 import com.example.myapplicationkoG.domain.model.ImageAsset
 import com.example.myapplicationkoG.domain.model.MaskAsset
+import com.example.myapplicationkoG.domain.model.Point
+import com.example.myapplicationkoG.domain.model.VectorPath
 import com.example.myapplicationkoG.domain.model.Viewport
 import com.example.myapplicationkoG.storage.ImageCache
 import kotlinx.coroutines.Dispatchers
@@ -23,13 +28,20 @@ import java.io.File
 import java.util.UUID
 
 /**
- * Owns EditorState. The UI never calls anything except the public
- * [onPickedImage], [switchSide], [setTool], [applyViewport] etc.
+ * Owns EditorState. The UI never calls anything except the public methods.
+ *
+ * Part 2 P1 adds:
+ *  - tool property setters (color / radius / opacity / intensity / cutWidth)
+ *  - live stroke state (beginStroke / extendStroke / endStroke)
+ *  - undo / redo (snapshot-based)
+ *  - mutation pipeline that always commits a snapshot AFTER applying a
+ *    change, so the next undo rolls back to exactly the pre-mutation state
  */
 class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val preferences = ServiceLocator.projectPreferences(app)
     private val segmentation = ServiceLocator.segmentationService(app)
+    private val history = UndoRedoManager()
 
     private val _state = MutableStateFlow(EditorState())
     val state: StateFlow<EditorState> = _state.asStateFlow()
@@ -37,7 +49,18 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     init {
         viewModelScope.launch {
             preferences.documentFlow.collect { doc ->
-                _state.update { it.copy(document = doc) }
+                if (doc == null) return@collect
+                _state.update {
+                    // Fresh load: reset history. A more sophisticated implementation
+                    // would persist history too, but for MVP history is session-only.
+                    history.clear()
+                    it.copy(
+                        document = doc,
+                        canUndo = false,
+                        canRedo = false,
+                        errorMessage = null
+                    )
+                }
             }
         }
     }
@@ -62,16 +85,144 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun setTool(tool: EditorTool) {
-        _state.update { it.copy(selectedTool = tool) }
+        _state.update { it.copy(selectedTool = tool, inProgressStroke = null) }
+    }
+
+    // -------- Tool property setters (P1) --------
+
+    fun setToolColor(argb: Int) = _state.update { it.copy(toolColorArgb = argb) }
+    fun setBrushRadius(r: Float) = _state.update { it.copy(brushRadius = r.coerceIn(2f, 400f)) }
+    fun setBrushOpacity(o: Float) = _state.update { it.copy(brushOpacity = o.coerceIn(0f, 1f)) }
+    fun setDyeIntensity(i: Float) = _state.update { it.copy(dyeIntensity = i.coerceIn(0f, 1f)) }
+    fun setCutWidth(w: Float) = _state.update { it.copy(cutWidth = w.coerceIn(2f, 200f)) }
+
+    // -------- Undo / Redo (P1) --------
+
+    fun undo() {
+        val current = _state.value.document ?: return
+        val target = history.undo(current) ?: return
+        _state.update {
+            it.copy(
+                document = target,
+                canUndo = history.canUndo,
+                canRedo = history.canRedo,
+                inProgressStroke = null
+            )
+        }
+        persist()
+    }
+
+    fun redo() {
+        val current = _state.value.document ?: return
+        val target = history.redo(current) ?: return
+        _state.update {
+            it.copy(
+                document = target,
+                canUndo = history.canUndo,
+                canRedo = history.canRedo,
+                inProgressStroke = null
+            )
+        }
+        persist()
+    }
+
+    // -------- Live stroke (preview only; persisted on endStroke) --------
+
+    fun beginStroke(point: Point) {
+        val tool = _state.value.selectedTool
+        if (tool != EditorTool.DYE && tool != EditorTool.CUT) return
+        _state.update { it.copy(inProgressStroke = InProgressStroke(tool, listOf(point))) }
+    }
+
+    fun extendStroke(point: Point) {
+        val tool = _state.value.selectedTool
+        if (tool != EditorTool.DYE && tool != EditorTool.CUT) return
+        _state.update { current ->
+            val live = current.inProgressStroke ?: InProgressStroke(tool, emptyList())
+            val updated = live.copy(points = live.points + point)
+            current.copy(inProgressStroke = updated)
+        }
+    }
+
+    fun endStroke() {
+        val current = _state.value
+        val live = current.inProgressStroke ?: return
+        if (live.points.isEmpty()) {
+            _state.update { it.copy(inProgressStroke = null) }
+            return
+        }
+        when (live.tool) {
+            EditorTool.DYE -> commitDyeStroke(live)
+            EditorTool.CUT -> commitCutPath(live)
+            else -> _state.update { it.copy(inProgressStroke = null) }
+        }
+    }
+
+    private fun commitDyeStroke(live: InProgressStroke) {
+        val current = _state.value
+        val side = current.activeSideData ?: return
+        val newLayer = DyeLayer(
+            id = UUID.randomUUID().toString(),
+            visible = true,
+            opacity = current.brushOpacity,
+            order = side.layers.size,
+            brushPaths = listOf(
+                BrushStroke(
+                    points = live.points,
+                    radius = current.brushRadius
+                )
+            ),
+            colorArgb = current.toolColorArgb,
+            intensity = current.dyeIntensity,
+            brushRadius = current.brushRadius,
+            isEraser = false
+        )
+        applyLayerAddition(side, newLayer)
+    }
+
+    private fun commitCutPath(live: InProgressStroke) {
+        val current = _state.value
+        val side = current.activeSideData ?: return
+        val newLayer = CutLayer(
+            id = UUID.randomUUID().toString(),
+            visible = true,
+            opacity = 1f,
+            order = side.layers.size,
+            path = VectorPath(points = live.points, closed = false),
+            width = current.cutWidth
+        )
+        applyLayerAddition(side, newLayer)
+    }
+
+    private fun applyLayerAddition(side: GarmentSide, layer: EditorLayer) {
+        snapshot()
+        _state.update { current ->
+            val updatedSide = side.copy(layers = side.layers + layer)
+            val doc = when (current.activeSide) {
+                GarmentSideId.FRONT -> current.document?.copy(front = updatedSide)
+                GarmentSideId.BACK -> current.document?.copy(back = updatedSide)
+            }
+            current.copy(
+                document = doc,
+                inProgressStroke = null,
+                canUndo = history.canUndo,
+                canRedo = history.canRedo
+            )
+        }
+        persist()
     }
 
     /**
-     * User picked an image for a side via SAF. We:
-     *  1. Copy the bytes into app private storage (ImageCache).
-     *  2. Create/update a stub document entry.
-     *  3. Call the backend for segmentation.
-     *  4. Persist the final document.
+     * Capture the current document as an undo checkpoint. Called BEFORE
+     * mutating the document so undo can restore this exact state.
      */
+    private fun snapshot() {
+        val doc = _state.value.document ?: return
+        history.commit(doc)
+    }
+
+    // -------- Image import (unchanged from Part 1) --------
+
     fun onPickedImage(side: GarmentSideId, source: Uri) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }

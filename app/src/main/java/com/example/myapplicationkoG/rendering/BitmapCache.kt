@@ -27,8 +27,8 @@ class BitmapCache {
     suspend fun loadFor(side: GarmentSide): Pair<ImageBitmap?, ImageBitmap?> = withContext(Dispatchers.IO) {
         val key = "${side.sourceImage.uri}|${side.garmentMask?.uri}"
         if (key == lastKey) return@withContext lastSource to lastMask
-        val src = decodeAsset(side.sourceImage, maxEdge = 2048)
-        val mask = side.garmentMask?.let { decodeFile(it.uri, maxEdge = 2048)?.asImageBitmap() }
+        val src = decodeAsset(side.sourceImage.uri, maxEdge = 2048)
+        val mask = side.garmentMask?.let { decodeAsset(it.uri, maxEdge = 2048) }
         lastKey = key
         lastSource = src
         lastMask = mask
@@ -44,8 +44,8 @@ class BitmapCache {
         lastMask = null
     }
 
-    private fun decodeAsset(asset: ImageAsset, maxEdge: Int): ImageBitmap? = try {
-        decodeFile(asset.uri, maxEdge)?.asImageBitmap()
+    private fun decodeAsset(uri: String, maxEdge: Int): ImageBitmap? = try {
+        decodeFile(uri, maxEdge)?.asImageBitmap()
     } catch (_: Throwable) { null }
 
     private fun decodeFile(uri: String, maxEdge: Int): Bitmap? {
