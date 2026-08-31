@@ -32,6 +32,7 @@ import com.example.myapplicationkoG.ui.theme.MidnightBlue
 fun ColumnScope.StudioCard(
     @DrawableRes imageRes: Int,
     title: String,
+    onClick: ()-> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Card(

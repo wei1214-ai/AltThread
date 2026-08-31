@@ -37,9 +37,7 @@ android {
         targetCompatibility = JavaVersion.VERSION_11
     }
 
-    kotlinOptions {
-        jvmTarget = "11"
-    }
+
 
     buildFeatures {
         compose = true
@@ -53,6 +51,12 @@ android {
     }
 }
 
+kotlin {
+    compilerOptions {
+        jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_11)
+    }
+}
+
 dependencies {
     // Supabase
     implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
@@ -61,12 +65,15 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:storage-kt")
 
     // Ktor (Must be 2.x for Supabase SDK compatibility)
-    implementation("io.ktor:ktor-client-android:2.3.12")
+    implementation("io.ktor:ktor-client-android:3.0.0")
 
     // Coil (Image loading)
     implementation("io.coil-kt:coil-compose:2.6.0")
 
     // Navigation & Compose UI
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

@@ -41,6 +41,7 @@ class BackendGarmentSegmentationService(
         )
         val sidePart = MultipartBody.Part.createFormData(
             name = "side",
+            filename = null,
             body = side.name.toRequestBody("text/plain".toMediaTypeOrNull())
         )
         val resp = api.segmentGarment(imagePart, sidePart)
