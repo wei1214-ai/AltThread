@@ -6,10 +6,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -35,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -131,7 +134,7 @@ fun EditorScreen(
             val sourceW = source?.width?.toFloat() ?: 1f
             val sourceH = source?.height?.toFloat() ?: 1f
 
-            Box(
+            BoxWithConstraints(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
@@ -145,14 +148,16 @@ fun EditorScreen(
                     )
                 }
                 val strokeTool = state.selectedTool
+                var canvasPx by remember { mutableStateOf(IntSize.Zero) }
                 Canvas(
                     modifier = Modifier
                         .fillMaxSize()
+                        .onSizeChanged { canvasPx = it }
                         .viewportGestures(
                             current = { state.viewport },
                             onChange = { viewModel.applyViewport(it) }
                         )
-                        .pointerInput(strokeTool, sourceW, sourceH, state.viewport) {
+                        .pointerInput(strokeTool, sourceW, sourceH, state.viewport, canvasPx) {
                             // Only intercept drag for active stroke tools. Pan/zoom is
                             // handled inside viewportGestures; using detectDragGestures
                             // would steal those gestures, so we rely on the touch-slop
@@ -169,7 +174,8 @@ fun EditorScreen(
                                         sourceW = sourceW,
                                         sourceH = sourceH,
                                         viewport = vp,
-                                        canvasSize = size.toFloat()
+                                        canvasW = canvasPx.width.toFloat(),
+                                        canvasH = canvasPx.height.toFloat()
                                     ) ?: return@detectDragGestures
                                     viewModel.beginStroke(garment)
                                 },
@@ -179,7 +185,8 @@ fun EditorScreen(
                                         sourceW = sourceW,
                                         sourceH = sourceH,
                                         viewport = vp,
-                                        canvasSize = size.toFloat()
+                                        canvasW = canvasPx.width.toFloat(),
+                                        canvasH = canvasPx.height.toFloat()
                                     ) ?: return@detectDragGestures
                                     viewModel.extendStroke(garment)
                                 },
@@ -363,7 +370,7 @@ private fun ToolBar(selected: EditorTool, onSelect: (EditorTool) -> Unit) {
             .background(Color.White)
             .padding(horizontal = 12.dp, vertical = 10.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertally
+        verticalAlignment = Alignment.CenterVertically
     ) {
         listOf(
             EditorTool.DYE,
@@ -409,14 +416,15 @@ private fun screenToGarment(
     sourceW: Float,
     sourceH: Float,
     viewport: com.example.myapplicationkoG.domain.model.Viewport,
-    canvasSize: Offset
+    canvasW: Float,
+    canvasH: Float
 ): Point? {
     if (sourceW <= 0f || sourceH <= 0f) return null
-    val fitScale = minOf(canvasSize.x / sourceW, canvasSize.y / sourceH)
+    val fitScale = minOf(canvasW / sourceW, canvasH / sourceH)
     val fitWidth = sourceW * fitScale
     val fitHeight = sourceH * fitScale
-    val baseLeft = (canvasSize.x - fitWidth) / 2f
-    val baseTop = (canvasSize.y - fitHeight) / 2f
+    val baseLeft = (canvasW - fitWidth) / 2f
+    val baseTop = (canvasH - fitHeight) / 2f
     val left = baseLeft + viewport.translationX
     val top = baseTop + viewport.translationY
     val gx = (screen.x - left) / (fitScale * viewport.scale)

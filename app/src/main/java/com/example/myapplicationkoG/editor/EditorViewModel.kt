@@ -6,6 +6,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.myapplicationkoG.di.ServiceLocator
 import com.example.myapplicationkoG.domain.model.BrushStroke
+import com.example.myapplicationkoG.domain.model.ClothingDocument
 import com.example.myapplicationkoG.domain.model.CutLayer
 import com.example.myapplicationkoG.domain.model.DyeLayer
 import com.example.myapplicationkoG.domain.model.EditorLayer

@@ -15,6 +15,7 @@ import kotlinx.serialization.json.JsonClassDiscriminator
  * native resolution). Viewport transforms never touch the document.
  */
 @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
+@Serializable
 @JsonClassDiscriminator("type")
 sealed interface EditorLayer {
     val id: String
