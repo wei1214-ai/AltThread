@@ -54,14 +54,20 @@ android {
 }
 
 dependencies {
-    // AndroidX core
-    implementation(libs.androidx.core.ktx)
-    implementation(libs.androidx.lifecycle.runtime.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.ktx)
-    implementation(libs.androidx.lifecycle.viewmodel.compose)
-    implementation(libs.androidx.activity.compose)
+    // Supabase
+    implementation(platform("io.github.jan-tennert.supabase:bom:3.0.1"))
+    implementation("io.github.jan-tennert.supabase:postgrest-kt")
+    implementation("io.github.jan-tennert.supabase:auth-kt")
+    implementation("io.github.jan-tennert.supabase:storage-kt")
 
-    // Compose
+    // Ktor (Must be 2.x for Supabase SDK compatibility)
+    implementation("io.ktor:ktor-client-android:2.3.12")
+
+    // Coil (Image loading)
+    implementation("io.coil-kt:coil-compose:2.6.0")
+
+    // Navigation & Compose UI
+    implementation("androidx.navigation:navigation-compose:2.7.7")
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
