@@ -9,11 +9,13 @@ from fastapi import APIRouter, File, Form, HTTPException, Request, UploadFile
 from PIL import Image, UnidentifiedImageError
 
 from app.models.schemas import HealthResponse, SegmentResponse
+from app.providers.mock_provider import MockGarmentSegmentationService
 from app.providers.roboflow_provider import (
     RoboflowGarmentSegmentationService,
     RoboflowSegmentationError,
 )
 from app.services import storage
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 

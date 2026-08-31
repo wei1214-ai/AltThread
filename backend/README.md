@@ -29,8 +29,15 @@ The Android emulator reaches this server at `http://10.0.2.2:8000/`.
 
 ## Roboflow model
 
-Default model id: `clothing-dcqa4/2` (instance segmentation, "outline" endpoint).
+Default model id: `clothes-segmentation-final/1` (segmentation).
 Override with `ROBOFLOW_MODEL=your-slug/your-version` in `.env`.
+
+## No key yet?
+
+If `ROBOFLOW_API_KEY` is left blank, the backend falls back to
+`MockGarmentSegmentationService`, which returns a full-white mask at the
+original image's dimensions. The Android editor still works end-to-end
+(side selection, segmentation response, white-background render, pan/zoom).
 
 ## Tests
 

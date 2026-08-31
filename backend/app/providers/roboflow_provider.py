@@ -34,6 +34,7 @@ class RoboflowGarmentSegmentationService(GarmentSegmentationService):
         self.model = model or settings.roboflow_model
         self.timeout = timeout or settings.request_timeout_seconds
 
+
     def segment(self, image_bytes: bytes, mime: str, side: str) -> SegmentationResult:
         if not self.api_key:
             raise RoboflowSegmentationError("ROBOFLOW_API_KEY is not configured")
