@@ -333,7 +333,6 @@ fun HomeScreen() {
                     it.id
                 }
             ) { post ->
-
                 PostCard(
                     post = post
                 )

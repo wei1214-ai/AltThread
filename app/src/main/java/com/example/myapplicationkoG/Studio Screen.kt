@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -71,7 +72,9 @@ fun ColumnScope.StudioCard(
     }
 }
 @Composable
-fun StudioScreen() {
+fun StudioScreen(
+    onStartDesign: () -> Unit = {}
+) {
     Box(
         modifier = Modifier.fillMaxSize()
     ) {
@@ -105,7 +108,8 @@ fun StudioScreen() {
             ) {
                 StudioCard(
                     imageRes = R.drawable.studiobutton1,
-                    title = "From My Wardrobe"
+                    title = "Start a Design",
+                    onClick = onStartDesign
                 )
                 StudioCard(
                     imageRes = R.drawable.studiobutton2,

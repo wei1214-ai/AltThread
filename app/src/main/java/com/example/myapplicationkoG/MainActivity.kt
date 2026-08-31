@@ -14,6 +14,8 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.example.myapplicationkoG.ui.editor.EditorScreen
+import com.example.myapplicationkoG.ui.garmentinput.GarmentInputScreen
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
 
 class MainActivity : ComponentActivity() {
@@ -65,8 +67,25 @@ fun AltThreadApp() {
             }
             composable(Screen.Home.route) { HomeScreen() }
             composable(Screen.Search.route) { SearchScreen() }
-            composable(Screen.Studio.route) { StudioScreen() }
+            composable(Screen.Studio.route) {
+                StudioScreen(
+                    onStartDesign = { navController.navigate(Screen.GarmentInput.route) }
+                )
+            }
             composable(Screen.Profile.route) { ProfileScreen() }
+
+            // ---- Part 1 editor flow ----
+            composable(Screen.GarmentInput.route) {
+                GarmentInputScreen(
+                    onOpenEditor = { navController.navigate(Screen.Editor.route) },
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.Editor.route) {
+                EditorScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
         }
     }
 }
