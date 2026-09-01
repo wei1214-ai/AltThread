@@ -66,6 +66,8 @@ dependencies {
     // Ktor
     implementation("io.ktor:ktor-client-android:3.0.0")
 
+    // Add Kotlinx Serialization JSON library
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
     // Coil
     implementation(libs.coil.compose)
 

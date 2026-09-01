@@ -44,82 +44,39 @@ import kotlinx.coroutines.delay
 @Composable
 fun SearchScreen() {
 
-    // ==========================================
-    // Search keyword
-    // ==========================================
-
     var keyword by remember {
         mutableStateOf("")
     }
-
-
-    // ==========================================
-    // Search results
-    // ==========================================
 
     var results by remember {
         mutableStateOf<List<Post>>(emptyList())
     }
 
-
-    // ==========================================
-    // Loading
-    // ==========================================
-
     var isLoading by remember {
         mutableStateOf(false)
     }
 
-
-    // ==========================================
-    // Search Supabase
-    // ==========================================
-
     LaunchedEffect(keyword) {
 
         if (keyword.isBlank()) {
-
             results = emptyList()
             isLoading = false
-
             return@LaunchedEffect
         }
 
-
         isLoading = true
-
-
-        // Wait 500ms before searching.
-        // This prevents sending a request
-        // for every single letter.
 
         delay(500)
 
-
         try {
-
-            val repository =
-                PostRepository()
-
-            results =
-                repository.searchPosts(
-                    keyword.trim()
-                )
-
+            val repository = PostRepository()
+            results = repository.searchPosts(keyword.trim())
         } catch (e: Exception) {
-
             results = emptyList()
-
         } finally {
-
             isLoading = false
         }
     }
-
-
-    // ==========================================
-    // UI
-    // ==========================================
 
     Column(
         modifier = Modifier
@@ -127,183 +84,76 @@ fun SearchScreen() {
             .background(Color.White)
     ) {
 
-
-        // ======================================
-        // TOP SEARCH BAR
-        // ======================================
-
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp),
-
-            verticalAlignment =
-                Alignment.CenterVertically
+            verticalAlignment = Alignment.CenterVertically
         ) {
 
-
-            // Search box
-
             OutlinedTextField(
-
                 value = keyword,
-
-                onValueChange = {
-                    keyword = it
-                },
-
-                modifier =
-                    Modifier.weight(1f),
-
+                onValueChange = { keyword = it },
+                modifier = Modifier.weight(1f),
                 singleLine = true,
-
-                placeholder = {
-                    Text(
-                        text =
-                            "Search clothes..."
-                    )
-                },
-
+                placeholder = { Text(text = "Search clothes...") },
                 leadingIcon = {
-
                     Icon(
-                        painter =
-                            painterResource(
-                                id =
-                                    R.drawable.search
-                            ),
-
-                        contentDescription =
-                            "Search",
-
-                        tint =
-                            Color.Gray
+                        painter = painterResource(id = R.drawable.search),
+                        contentDescription = "Search",
+                        tint = Color.Gray
                     )
                 },
-
-                shape =
-                    RoundedCornerShape(12.dp)
+                shape = RoundedCornerShape(12.dp)
             )
 
-
-            Spacer(
-                modifier =
-                    Modifier.width(16.dp)
-            )
-
-
-            // Filter button
+            Spacer(modifier = Modifier.width(16.dp))
 
             Box(
                 modifier = Modifier
                     .size(40.dp)
-                    .clip(
-                        RoundedCornerShape(12.dp)
-                    )
+                    .clip(RoundedCornerShape(12.dp))
                     .background(Cyan),
-
-                contentAlignment =
-                    Alignment.Center
+                contentAlignment = Alignment.Center
             ) {
-
-                IconButton(
-                    onClick = {
-                        // TODO:
-                        // Open filter page
-                    }
-                ) {
-
+                IconButton(onClick = { /* TODO: Open filter page */ }) {
                     Icon(
-                        painter =
-                            painterResource(
-                                id =
-                                    R.drawable.filter
-                            ),
-
-                        contentDescription =
-                            "Filter",
-
-                        tint =
-                            MidnightBlue,
-
-                        modifier =
-                            Modifier.size(25.dp)
+                        painter = painterResource(id = R.drawable.filter),
+                        contentDescription = "Filter",
+                        tint = MidnightBlue,
+                        modifier = Modifier.size(25.dp)
                     )
                 }
             }
         }
 
-
-        // ======================================
-        // LOADING
-        // ======================================
-
         if (isLoading) {
-
             Box(
-                modifier = Modifier
-                    .fillMaxSize(),
-
-                contentAlignment =
-                    Alignment.Center
+                modifier = Modifier.fillMaxSize(),
+                contentAlignment = Alignment.Center
             ) {
-
                 CircularProgressIndicator()
             }
-        }
-
-
-        // ======================================
-        // SEARCH RESULTS
-        // ======================================
-
-        else {
-
+        } else {
             LazyVerticalGrid(
-
-                columns =
-                    GridCells.Fixed(2),
-
-                modifier =
-                    Modifier.fillMaxSize(),
-
-                contentPadding =
-                    PaddingValues(16.dp),
-
-                horizontalArrangement =
-                    Arrangement.spacedBy(10.dp),
-
-                verticalArrangement =
-                    Arrangement.spacedBy(10.dp)
+                columns = GridCells.Fixed(2),
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(16.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-
                 items(
                     items = results,
-
-                    key = {
-                        it.id
-                    }
+                    key = { it.id }
                 ) { post ->
-
                     AsyncImage(
-
-                        model =
-                            post.image_url,
-
-                        contentDescription =
-                            post.caption,
-
+                        model = post.mediaUrl, // Fix applied here
+                        contentDescription = post.caption,
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(230.dp)
-                            .clip(
-                                RoundedCornerShape(
-                                    15.dp
-                                )
-                            ),
-
-                        contentScale =
-                            ContentScale.Crop
+                            .clip(RoundedCornerShape(15.dp)),
+                        contentScale = ContentScale.Crop
                     )
                 }
             }
