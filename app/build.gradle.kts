@@ -6,10 +6,8 @@ plugins {
 }
 
 kotlin {
-    // Pin compilation to Android Studio's bundled JBR (JDK 21).
-    // The IDE-hosted JRE (Trae) is missing jlink.exe, which breaks
-    // AGP's JDK image transform. Toolchain 21 resolves to the full JBR.
-    jvmToolchain(21)
+    // Use the full JDK installed on this machine.
+    jvmToolchain(20)
 }
 
 android {
@@ -39,10 +37,10 @@ android {
     }
 
     compileOptions {
-        // Must match the Kotlin jvmToolchain (21) or Gradle fails with
+        // Must match the Kotlin jvmToolchain (20) or Gradle fails with
         // "Inconsistent JVM-target compatibility".
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
+        sourceCompatibility = JavaVersion.VERSION_20
+        targetCompatibility = JavaVersion.VERSION_20
     }
 
     buildFeatures {
