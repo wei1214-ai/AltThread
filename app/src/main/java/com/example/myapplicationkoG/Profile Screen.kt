@@ -1,5 +1,6 @@
 package com.example.myapplicationkoG
 
+import android.widget.Button
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Tab
@@ -30,6 +32,7 @@ import androidx.compose.material3.TabRowDefaults
 import androidx.compose.material3.TabRowDefaults.tabIndicatorOffset
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -51,15 +54,22 @@ import com.example.myapplicationkoG.ui.ProfileRepository
 import com.example.myapplicationkoG.ui.UserProfile
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.runtime.rememberCoroutineScope
+import coil.compose.AsyncImage
+import kotlinx.coroutines.launch
 
 @Composable
 fun CustomTabBar() {
     var selectedTabIndex by remember { mutableStateOf(0) }
-    var profile by remember { mutableStateOf<UserProfile?>(null) }
+
     val tabs = listOf("Posts", "Challenges", "Saved")
     val activeColor = MidnightBlue
     val inactiveColor = Color.Gray
-    val repository = remember { ProfileRepository() }
 
 
     Column {
@@ -95,7 +105,41 @@ fun CustomTabBar() {
 }
 
 @Composable
-fun ProfileScreen() {
+fun ProfileScreen(
+    onEditProfile: ()-> Unit
+) {
+
+    var profile by remember { mutableStateOf<UserProfile?>(null) }
+    var errorMessage by remember { mutableStateOf("") }
+    val repository = remember { ProfileRepository() }
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
+
+    val avatarPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { imageUri ->
+        if (imageUri != null) {
+            scope.launch {
+                try {
+                    repository.uploadAvatar(context, imageUri)
+
+                    // Reload new avatar URL from Supabase.
+                    profile = repository.getMyProfile()
+                } catch (e: Exception) {
+                    errorMessage = e.message ?: "Could not upload avatar"
+                }
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        try {
+            profile = repository.getMyProfile()
+        } catch (e: Exception) {
+            errorMessage = e.message ?: "Could not load profile"
+        }
+    }
+
     LazyVerticalGrid(
         columns = GridCells.Fixed(3),
         modifier = Modifier
@@ -127,13 +171,38 @@ fun ProfileScreen() {
                     }
                 }
                 Row() {
-                    Image(
-                        painter = painterResource(id = R.drawable.avatar),
-                        contentDescription = "Avatar",
-                        modifier = Modifier
-                            .clip(shape = CircleShape)
-                            .size(120.dp)
-                    )
+                    Box(
+                        modifier = Modifier.size(120.dp)
+                    ) {
+                        AsyncImage(
+                            model = profile?.avatar_url?.takeIf { it.isNotBlank() }
+                                ?: R.drawable.avatar,
+                            contentDescription = "Avatar",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clip(CircleShape)
+                        )
+
+                        IconButton(
+                            onClick = {
+                                avatarPicker.launch("image/*")
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(White)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Edit,
+                                contentDescription = "Change avatar",
+                                tint = Color.Black,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .weight(1f)
@@ -144,18 +213,34 @@ fun ProfileScreen() {
                             alignment = Alignment.CenterVertically
                         )
                     ) {
-                        Text("HelloWorld",
+                        Text( text = profile?.username ?: "New user",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = MidnightBlue)
-                        Text("@hellooowrld",
+                        Text(text = "@${profile?.username ?: "newuser"}",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
                             color = MidnightBlue)
-                        Text("Chasing trends, and wearing whatever makes a statement.",
+                        Text(text = profile?.bio ?: "Add a bio in Edit profile",
                             fontSize = 14.sp,
                             color = MidnightBlue)
                     }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Button(
+                    onClick = onEditProfile,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 16.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text("Edit profile")
+                }
+                if (errorMessage.isNotBlank()) {
+                    Text(
+                        text = errorMessage,
+                        color = Color.Red
+                    )
                 }
                 Spacer(modifier = Modifier.height(16.dp))
                 Row() {
@@ -260,8 +345,3 @@ fun ProfileScreen() {
     }
 }
 
-@Preview(showBackground = true)
-@Composable
-fun PScreenPreview(){
-    ProfileScreen()
-}

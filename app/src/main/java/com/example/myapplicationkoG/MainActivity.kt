@@ -81,7 +81,20 @@ fun AltThreadApp() {
                     onStartDesign = { navController.navigate(Screen.GarmentInput.route) }
                 )
             }
-            composable(Screen.Profile.route) { ProfileScreen() }
+            composable(Screen.Profile.route) {
+                ProfileScreen(
+                    onEditProfile = {
+                        navController.navigate(Screen.EditProfile.route)
+                    }
+                ) }
+
+            composable(Screen.EditProfile.route) {
+                EditProfileScreen(
+                    onBack = {
+                        navController.popBackStack()
+                    }
+                )
+            }
 
             // ---- Part 1 editor flow ----
             composable(Screen.GarmentInput.route) {
