@@ -47,15 +47,20 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.ui.ProfileRepository
+import com.example.myapplicationkoG.ui.UserProfile
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 
 @Composable
 fun CustomTabBar() {
-    val tabs = listOf("Posts", "Challenges", "Saved")
     var selectedTabIndex by remember { mutableStateOf(0) }
+    var profile by remember { mutableStateOf<UserProfile?>(null) }
+    val tabs = listOf("Posts", "Challenges", "Saved")
     val activeColor = MidnightBlue
     val inactiveColor = Color.Gray
+    val repository = remember { ProfileRepository() }
+
 
     Column {
         TabRow(
