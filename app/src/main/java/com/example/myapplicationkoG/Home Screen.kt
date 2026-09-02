@@ -52,27 +52,16 @@ fun FilterChip(
     Box(
         modifier = modifier
             .height(40.dp)
-            .clip(
-                RoundedCornerShape(12.dp)
-            )
-            .background(
-                if (isSelected) Cyan
-                else Color.LightGray
-            )
-            .clickable {
-                onClick()
-            }
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (isSelected) Cyan else Color.LightGray)
+            .clickable { onClick() }
             .padding(horizontal = 16.dp),
-
         contentAlignment = Alignment.Center
     ) {
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
-            color = if (isSelected)
-                MidnightBlue
-            else
-                Color.Gray,
+            color = if (isSelected) MidnightBlue else Color.Gray,
             maxLines = 1
         )
     }
@@ -83,24 +72,18 @@ fun FilterChip(
 fun HomeScreen() {
 
     // Selected filter
-    var selectedFilter by remember {
-        mutableStateOf("For You")
-    }
+    var selectedFilter by remember { mutableStateOf("For You") }
 
     // Posts from Supabase
-    var posts by remember {
-        mutableStateOf<List<Post>>(emptyList())
-    }
+    var posts by remember { mutableStateOf<List<Post>>(emptyList()) }
 
     // Loading state
-    var isLoading by remember {
-        mutableStateOf(true)
-    }
+    var isLoading by remember { mutableStateOf(true) }
 
     // Error message
-    var errorMessage by remember {
-        mutableStateOf<String?>(null)
-    }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val repository = remember { PostRepository() }
 
     val filters = listOf(
         "For You",
@@ -110,31 +93,16 @@ fun HomeScreen() {
         "Streetwear"
     )
 
-    // Load posts
+    // Load posts whenever selectedFilter changes
     LaunchedEffect(selectedFilter) {
-
         isLoading = true
         errorMessage = null
 
         try {
-
-            val repository = PostRepository()
-
-            posts = if (selectedFilter == "For You") {
-                repository.getPosts()
-            } else {
-                repository.getPostsByCategory(
-                    selectedFilter
-                )
-            }
-
+            posts = repository.getPosts(category = selectedFilter)
         } catch (e: Exception) {
-
-            errorMessage =
-                e.message ?: "Something went wrong"
-
+            errorMessage = e.message ?: "Something went wrong"
         } finally {
-
             isLoading = false
         }
     }
@@ -144,70 +112,41 @@ fun HomeScreen() {
         modifier = Modifier
             .fillMaxSize()
             .background(Color.White),
-
         contentPadding = PaddingValues(16.dp),
-
-        verticalArrangement =
-            Arrangement.spacedBy(16.dp)
+        verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-
         // Header and filters
         item {
-
             Column {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(80.dp)
                 ) {
-
                     // App title
                     Text(
                         text = "AltThread",
                         fontSize = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
                         color = MidnightBlue,
-                        modifier = Modifier.align(
-                            Alignment.Center
-                        )
+                        modifier = Modifier.align(Alignment.Center)
                     )
 
                     // Notification button
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .clip(
-                                RoundedCornerShape(12.dp)
-                            )
+                            .clip(RoundedCornerShape(12.dp))
                             .background(Cyan)
-                            .align(
-                                Alignment.CenterEnd
-                            ),
-
-                        contentAlignment =
-                            Alignment.Center
+                            .align(Alignment.CenterEnd),
+                        contentAlignment = Alignment.Center
                     ) {
-
-                        IconButton(
-                            onClick = {
-                                // TODO: Open notifications
-                            }
-                        ) {
-
+                        IconButton(onClick = { /* TODO: Open notifications */ }) {
                             Icon(
-                                painter =
-                                    painterResource(
-                                        id = R.drawable.notice
-                                    ),
-
-                                contentDescription =
-                                    "Notice",
-
+                                painter = painterResource(id = R.drawable.notice),
+                                contentDescription = "Notice",
                                 tint = MidnightBlue,
-
-                                modifier =
-                                    Modifier.size(30.dp)
+                                modifier = Modifier.size(30.dp)
                             )
                         }
                     }
@@ -218,39 +157,23 @@ fun HomeScreen() {
                     modifier = Modifier
                         .height(40.dp)
                         .drawWithContent {
-
                             drawContent()
-
                             drawRect(
-                                brush =
-                                    Brush.horizontalGradient(
-                                        0.85f to Color.Transparent,
-                                        1.0f to Color.White
-                                    )
+                                brush = Brush.horizontalGradient(
+                                    0.85f to Color.Transparent,
+                                    1.0f to Color.White
+                                )
                             )
                         }
-                        .horizontalScroll(
-                            rememberScrollState()
-                        ),
-
-                    verticalAlignment =
-                        Alignment.CenterVertically,
-
-                    horizontalArrangement =
-                        Arrangement.spacedBy(16.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-
                     filters.forEach { filter ->
-
                         FilterChip(
                             label = filter,
-
-                            isSelected =
-                                selectedFilter == filter,
-
-                            onClick = {
-                                selectedFilter = filter
-                            }
+                            isSelected = selectedFilter == filter,
+                            onClick = { selectedFilter = filter }
                         )
                     }
                 }
@@ -259,62 +182,42 @@ fun HomeScreen() {
 
         // Loading
         if (isLoading) {
-
             item {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(300.dp),
-
-                    contentAlignment =
-                        Alignment.Center
+                    contentAlignment = Alignment.Center
                 ) {
-
-                    CircularProgressIndicator()
+                    CircularProgressIndicator(color = Cyan)
                 }
             }
         }
-
         // Error
         else if (errorMessage != null) {
-
             item {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(30.dp),
-
-                    contentAlignment =
-                        Alignment.Center
+                    contentAlignment = Alignment.Center
                 ) {
-
                     Text(
-                        text =
-                            "Failed to load posts\n\n" +
-                                    errorMessage,
-
+                        text = "Failed to load posts\n\n$errorMessage",
                         color = Color.Red
                     )
                 }
             }
         }
-
         // No posts
         else if (posts.isEmpty()) {
-
             item {
-
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(40.dp),
-
-                    contentAlignment =
-                        Alignment.Center
+                    contentAlignment = Alignment.Center
                 ) {
-
                     Text(
                         text = "No posts found.",
                         color = Color.Gray
@@ -322,20 +225,13 @@ fun HomeScreen() {
                 }
             }
         }
-
         // Display posts
         else {
-
             items(
                 items = posts,
-
-                key = {
-                    it.id
-                }
+                key = { it.id }
             ) { post ->
-                PostCard(
-                    post = post
-                )
+                PostCard(post = post)
             }
         }
     }

@@ -3,7 +3,10 @@ package com.example.myapplicationkoG
 import android.content.Intent
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -41,10 +44,15 @@ fun PostCard(
 
     // Like State
     var isLiked by remember { mutableStateOf(false) }
-    var likeCount by remember { mutableIntStateOf(post.initialLikeCount) }
+    var likeCount by remember { mutableIntStateOf(post.likeCount) }
 
     // Bookmark / Favourite State
     var isBookmarked by remember { mutableStateOf(false) }
+
+    // Show Likes Dialog State (查看点赞用户弹窗)
+    var showLikesDialog by remember { mutableStateOf(false) }
+    var likedUsersList by remember { mutableStateOf<List<PostLike>>(emptyList()) }
+    var isLoadingLikedUsers by remember { mutableStateOf(false) }
 
     // Fetch saved state from Supabase whenever post.id changes
     LaunchedEffect(post.id) {
@@ -223,11 +231,20 @@ fun PostCard(
 
             // Counter & Caption
             Column(modifier = Modifier.padding(horizontal = 4.dp)) {
+                // IG Style: 点击点赞数字查看点赞用户列表
                 Text(
                     text = "$likeCount likes",
                     fontWeight = FontWeight.Bold,
                     fontSize = 12.sp,
-                    color = MidnightBlue
+                    color = MidnightBlue,
+                    modifier = Modifier.clickable {
+                        showLikesDialog = true
+                        scope.launch {
+                            isLoadingLikedUsers = true
+                            likedUsersList = repository.getUsersWhoLikedPost(post.id)
+                            isLoadingLikedUsers = false
+                        }
+                    }
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
@@ -238,6 +255,71 @@ fun PostCard(
                 )
             }
         }
+    }
+
+    // 点赞用户列表弹窗 (Likes Dialog)
+    if (showLikesDialog) {
+        AlertDialog(
+            onDismissRequest = { showLikesDialog = false },
+            title = {
+                Text(
+                    text = "Liked by",
+                    fontWeight = FontWeight.Bold,
+                    color = MidnightBlue,
+                    fontSize = 18.sp
+                )
+            },
+            text = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 250.dp)
+                ) {
+                    if (isLoadingLikedUsers) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.align(Alignment.Center),
+                            color = Cyan
+                        )
+                    } else if (likedUsersList.isEmpty()) {
+                        Text(
+                            text = "No likes yet.",
+                            color = Color.Gray,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    } else {
+                        LazyColumn(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                            items(likedUsersList) { like ->
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    AsyncImage(
+                                        model = like.userProfilePicUrl ?: "https://via.placeholder.com/150",
+                                        contentDescription = "User Avatar",
+                                        modifier = Modifier
+                                            .size(32.dp)
+                                            .clip(CircleShape)
+                                            .background(Color.LightGray)
+                                    )
+                                    Spacer(modifier = Modifier.width(10.dp))
+                                    Text(
+                                        text = like.username ?: "AltUser",
+                                        fontWeight = FontWeight.SemiBold,
+                                        color = MidnightBlue,
+                                        fontSize = 14.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showLikesDialog = false }) {
+                    Text("Close", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                }
+            }
+        )
     }
 
     // Comment Modal Bottom Sheet Component
