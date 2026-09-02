@@ -66,7 +66,7 @@ class ModelInferenceManager(
         val tensor = OnnxTensor.createTensor(ortEnv, input, shape)
 
         val outputs = yoloSession.run(mapOf(yoloSession.inputNames.first() to tensor))
-        val raw = (outputs[0].value as Array<*>).first() as Array<FloatArray>
+        val raw = (outputs.first().value as Array<*>).first() as Array<FloatArray>
         // YOLOv8 export shape: [1, 4+nc, num_anchors] → transpose to [num_anchors, 4+nc]
         val numAnchors = raw[0].size
         val nc = raw.size - 4
@@ -101,7 +101,7 @@ class ModelInferenceManager(
 
     /** Cached image embedding; invalidated when the image changes. */
     @Volatile private var cachedImageId: Int = 0
-    @Volatile private var cachedImageEmbedding: Array<OrtSession.Result>? = null
+    @Volatile private var cachedImageEmbedding: OrtSession.Result? = null
 
     /**
      * Encode [bitmap] into the SAM image embedding. The embedding is
@@ -164,16 +164,16 @@ class ModelInferenceManager(
         val maskTensor = OnnxTensor.createTensor(ortEnv, FloatBuffer.allocate(0), maskShape)
 
         val inputs = buildMap<String, OnnxTensor> {
-            put(samDecoderSession.inputNames.first(), embeddingOutputs[0] as OnnxTensor)
+            put(samDecoderSession.inputNames.first(), embeddingOutputs.first() as OnnxTensor)
             // Other input names vary by export; the next two slots are
             // the standard "point_coords" / "point_labels" pair.
-            val names = samDecoderSession.inputNames
+            val names: List<String> = samDecoderSession.inputNames.toList()
             if (names.size > 1) put(names[1], pointTensor)
             if (names.size > 2) put(names[2], labelTensor)
             if (names.size > 3) put(names[3], boxTensor)
         }
         val outputs = samDecoderSession.run(inputs)
-        val lowResMask = outputs[0].value as Array<Array<Array<FloatArray>>> // [1,1,H,W]
+        val lowResMask = outputs.first().value as Array<Array<Array<FloatArray>>> // [1,1,H,W]
         return resampleMaskToBitmap(lowResMask[0][0], bitmap.width, bitmap.height)
     }
 

@@ -13,6 +13,7 @@ import org.opencv.core.Size
 import org.opencv.imgproc.Imgproc
 import kotlin.math.cos
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.sin
 
 /**
@@ -76,12 +77,14 @@ object OpenCVPostProcessor {
     // -------------------------------------------------------------------- //
 
     private fun deskewGarment(image: Mat, mask: Mat): Mat {
-        val largest = largestContour(mask) ?: return image.clone()
-        val rect = Imgproc.minAreaRect(largest)
+        val largestMatOfPoint = largestContour(mask) ?: return image.clone()
+        val largest2f = org.opencv.core.MatOfPoint2f().also { largestMatOfPoint.convertTo(it, CvType.CV_32F) }
+        val rect = Imgproc.minAreaRect(largest2f)
         val angle = normaliseAngle(rect.angle)
+        largest2f.release()
 
-        val w = if (angle < 45) rect.size.width else rect.size.height
-        val h = if (angle < 45) rect.size.height else rect.size.width
+        val w = if (angle < 45.0) rect.size.width else rect.size.height
+        val h = if (angle < 45.0) rect.size.height else rect.size.width
 
         val center = Point(image.cols() / 2.0, image.rows() / 2.0)
         val rotMat = Imgproc.getRotationMatrix2D(center, angle, 1.0)
@@ -92,14 +95,14 @@ object OpenCVPostProcessor {
             Imgproc.INTER_LINEAR, Core.BORDER_CONSTANT, Scalar.all(255.0)
         )
         rotMat.release()
-        largest.release()
+        largestMatOfPoint.release()
         return rotated
     }
 
-    private fun normaliseAngle(raw: Float): Float {
+    private fun normaliseAngle(raw: Double): Double {
         var a = raw
-        if (a < -45f) a += 90f
-        if (a > 45f) a -= 90f
+        if (a < -45.0) a += 90.0
+        if (a > 45.0) a -= 90.0
         return a
     }
 
@@ -140,7 +143,7 @@ object OpenCVPostProcessor {
     // -------------------------------------------------------------------- //
 
     private fun fitInto(src: Mat, side: Int): Mat {
-        val ratio = min(
+        val ratio = minOf(
             side.toDouble() / src.cols(),
             side.toDouble() / src.rows()
         )

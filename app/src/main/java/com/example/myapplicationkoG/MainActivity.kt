@@ -14,7 +14,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.myapplicationkoG.ui.editor.EditorScreen
+import com.example.myapplicationkoG.ui.editor.EditorPlaceHolder
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputScreen
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
 import io.github.jan.supabase.auth.auth
@@ -104,7 +104,7 @@ fun AltThreadApp() {
                 )
             }
             composable(Screen.Editor.route) {
-                EditorScreen(
+                EditorPlaceHolder(
                     onBack = { navController.popBackStack() }
                 )
             }

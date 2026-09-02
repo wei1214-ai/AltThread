@@ -5,7 +5,8 @@ import kotlinx.serialization.Serializable
 /**
  * One side of a garment (FRONT or BACK).
  * Holds the original source image and an independent mask.
- * Layers are non-destructive edits stacked on top.
+ *
+ * Editor layers will be added back in a follow-up.
  */
 @Serializable
 data class GarmentSide(
@@ -13,5 +14,4 @@ data class GarmentSide(
     val garmentMask: MaskAsset? = null,
     /** Path to the 1080x1080 rotated, center-cropped design-space bitmap. */
     val designSpacePath: String? = null,
-    val layers: List<EditorLayer> = emptyList()
 )

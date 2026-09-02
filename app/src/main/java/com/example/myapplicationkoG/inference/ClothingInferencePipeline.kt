@@ -29,7 +29,7 @@ data class InferenceResult(
 )
 
 /**
- * Single entry point used by the Editor (via [EditorViewModel]) to turn a
+ * Single entry point used by GarmentInputViewModel to turn a
  * user photo into a fully processed side ready for the Design Space.
  *
  * Pipeline:

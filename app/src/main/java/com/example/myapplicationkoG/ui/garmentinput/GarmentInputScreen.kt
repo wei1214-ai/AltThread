@@ -42,7 +42,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.domain.model.GarmentSideId
-import com.example.myapplicationkoG.editor.EditorViewModel
 
 /**
  * Part 1 entry point for garment capture.
@@ -56,7 +55,7 @@ import com.example.myapplicationkoG.editor.EditorViewModel
 fun GarmentInputScreen(
     onOpenEditor: () -> Unit,
     onBack: () -> Unit,
-    viewModel: EditorViewModel = viewModel()
+    viewModel: GarmentInputViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
 
