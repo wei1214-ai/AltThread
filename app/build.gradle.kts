@@ -102,7 +102,7 @@ dependencies {
 
     // On-device inference: YOLO + SAM 2.1
     implementation(libs.onnxruntime.android)
-    implementation(libs.opencv.android)
+    implementation(libs.opencv)
 
     // Test
     testImplementation(libs.junit)
