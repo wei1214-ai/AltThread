@@ -113,7 +113,6 @@ fun ProfileScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    // State for tabs, saved posts, and full-screen post dialog
     var selectedTabIndex by remember { mutableIntStateOf(0) }
     var savedPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
     var isSavedLoading by remember { mutableStateOf(false) }
@@ -134,7 +133,6 @@ fun ProfileScreen(
         }
     }
 
-    // Load Profile Info on initial load
     LaunchedEffect(Unit) {
         try {
             profile = repository.getMyProfile()
@@ -143,7 +141,6 @@ fun ProfileScreen(
         }
     }
 
-    // Always fetch fresh saved posts when switching to the Saved tab (index 2)
     LaunchedEffect(selectedTabIndex) {
         if (selectedTabIndex == 2) {
             isSavedLoading = true
@@ -158,9 +155,15 @@ fun ProfileScreen(
         }
     }
 
-    // Popup Dialog displaying full PostCard on item tap
     selectedPostForDetail?.let { selectedPost ->
-        Dialog(onDismissRequest = { selectedPostForDetail = null }) {
+        Dialog(onDismissRequest = {
+            selectedPostForDetail = null
+            if (selectedTabIndex == 2) {
+                scope.launch {
+                    savedPosts = postRepository.getFavouritePosts()
+                }
+            }
+        }) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -180,7 +183,6 @@ fun ProfileScreen(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        // Profile Header
         item(span = { GridItemSpan(maxLineSpan) }) {
             Column {
                 Box(
@@ -194,7 +196,7 @@ fun ProfileScreen(
                     IconButton(onClick = { }) {
                         Icon(
                             painter = painterResource(id = R.drawable.setting),
-                            contentDescription = "Setting",
+                            contentDescription = "Settings",
                             tint = MidnightBlue,
                             modifier = Modifier.size(30.dp)
                         )
@@ -374,7 +376,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Custom Tab Bar
                 CustomTabBar(
                     selectedTabIndex = selectedTabIndex,
                     onTabSelected = { index -> selectedTabIndex = index }
@@ -382,7 +383,6 @@ fun ProfileScreen(
             }
         }
 
-        // Tab Content Grid
         when (selectedTabIndex) {
             0, 1 -> {
                 items(15) {
@@ -395,7 +395,6 @@ fun ProfileScreen(
                 }
             }
             2 -> {
-                // SAVED TAB
                 if (isSavedLoading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(

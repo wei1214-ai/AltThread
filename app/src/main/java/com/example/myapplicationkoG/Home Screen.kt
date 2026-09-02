@@ -13,10 +13,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -69,7 +69,9 @@ fun FilterChip(
 
 // Home page
 @Composable
-fun HomeScreen() {
+fun HomeScreen(
+    onUserClick: ((username: String, avatarUrl: String) -> Unit)? = null
+) {
 
     // Selected filter
     var selectedFilter by remember { mutableStateOf("For You") }
@@ -231,7 +233,10 @@ fun HomeScreen() {
                 items = posts,
                 key = { it.id }
             ) { post ->
-                PostCard(post = post)
+                PostCard(
+                    post = post,
+                    onUserClick = onUserClick
+                )
             }
         }
     }
