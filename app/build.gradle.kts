@@ -21,10 +21,6 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
-        val backendUrl: String = providers.gradleProperty("BACKEND_BASE_URL")
-            .getOrElse("http://10.0.2.2:8000/")
-        buildConfigField("String", "BACKEND_BASE_URL", "\"$backendUrl\"")
     }
 
     buildTypes {
@@ -52,6 +48,11 @@ android {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
         }
+    }
+
+    // Keep ONNX models uncompressed so on-device inference can mmap them.
+    aaptOptions {
+        noCompress += "onnx"
     }
 }
 
@@ -98,6 +99,10 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
+
+    // On-device inference: YOLO + SAM 2.1
+    implementation(libs.onnxruntime.android)
+    implementation(libs.opencv.android)
 
     // Test
     testImplementation(libs.junit)

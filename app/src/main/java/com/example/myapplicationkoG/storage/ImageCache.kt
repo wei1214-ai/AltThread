@@ -77,4 +77,16 @@ object ImageCache {
             else -> "jpg"
         }
     }
+
+    /**
+     * Save a generated [Bitmap] (e.g. mask or design-space render) to app
+     * private storage. Returns the file so the caller can build a Uri.
+     */
+    fun exportBitmap(context: Context, bitmap: Bitmap, name: String): File {
+        val target = File(assetDir(context), name)
+        FileOutputStream(target).use { out ->
+            bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
+        }
+        return target
+    }
 }

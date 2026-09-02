@@ -1,9 +1,7 @@
 package com.example.myapplicationkoG.di
 
 import android.content.Context
-import com.example.myapplicationkoG.data.remote.BackendGarmentSegmentationService
-import com.example.myapplicationkoG.data.remote.GarmentSegmentationService
-import com.example.myapplicationkoG.data.remote.MockGarmentSegmentationService
+import com.example.myapplicationkoG.inference.ClothingInferencePipeline
 import com.example.myapplicationkoG.storage.ProjectPreferences
 
 /**
@@ -12,12 +10,13 @@ import com.example.myapplicationkoG.storage.ProjectPreferences
  */
 object ServiceLocator {
 
-    @Volatile private var segmentationService: GarmentSegmentationService? = null
+    @Volatile private var inference: ClothingInferencePipeline? = null
     @Volatile private var preferences: ProjectPreferences? = null
 
-    fun segmentationService(context: Context): GarmentSegmentationService {
-        return segmentationService ?: synchronized(this) {
-            segmentationService ?: buildSegmentation(context).also { segmentationService = it }
+    fun inferencePipeline(context: Context): ClothingInferencePipeline {
+        return inference ?: synchronized(this) {
+            inference ?: ClothingInferencePipeline(context.applicationContext)
+                .also { inference = it }
         }
     }
 
@@ -27,14 +26,4 @@ object ServiceLocator {
                 .also { preferences = it }
         }
     }
-
-    private fun buildSegmentation(context: Context): GarmentSegmentationService {
-        // Backend is the production path. The mock is kept for offline development
-        // and tests; flip USE_MOCK_SEGMENTATION in BuildConfig later if needed.
-        return if (USE_MOCK_SEGMENTATION) MockGarmentSegmentationService()
-        else BackendGarmentSegmentationService()
-    }
-
-    // No build-time flag yet; switch to MockGarmentSegmentationService() in tests.
-    private const val USE_MOCK_SEGMENTATION = false
 }

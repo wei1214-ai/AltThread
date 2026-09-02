@@ -41,7 +41,7 @@ import java.util.UUID
 class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     private val preferences = ServiceLocator.projectPreferences(app)
-    private val segmentation = ServiceLocator.segmentationService(app)
+    private val inference = ServiceLocator.inferencePipeline(app)
     private val history = UndoRedoManager()
 
     private val _state = MutableStateFlow(EditorState())
@@ -228,6 +228,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             try {
+                // 1. Copy the user's photo into the app's cache so we own
+                //    the URI across configuration changes.
                 val (file, dims) = withContext(Dispatchers.IO) {
                     val imported = ImageCache.importFromUri(getApplication(), source, "garment_${side.name.lowercase()}")
                         ?: error("Could not import image")
@@ -242,14 +244,24 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 )
                 upsertSideStub(side, sourceImage)
 
-                val result = withContext(Dispatchers.IO) { segmentation.segment(file, side) }
+                // 2. Run the on-device pipeline (YOLO → SAM 2.1 → OpenCV).
+                //    This produces a 1080x1080 design-space bitmap + a mask.
+                val result = withContext(Dispatchers.IO) {
+                    inference.run(source)
+                }
+                val dsPath = withContext(Dispatchers.IO) {
+                    ImageCache.exportBitmap(getApplication(), result.designSpace, "design_${side.name.lowercase()}.png")
+                }
+                val maskPath = withContext(Dispatchers.IO) {
+                    ImageCache.exportBitmap(getApplication(), result.mask, "mask_${side.name.lowercase()}.png")
+                }
                 val mask = MaskAsset(
-                    id = result.mask.id,
-                    uri = result.mask.uri,
-                    width = result.mask.width.takeIf { it > 0 } ?: sourceImage.width,
-                    height = result.mask.height.takeIf { it > 0 } ?: sourceImage.height
+                    id = UUID.randomUUID().toString(),
+                    uri = Uri.fromFile(maskPath).toString(),
+                    width = result.mask.width,
+                    height = result.mask.height,
                 )
-                finalizeSide(side, sourceImage, mask)
+                finalizeSideWithDesign(side, sourceImage, mask, Uri.fromFile(dsPath).toString())
             } catch (t: Throwable) {
                 _state.update { it.copy(isLoading = false, errorMessage = t.message ?: "Unknown error") }
             }
@@ -270,14 +282,22 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val result = withContext(Dispatchers.IO) { segmentation.segment(file, side) }
+                val result = withContext(Dispatchers.IO) {
+                    inference.run(Uri.fromFile(file))
+                }
+                val dsPath = withContext(Dispatchers.IO) {
+                    ImageCache.exportBitmap(getApplication(), result.designSpace, "design_${side.name.lowercase()}.png")
+                }
+                val maskPath = withContext(Dispatchers.IO) {
+                    ImageCache.exportBitmap(getApplication(), result.mask, "mask_${side.name.lowercase()}.png")
+                }
                 val mask = MaskAsset(
-                    id = result.mask.id,
-                    uri = result.mask.uri,
-                    width = result.mask.width.takeIf { it > 0 } ?: src.width,
-                    height = result.mask.height.takeIf { it > 0 } ?: src.height
+                    id = UUID.randomUUID().toString(),
+                    uri = Uri.fromFile(maskPath).toString(),
+                    width = result.mask.width,
+                    height = result.mask.height,
                 )
-                finalizeSide(side, src, mask)
+                finalizeSideWithDesign(side, src, mask, Uri.fromFile(dsPath).toString())
             } catch (t: Throwable) {
                 _state.update { it.copy(isLoading = false, errorMessage = t.message ?: "Segmentation failed") }
             }
@@ -300,8 +320,35 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { current ->
             val doc = current.document ?: emptyDocument(source)
             val updated = when (side) {
-                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, mask, emptyList()))
-                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, mask, emptyList()))
+                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, mask, layers = emptyList()))
+                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, mask, layers = emptyList()))
+            }
+            current.copy(document = updated, isLoading = false, errorMessage = null)
+        }
+        persist()
+    }
+
+    /**
+     * Same as [finalizeSide] but also stores the 1080x1080 design-space
+     * bitmap path produced by the on-device pipeline (YOLO + SAM 2.1 +
+     * OpenCV). The design space is what the user sees first inside the
+     * editor.
+     */
+    private fun finalizeSideWithDesign(
+        side: GarmentSideId,
+        source: ImageAsset,
+        mask: MaskAsset,
+        designSpacePath: String,
+    ) {
+        _state.update { current ->
+            val doc = current.document ?: emptyDocument(source)
+            val updated = when (side) {
+                GarmentSideId.FRONT -> doc.copy(
+                    front = GarmentSide(source, mask, designSpacePath, emptyList())
+                )
+                GarmentSideId.BACK -> doc.copy(
+                    back = GarmentSide(source, mask, designSpacePath, emptyList())
+                )
             }
             current.copy(document = updated, isLoading = false, errorMessage = null)
         }
