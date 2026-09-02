@@ -1,5 +1,6 @@
 package com.example.myapplicationkoG
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -11,15 +12,17 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -79,21 +82,44 @@ private fun AuthInputField(
     value: String,
     onValueChange: (String)-> Unit,
     isPassword: Boolean = false,
+    errorMessage: String? = null,
+    maxLength: Int? = null,
     modifier: Modifier = Modifier
 ) {
+    var passwordVisible by remember { mutableStateOf(false) }
     OutlinedTextField(
         value = value,
         onValueChange = onValueChange,
-        placeholder = {Text(placeholder)},
+        placeholder = {Text(placeholder, fontSize = 14.sp)},
         singleLine = true,
+        isError = errorMessage != null,
+        supportingText = null,
+        trailingIcon = if (isPassword) {
+            {
+                androidx.compose.material3.IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                    androidx.compose.material3.Icon(
+                        painter = painterResource(id = if (passwordVisible) R.drawable.visibilityon else R.drawable.visibilityoff),
+                        contentDescription = if (passwordVisible) "Hide password" else "Show password",
+                        tint = Color.Gray,
+                        modifier = Modifier.size(20.dp)
+                    )
+                }
+            }
+        } else null,
+        colors = OutlinedTextFieldDefaults.colors(
+            errorBorderColor = Color.Red,
+            errorPlaceholderColor = Color.Red
+        ),
         visualTransformation =
-            if (isPassword) PasswordVisualTransformation()
+            if (isPassword && !passwordVisible) PasswordVisualTransformation()
             else VisualTransformation.None,
         keyboardOptions = KeyboardOptions(
             keyboardType = if (isPassword) KeyboardType.Password
             else KeyboardType.Email
         ),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .heightIn(min = 44.dp)
     )
 }
 
@@ -124,33 +150,71 @@ fun AuthScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var confirmPassword by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf("") }
+    var emailError by remember { mutableStateOf<String?>(null) }
+    var passwordError by remember { mutableStateOf<String?>(null) }
+    var confirmPasswordError by remember { mutableStateOf<String?>(null) }
+    var bannerMessage by remember { mutableStateOf<String?>(null) }
+    var isBannerSuccess by remember { mutableStateOf(false) }
 
     val scrollState = rememberScrollState()
+    val scope = rememberCoroutineScope()
 
-    val scope = rememberCoroutineScope ()
-
+    fun clearFieldErrors() {
+        emailError = null
+        passwordError = null
+        confirmPasswordError = null
+    }
 
     fun validateLogin(): Boolean{
-        errorMessage = when{
-            email.isBlank()-> "Email is required"
-            password.isBlank()->"Password is required"
-            else -> ""}
-
-        return errorMessage.isEmpty()
+        emailError = when {
+            email.isBlank() -> "Email is required"
+            !email.contains("@") -> "Enter valid email address."
+            else -> null
+        }
+        if (emailError != null) {
+            passwordError = null
+            bannerMessage = emailError
+            isBannerSuccess = false
+            return false
+        }
+        passwordError = if (password.isBlank()) "Password is required" else null
+        bannerMessage = passwordError
+        isBannerSuccess = false
+        return passwordError == null
     }
 
     fun validateRegister(): Boolean{
-        errorMessage = when{
+        emailError = when{
             email.isBlank()->"Email is required."
             !email.contains("@")-> "Enter valid email address."
-            password.isBlank()-> "Password is required."
-            password.length<6 -> "Password must be at least 6 character."
-            confirmPassword.isBlank()->"Please confirm you password."
-            password != confirmPassword->"Password does not match."
-            else ->""
+            else -> null
         }
-        return errorMessage.isEmpty()
+        if (emailError != null) {
+            passwordError = null
+            confirmPasswordError = null
+            bannerMessage = emailError
+            isBannerSuccess = false
+            return false
+        }
+        passwordError = when{
+            password.isBlank()-> "Password is required."
+            password.length<6 -> "Password must be at least 6 characters."
+            else -> null
+        }
+        if (passwordError != null) {
+            confirmPasswordError = null
+            bannerMessage = passwordError
+            isBannerSuccess = false
+            return false
+        }
+        confirmPasswordError = when{
+            confirmPassword.isBlank()->"Please confirm your password."
+            password != confirmPassword->"Password does not match."
+            else -> null
+        }
+        bannerMessage = confirmPasswordError
+        isBannerSuccess = false
+        return confirmPasswordError == null
     }
 
     Column(
@@ -158,6 +222,7 @@ fun AuthScreen(
             .fillMaxSize()
             .verticalScroll(scrollState)
             .imePadding()
+            .navigationBarsPadding()
     ) {
         // Upper Border
         Box(
@@ -204,11 +269,11 @@ fun AuthScreen(
             }
         }
 
-        // Lower Border
+        // Lower Border - tab 上下 20, textfield 间 8, button 上方 20
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(bottom = 24.dp),
+                .padding(vertical = 20.dp),
             contentAlignment = Alignment.Center
         ) {
             Column(modifier = Modifier.padding(horizontal = 24.dp)) {
@@ -222,33 +287,63 @@ fun AuthScreen(
                     AuthTabItem(
                         text = "Log In",
                         isSelected = isLogin,
-                        onClick = { isLogin = true },
+                        onClick = {
+                            isLogin = true; bannerMessage = null; clearFieldErrors()
+                            email = ""; password = ""; confirmPassword = ""
+                        },
                         modifier = Modifier.weight(1f)
                     )
                     AuthTabItem(
                         text = "Register",
                         isSelected = !isLogin,
-                        onClick = { isLogin = false },
+                        onClick = {
+                            isLogin = false; bannerMessage = null; clearFieldErrors()
+                            email = ""; password = ""; confirmPassword = ""
+                        },
                         modifier = Modifier.weight(1f)
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(20.dp))
 
                 if (isLogin) {
                     AuthInputField(
                         placeholder = "Email Address",
                         value = email,
-                        onValueChange = {email = it}
+                        onValueChange = { if (it.length <= 254) { email = it; emailError = null } },
+                        errorMessage = emailError,
+                        maxLength = 254
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     AuthInputField(placeholder = "Password",
                         value = password,
-                        onValueChange = {password=it},
-                        isPassword = true
+                        onValueChange = { if (it.length <= 64) { password=it; passwordError = null } },
+                        isPassword = true,
+                        errorMessage = passwordError,
+                        maxLength = 64
                     )
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    AnimatedVisibility(visible = bannerMessage != null) {
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isBannerSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = bannerMessage ?: "",
+                                    color = if (isBannerSuccess) Color(0xFF2E7D32) else Color.Red,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
 
                     AuthPrimaryButton(text = "Log In",
                         onClick = {
@@ -263,7 +358,8 @@ fun AuthScreen(
                                         }
                                         onLoginSuccess()
                                     }catch (exception: Exception){
-                                        errorMessage = exception.message?:"Incorrect email or password."
+                                        bannerMessage = exception.message?:"Incorrect email or password."
+                                        isBannerSuccess = false
                                     }
                                 }
                             }
@@ -283,20 +379,46 @@ fun AuthScreen(
                 } else {
                     AuthInputField(placeholder = "Email address",
                         value = email,
-                        onValueChange = {email = it})
-                    Spacer(modifier = Modifier.height(16.dp))
+                        onValueChange = { if (it.length <= 254) { email = it; emailError = null } },
+                        errorMessage = emailError,
+                        maxLength = 254)
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     AuthInputField(placeholder = "Password",
                         value = password,
-                        onValueChange = {password = it},
-                        isPassword = true)
-                    Spacer(modifier = Modifier.height(16.dp))
+                        onValueChange = { if (it.length <= 64) { password = it; passwordError = null } },
+                        isPassword = true,
+                        errorMessage = passwordError,
+                        maxLength = 64)
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     AuthInputField(placeholder = "Confirm Password",
                         value = confirmPassword,
-                        onValueChange = {confirmPassword = it},
-                        isPassword = true)
-                    Spacer(modifier = Modifier.height(16.dp))
+                        onValueChange = { if (it.length <= 64) { confirmPassword = it; confirmPasswordError = null } },
+                        isPassword = true,
+                        errorMessage = confirmPasswordError,
+                        maxLength = 64)
+                    Spacer(modifier = Modifier.height(22.dp))
+
+                    AnimatedVisibility(visible = bannerMessage != null) {
+                        Column {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isBannerSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
+                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                            ) {
+                                Text(
+                                    text = bannerMessage ?: "",
+                                    color = if (isBannerSuccess) Color(0xFF2E7D32) else Color.Red,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+                            Spacer(modifier = Modifier.height(10.dp))
+                        }
+                    }
 
                     AuthPrimaryButton(text = "Create Account",
                         onClick = {
@@ -312,25 +434,16 @@ fun AuthScreen(
                                         isLogin = true
                                         password=""
                                         confirmPassword= ""
-                                        errorMessage = "Account created. Check your email to confirm it."
+                                        clearFieldErrors()
+                                        bannerMessage = "Account created. Check your email to confirm it."
+                                        isBannerSuccess = true
                                     } catch (exception: Exception){
-                                        errorMessage= exception.message ?:"Could not create account."
+                                        bannerMessage= exception.message ?:"Could not create account."
+                                        isBannerSuccess = false
                                     }
                                 }
                             }
                         }
-                    )
-                }
-
-                if(errorMessage.isNotBlank()){
-                    Text(
-                        text = errorMessage,
-                        color = if (errorMessage.startsWith("Account created")){
-                            Color(0xFF2E7D32)
-                        }else{
-                            Color.Red
-                        },
-                        modifier = Modifier.padding(top = 12.dp)
                     )
                 }
             }
