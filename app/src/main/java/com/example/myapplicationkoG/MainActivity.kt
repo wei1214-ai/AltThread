@@ -4,6 +4,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.viewModels
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -16,25 +17,31 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.myapplicationkoG.ui.editor.EditorPlaceHolder
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputScreen
+import com.example.myapplicationkoG.ui.garmentinput.GarmentInputViewModel
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.handleDeeplinks
 
 class MainActivity : ComponentActivity() {
+
+    // Shared by GarmentInputScreen and EditorPlaceHolder so the cutout
+    // paths persist across navigation.
+    private val garmentInputViewModel: GarmentInputViewModel by viewModels()
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         supabase.handleDeeplinks(intent)
         enableEdgeToEdge()
         setContent {
             AltThreadTheme {
-                AltThreadApp()
+                AltThreadApp(garmentInputViewModel)
             }
         }
     }
 }
 
 @Composable
-fun AltThreadApp() {
+fun AltThreadApp(garmentInputVm: GarmentInputViewModel) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
@@ -69,9 +76,7 @@ fun AltThreadApp() {
             }
             composable(Screen.Upload.route) {
                 UploadScreen(
-                    onClose = {
-                        navController.popBackStack()
-                    }
+                    onClose = { navController.popBackStack() }
                 )
             }
             composable(Screen.Home.route) { HomeScreen() }
@@ -83,29 +88,27 @@ fun AltThreadApp() {
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
-                    onEditProfile = {
-                        navController.navigate(Screen.EditProfile.route)
-                    }
-                ) }
-
+                    onEditProfile = { navController.navigate(Screen.EditProfile.route) }
+                )
+            }
             composable(Screen.EditProfile.route) {
                 EditProfileScreen(
-                    onBack = {
-                        navController.popBackStack()
-                    }
+                    onBack = { navController.popBackStack() }
                 )
             }
 
-            // ---- Part 1 editor flow ----
+            // ---- Start Your Own Design ----
             composable(Screen.GarmentInput.route) {
                 GarmentInputScreen(
+                    viewModel = garmentInputVm,
                     onOpenEditor = { navController.navigate(Screen.Editor.route) },
-                    onBack = { navController.popBackStack() }
+                    onBack = { navController.popBackStack() },
                 )
             }
             composable(Screen.Editor.route) {
                 EditorPlaceHolder(
-                    onBack = { navController.popBackStack() }
+                    viewModel = garmentInputVm,
+                    onBack = { navController.popBackStack() },
                 )
             }
         }
