@@ -11,29 +11,31 @@ import com.example.myapplicationkoG.domain.model.GarmentSideId
 import com.example.myapplicationkoG.domain.model.ImageAsset
 import com.example.myapplicationkoG.domain.model.MaskAsset
 import com.example.myapplicationkoG.inference.ClothingInferencePipeline
-import com.example.myapplicationkoG.inference.InferenceResult
 import com.example.myapplicationkoG.storage.ImageCache
 import com.example.myapplicationkoG.storage.ProjectPreferences
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
 import java.util.UUID
 
 /**
  * Lightweight state holder for [GarmentInputScreen].
  *
- * Responsibilities:
- *  - Pick FRONT / BACK images from a SAF Uri.
- *  - Run YOLOv8 → SAM 2.1 → OpenCV on each picked image.
- *  - Persist originals, masks and 1080x1080 design-space bitmaps to
- *    app private storage via [ImageCache].
- *  - Expose a [ClothingDocument] (with `front` / `back` populated)
- *    so the next screen can pick up the work.
+ * Flow:
+ *  1. User picks FRONT / BACK image via SAF (photo picker).
+ *  2. We copy the picked bytes into app private storage (so we don't have
+ *     to fight `content://` permission flags later).
+ *  3. The on-device pipeline (YOLO + SAM 2.1 + OpenCV) processes the local
+ *     file and returns source / mask / 1080x1080 design-space bitmaps.
+ *  4. Those bitmaps are persisted to private storage and a [ClothingDocument]
+ *     is exposed to the UI so the next screen can pick up the work.
  *
- * No editor logic, no layers, no undo/redo. That will be rebuilt in
- * a follow-up.
+ * No editor logic, no layers, no undo/redo.
  */
 class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 
@@ -52,52 +54,60 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             try {
-                val result = inference.run(uri)
+                val result = withContext(Dispatchers.IO) {
+                    val app = getApplication<Application>()
+                    // 1) Copy the picked Uri into private storage. This sidesteps
+                    //    the flaky `content://` open paths on Android 13+.
+                    val imported: File = ImageCache.importFromUri(app, uri, "garment_in_${docId}_${side.name.lowercase()}")
+                        ?: error("Could not import picked image")
 
-        // Persist source / mask / design-space bitmaps to private storage
-        val app = getApplication<Application>()
-        val prefix = "garment_${docId}_${side.name.lowercase()}"
+                    // 2) Run inference on the local file (file:// Uri always opens).
+                    inference.run(Uri.fromFile(imported))
+                }
 
-        val sourceFile = ImageCache.exportBitmap(app, result.sourceBitmap, "${prefix}_source.png")
-        val maskFile = ImageCache.exportBitmap(app, result.mask, "${prefix}_mask.png")
-        val designFile = ImageCache.exportBitmap(app, result.designSpace, "${prefix}_design.png")
+                // 3) Persist source / mask / design-space bitmaps to private storage
+                val app = getApplication<Application>()
+                val prefix = "garment_${docId}_${side.name.lowercase()}"
 
-        val imageAsset = ImageAsset(
-            id = UUID.randomUUID().toString(),
-            uri = Uri.fromFile(sourceFile).toString(),
-            width = result.sourceBitmap.width,
-            height = result.sourceBitmap.height,
-        )
-        val maskAsset = MaskAsset(
-            id = UUID.randomUUID().toString(),
-            uri = Uri.fromFile(maskFile).toString(),
-            width = result.mask.width,
-            height = result.mask.height,
-        )
-        val designSpacePath = designFile.absolutePath
+                val sourceFile = ImageCache.exportBitmap(app, result.sourceBitmap, "${prefix}_source.png")
+                val maskFile = ImageCache.exportBitmap(app, result.mask, "${prefix}_mask.png")
+                val designFile = ImageCache.exportBitmap(app, result.designSpace, "${prefix}_design.png")
 
-        _state.update { current ->
-            val doc = current.document ?: ClothingDocument(
-                id = docId,
-                front = sideStub(),
-                back = sideStub(),
-            )
-            val sideUpdated = GarmentSide(
-                sourceImage = imageAsset,
-                garmentMask = maskAsset,
-                designSpacePath = designSpacePath,
-            )
-            val newDoc = when (side) {
-                GarmentSideId.FRONT -> doc.copy(front = sideUpdated)
-                GarmentSideId.BACK -> doc.copy(back = sideUpdated)
-            }
-            current.copy(document = newDoc, isLoading = false, errorMessage = null)
-        }
-        // Persist best-effort; UI does not block on this.
-        val finalDoc = _state.value.document
-        if (finalDoc != null) {
-            runCatching { preferences.saveDocument(finalDoc) }
-        }
+                val imageAsset = ImageAsset(
+                    id = UUID.randomUUID().toString(),
+                    uri = Uri.fromFile(sourceFile).toString(),
+                    width = result.sourceBitmap.width,
+                    height = result.sourceBitmap.height,
+                )
+                val maskAsset = MaskAsset(
+                    id = UUID.randomUUID().toString(),
+                    uri = Uri.fromFile(maskFile).toString(),
+                    width = result.mask.width,
+                    height = result.mask.height,
+                )
+                val designSpacePath = designFile.absolutePath
+
+                val finalDoc = _state.updateAndGet { current ->
+                    val doc = current.document ?: ClothingDocument(
+                        id = docId,
+                        front = sideStub(),
+                        back = sideStub(),
+                    )
+                    val sideUpdated = GarmentSide(
+                        sourceImage = imageAsset,
+                        garmentMask = maskAsset,
+                        designSpacePath = designSpacePath,
+                    )
+                    val newDoc = when (side) {
+                        GarmentSideId.FRONT -> doc.copy(front = sideUpdated)
+                        GarmentSideId.BACK -> doc.copy(back = sideUpdated)
+                    }
+                    current.copy(document = newDoc, isLoading = false, errorMessage = null)
+                }.document
+
+                if (finalDoc != null) {
+                    runCatching { preferences.saveDocument(finalDoc) }
+                }
             } catch (t: Throwable) {
                 _state.update {
                     it.copy(
@@ -130,3 +140,13 @@ data class GarmentInputUiState(
     val isLoading: Boolean = false,
     val errorMessage: String? = null,
 )
+
+// Helper for MutableStateFlow.update + return new value
+private inline fun <T> MutableStateFlow<T>.updateAndGet(function: (T) -> T): T {
+    var newValue: T
+    do {
+        val prev = value
+        newValue = function(prev)
+    } while (!compareAndSet(prev, newValue))
+    return newValue
+}
