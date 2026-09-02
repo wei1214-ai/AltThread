@@ -1,8 +1,12 @@
 package com.example.myapplicationkoG.ui.garmentinput
 
+import android.Manifest
+import android.content.Context
+import android.content.pm.PackageManager
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.DrawableRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -27,17 +31,34 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
+import com.example.myapplicationkoG.R
 import com.example.myapplicationkoG.domain.model.GarmentSideId
+import com.example.myapplicationkoG.ui.theme.Cyan
+import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import java.io.File
+
+private fun createCameraUri(context: Context): Uri {
+    val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+    file.parentFile?.mkdirs()
+    return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+}
 
 @Composable
 fun GarmentInputScreen(
@@ -46,15 +67,61 @@ fun GarmentInputScreen(
     viewModel: GarmentInputViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val context = LocalContext.current
+    var frontCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var backCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraSide by remember { mutableStateOf<GarmentSideId?>(null) }
 
-    val pickFront = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+    val pickFrontAlbum = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.onPickedImage(GarmentSideId.FRONT, it) }
     }
-    val pickBack = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+    val pickBackAlbum = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.onPickedImage(GarmentSideId.BACK, it) }
+    }
+    val takeFrontPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        if (success) frontCameraUri?.let { viewModel.onPickedImage(GarmentSideId.FRONT, it) }
+    }
+    val takeBackPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success: Boolean ->
+        if (success) backCameraUri?.let { viewModel.onPickedImage(GarmentSideId.BACK, it) }
+    }
+    val requestCameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted: Boolean ->
+        if (granted) {
+            pendingCameraSide?.let { side ->
+                when (side) {
+                    GarmentSideId.FRONT -> {
+                        val uri = createCameraUri(context)
+                        frontCameraUri = uri
+                        takeFrontPicture.launch(uri)
+                    }
+                    GarmentSideId.BACK -> {
+                        val uri = createCameraUri(context)
+                        backCameraUri = uri
+                        takeBackPicture.launch(uri)
+                    }
+                }
+            }
+        }
+        pendingCameraSide = null
+    }
+
+    fun launchCamera(side: GarmentSideId) {
+        if (state.isLoading) return
+        val perm = Manifest.permission.CAMERA
+        val granted = ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            val uri = createCameraUri(context)
+            when (side) {
+                GarmentSideId.FRONT -> { frontCameraUri = uri; takeFrontPicture.launch(uri) }
+                GarmentSideId.BACK -> { backCameraUri = uri; takeBackPicture.launch(uri) }
+            }
+        } else {
+            pendingCameraSide = side
+            requestCameraPermission.launch(perm)
+        }
     }
 
     val ready = state.frontCutoutPath != null && state.backCutoutPath != null && !state.isLoading
+    val enabled = !state.isLoading
 
     Column(
         modifier = Modifier
@@ -71,16 +138,34 @@ fun GarmentInputScreen(
         )
         Spacer(Modifier.height(24.dp))
 
-        PickerBox("FRONT", state.frontCutoutPath, !state.isLoading) { pickFront.launch("image/*") }
-        Spacer(Modifier.height(12.dp))
-        PickerBox("BACK", state.backCutoutPath, !state.isLoading) { pickBack.launch("image/*") }
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            PickerBox(
+                label = "FRONT",
+                cutoutPath = state.frontCutoutPath,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                onAlbumClick = { pickFrontAlbum.launch("image/*") },
+                onCameraClick = { launchCamera(GarmentSideId.FRONT) }
+            )
+            PickerBox(
+                label = "BACK",
+                cutoutPath = state.backCutoutPath,
+                enabled = enabled,
+                modifier = Modifier.weight(1f),
+                onAlbumClick = { pickBackAlbum.launch("image/*") },
+                onCameraClick = { launchCamera(GarmentSideId.BACK) }
+            )
+        }
 
         if (state.isLoading) {
             Spacer(Modifier.height(20.dp))
             Row(verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF1B1B1B))
                 Spacer(Modifier.size(12.dp))
-                Text("Running on-device AI (YOLO + SAM 2.1)…", fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                Text("Processing image…", fontSize = 13.sp, color = Color(0xFF1B1B1B))
             }
         }
 
@@ -89,7 +174,7 @@ fun GarmentInputScreen(
             Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
         }
 
-        Spacer(Modifier.weight(1f))
+        Spacer(Modifier.height(20.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
@@ -111,12 +196,18 @@ fun GarmentInputScreen(
 }
 
 @Composable
-private fun PickerBox(label: String, cutoutPath: String?, enabled: Boolean, onPick: () -> Unit) {
+private fun PickerBox(
+    label: String,
+    cutoutPath: String?,
+    enabled: Boolean,
+    modifier: Modifier = Modifier,
+    onAlbumClick: () -> Unit,
+    onCameraClick: () -> Unit
+) {
     val hasImage = cutoutPath != null
     Box(
-        modifier = Modifier
+        modifier = modifier
             .fillMaxWidth()
-            .height(160.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(if (hasImage) Color(0xFFE7F4EE) else Color.White)
             .border(
@@ -124,25 +215,72 @@ private fun PickerBox(label: String, cutoutPath: String?, enabled: Boolean, onPi
                 color = if (hasImage) Color(0xFF2E7D5B) else Color(0xFFCCCCCC),
                 shape = RoundedCornerShape(16.dp),
             )
-            .clickable(enabled = enabled, onClick = onPick),
-        contentAlignment = Alignment.Center,
     ) {
-        if (hasImage) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                AsyncImage(
-                    model = cutoutPath,
-                    contentDescription = null,
-                    modifier = Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFEEEEEE)),
-                )
-                Spacer(Modifier.height(8.dp))
-                Text(label, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D5B))
-            }
-        } else {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(28.dp), tint = Color(0xFF1B1B1B))
-                Spacer(Modifier.height(6.dp))
-                Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF1B1B1B))
+        // Main center content - clicking it also triggers album (fallback)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clickable(enabled = enabled, onClick = onAlbumClick),
+            contentAlignment = Alignment.Center,
+        ) {
+            if (hasImage) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    AsyncImage(
+                        model = cutoutPath,
+                        contentDescription = null,
+                        modifier = Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFEEEEEE)),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text(label, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D5B))
+                }
+            } else {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(28.dp), tint = Color(0xFF1B1B1B))
+                    Spacer(Modifier.height(6.dp))
+                    Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF1B1B1B))
+                }
             }
         }
+        // Right-bottom two small buttons (mimic Home's Cyan 40dp button)
+        Row(
+            modifier = Modifier
+                .align(Alignment.BottomEnd)
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SmallActionButton(
+                iconRes = R.drawable.addfromalbum,
+                enabled = enabled,
+                onClick = onAlbumClick
+            )
+            SmallActionButton(
+                iconRes = R.drawable.addfromcamera,
+                enabled = enabled,
+                onClick = onCameraClick
+            )
+        }
+    }
+}
+
+@Composable
+private fun SmallActionButton(
+    @DrawableRes iconRes: Int,
+    enabled: Boolean,
+    onClick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .size(40.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(if (enabled) Cyan else Color.LightGray)
+            .clickable(enabled = enabled, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(id = iconRes),
+            contentDescription = null,
+            tint = MidnightBlue,
+            modifier = Modifier.size(22.dp)
+        )
     }
 }

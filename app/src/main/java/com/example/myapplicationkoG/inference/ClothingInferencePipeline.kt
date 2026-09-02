@@ -3,6 +3,9 @@ package com.example.myapplicationkoG.inference
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.graphics.Canvas
+import android.graphics.Color
+import android.util.Log
 import org.opencv.core.CvType
 import org.opencv.core.Mat
 import org.opencv.core.Scalar
@@ -31,12 +34,30 @@ class ClothingInferencePipeline(context: Context) {
 
     suspend fun run(file: File): InferenceResult {
         val sourceBitmap = decodeScaled(file, maxEdge = 1280)
-        val bboxes = models.detectClothingBboxes(sourceBitmap)
-        val bestBox = bboxes.maxByOrNull { it.width() * it.height() }
-            ?: error("No clothing detected — try a clearer photo with the garment filling most of the frame.")
-        val mask = models.decodeMask(sourceBitmap, bestBox)
-        val cutout = cutoutOntoCanvas(sourceBitmap, mask, canvasSize = 1080)
-        return InferenceResult(cutout = cutout)
+        try {
+            val bboxes = models.detectClothingBboxes(sourceBitmap)
+            if (bboxes.isEmpty()) {
+                error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
+            }
+            val bestBox = bboxes.maxByOrNull { it.width() * it.height() }
+                ?: error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
+            // Require garment to fill reasonable area, otherwise not a full cloth
+            val areaRatio = (bestBox.width() * bestBox.height()) / (sourceBitmap.width * sourceBitmap.height).toFloat()
+            if (areaRatio < 0.12f) {
+                error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
+            }
+            Log.d("ClothingPipeline", "YOLO bestBox=$bestBox areaRatio=$areaRatio among ${bboxes.size}")
+            val mask = models.decodeMask(sourceBitmap, bestBox)
+            try {
+                val cutout = cutoutOntoCanvas(sourceBitmap, mask, canvasSize = 1080)
+                return InferenceResult(cutout = cutout)
+            } finally {
+                // mask is ARGB with alpha channel, recycle after use
+                runCatching { if (!mask.isRecycled) mask.recycle() }
+            }
+        } finally {
+            runCatching { if (!sourceBitmap.isRecycled) sourceBitmap.recycle() }
+        }
     }
 
     private fun decodeScaled(file: File, maxEdge: Int): Bitmap {
@@ -56,12 +77,14 @@ class ClothingInferencePipeline(context: Context) {
         val longEdge = maxOf(bmp.width, bmp.height)
         return if (longEdge > maxEdge) {
             val scale = maxEdge.toFloat() / longEdge
-            Bitmap.createScaledBitmap(
+            val scaled = Bitmap.createScaledBitmap(
                 bmp,
                 (bmp.width * scale).toInt(),
                 (bmp.height * scale).toInt(),
                 true,
             )
+            if (scaled !== bmp) bmp.recycle()
+            scaled
         } else bmp
     }
 
@@ -89,34 +112,100 @@ class ClothingInferencePipeline(context: Context) {
         maskResized.getPixels(maskPx, 0, srcW, 0, 0, srcW, srcH)
         for (i in srcPx.indices) {
             val alpha = (maskPx[i] ushr 24) and 0xFF
-            srcPx[i] = (alpha shl 24) or (srcPx[i] and 0x00FFFFFF)
+            // Fully opaque for garment, fully transparent for background
+            // Using threshold: alpha >0 means garment
+            val a = if (alpha > 127) 0xFF else 0x00
+            srcPx[i] = (a shl 24) or (srcPx[i] and 0x00FFFFFF)
         }
         cut.setPixels(srcPx, 0, srcW, 0, 0, srcW, srcH)
+        if (maskResized !== maskArgb) maskResized.recycle()
 
-        // 2) Center-fit the cutout on a 1080x1080 white canvas via OpenCV.
-        val srcMat = bitmapToBgrMat(cut)
+        // 2) Center-fit the cutout on a 1080x1080 white canvas.
+        // Prefer pure Android Canvas (no native dependency) to avoid alpha loss that OpenCV 3-channel Mat caused.
+        // Keep OpenCV path as fallback but fixed to 4-channel handling.
+        return try {
+            if (isOpenCVReady()) {
+                cutoutViaOpenCV(cut, canvasSize)
+            } else {
+                cutoutViaCanvas(cut, canvasSize)
+            }
+        } catch (t: Throwable) {
+            Log.w("ClothingPipeline", "OpenCV path failed, fallback to Canvas: ${t.message}", t)
+            cutoutViaCanvas(cut, canvasSize)
+        } finally {
+            runCatching { if (!cut.isRecycled) cut.recycle() }
+        }
+    }
+
+    private fun cutoutViaCanvas(cut: Bitmap, canvasSize: Int): Bitmap {
+        val ratio = minOf(
+            canvasSize.toFloat() / cut.width,
+            canvasSize.toFloat() / cut.height
+        ).coerceAtLeast(1e-6f)
+        val newW = (cut.width * ratio).toInt().coerceAtLeast(1)
+        val newH = (cut.height * ratio).toInt().coerceAtLeast(1)
+        val scaled = Bitmap.createScaledBitmap(cut, newW, newH, true)
+        val out = Bitmap.createBitmap(canvasSize, canvasSize, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(out)
+        canvas.drawColor(Color.WHITE)
+        val left = (canvasSize - newW) / 2f
+        val top = (canvasSize - newH) / 2f
+        canvas.drawBitmap(scaled, left, top, null)
+        if (scaled !== cut) scaled.recycle()
+        return out
+    }
+
+    private fun cutoutViaOpenCV(cut: Bitmap, canvasSize: Int): Bitmap {
+        // Fixed 4-channel path: preserve alpha, then composite onto white 3-channel canvas using mask
+        val cutMat4 = bitmapToBgraMat(cut) // 4 channels
         val canvasMat = Mat(canvasSize, canvasSize, CvType.CV_8UC3, Scalar.all(255.0))
         try {
+            // Split 4 channels to get alpha mask
+            val channels = mutableListOf<Mat>()
+            org.opencv.core.Core.split(cutMat4, channels) // B,G,R,A
+            val alpha = channels[3]
+            // Create 3-channel BGR from first 3 channels
+            val bgr = Mat()
+            org.opencv.core.Core.merge(channels.subList(0, 3), bgr)
+
             val ratio = minOf(
-                canvasSize.toDouble() / srcMat.cols(),
-                canvasSize.toDouble() / srcMat.rows(),
+                canvasSize.toDouble() / bgr.cols(),
+                canvasSize.toDouble() / bgr.rows(),
             ).coerceAtLeast(1e-6)
-            val newW = (srcMat.cols() * ratio).toInt().coerceAtLeast(1)
-            val newH = (srcMat.rows() * ratio).toInt().coerceAtLeast(1)
-            val fitted = Mat()
-            Imgproc.resize(srcMat, fitted, org.opencv.core.Size(newW.toDouble(), newH.toDouble()), 0.0, 0.0, Imgproc.INTER_AREA)
+            val newW = (bgr.cols() * ratio).toInt().coerceAtLeast(1)
+            val newH = (bgr.rows() * ratio).toInt().coerceAtLeast(1)
+            val fittedBgr = Mat()
+            val fittedAlpha = Mat()
+            Imgproc.resize(bgr, fittedBgr, org.opencv.core.Size(newW.toDouble(), newH.toDouble()), 0.0, 0.0, Imgproc.INTER_AREA)
+            Imgproc.resize(alpha, fittedAlpha, org.opencv.core.Size(newW.toDouble(), newH.toDouble()), 0.0, 0.0, Imgproc.INTER_LINEAR)
             try {
                 val x = (canvasSize - newW) / 2
                 val y = (canvasSize - newH) / 2
-                fitted.copyTo(canvasMat.submat(y, y + newH, x, x + newW))
+                val roi = canvasMat.submat(y, y + newH, x, x + newW)
+                try {
+                    // Copy only where alpha >127
+                    // threshold alpha to binary
+                    val maskBinary = Mat()
+                    Imgproc.threshold(fittedAlpha, maskBinary, 127.0, 255.0, Imgproc.THRESH_BINARY)
+                    try {
+                        fittedBgr.copyTo(roi, maskBinary)
+                    } finally {
+                        maskBinary.release()
+                    }
+                } finally {
+                    roi.release()
+                }
             } finally {
-                fitted.release()
+                fittedBgr.release()
+                fittedAlpha.release()
+                bgr.release()
+                alpha.release()
+                for (c in channels) c.release()
             }
             return bgrMatToBitmap(canvasMat)
         } finally {
-            srcMat.release()
+            cutMat4.release()
             canvasMat.release()
-            if (maskResized !== maskArgb) maskResized.recycle()
         }
     }
 
@@ -129,9 +218,27 @@ class ClothingInferencePipeline(context: Context) {
         val data = ByteArray(w * h * 3)
         var i = 0
         for (p in pixels) {
-            data[i++] = ((p shr 16) and 0xFF).toByte() // B
+            data[i++] = (p and 0xFF).toByte() // B
             data[i++] = ((p shr 8) and 0xFF).toByte()  // G
-            data[i++] = (p and 0xFF).toByte()          // R
+            data[i++] = ((p shr 16) and 0xFF).toByte()  // R
+        }
+        mat.put(0, 0, data)
+        return mat
+    }
+
+    private fun bitmapToBgraMat(bitmap: Bitmap): Mat {
+        val w = bitmap.width
+        val h = bitmap.height
+        val pixels = IntArray(w * h)
+        bitmap.getPixels(pixels, 0, w, 0, 0, w, h)
+        val mat = Mat(h, w, CvType.CV_8UC4)
+        val data = ByteArray(w * h * 4)
+        var i = 0
+        for (p in pixels) {
+            data[i++] = (p and 0xFF).toByte() // B
+            data[i++] = ((p shr 8) and 0xFF).toByte()  // G
+            data[i++] = ((p shr 16) and 0xFF).toByte()  // R
+            data[i++] = ((p ushr 24) and 0xFF).toByte() // A
         }
         mat.put(0, 0, data)
         return mat
@@ -153,5 +260,31 @@ class ClothingInferencePipeline(context: Context) {
         }
         bmp.setPixels(pixels, 0, w, 0, 0, w, h)
         return bmp
+    }
+
+    companion object {
+        @Volatile private var opencvInited: Boolean? = null
+
+        private fun isOpenCVReady(): Boolean {
+            opencvInited?.let { return it }
+            val ready = try {
+                System.loadLibrary("opencv_java4")
+                true
+            } catch (_: Throwable) {
+                try {
+                    System.loadLibrary("opencv_java4100")
+                    true
+                } catch (_: Throwable) {
+                    try {
+                        org.opencv.android.OpenCVLoader.initDebug()
+                    } catch (_: Throwable) {
+                        false
+                    }
+                }
+            }
+            opencvInited = ready
+            if (!ready) Log.w("ClothingPipeline", "OpenCV not available, using Canvas fallback")
+            return ready
+        }
     }
 }

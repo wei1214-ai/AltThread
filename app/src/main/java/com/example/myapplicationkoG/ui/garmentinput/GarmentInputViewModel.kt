@@ -44,12 +44,27 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.update { it.copy(isLoading = true, errorMessage = null) }
             try {
+                // Remember old path to delete after new one succeeds (avoid Coil cache showing old image)
+                val oldPath = when (side) {
+                    GarmentSideId.FRONT -> _state.value.frontCutoutPath
+                    GarmentSideId.BACK -> _state.value.backCutoutPath
+                }
                 val cutout = withContext(Dispatchers.IO) {
                     val imported = copyToCache(uri)
                         ?: error("Could not import picked image")
                     val result = inference.run(imported)
-                    val out = File(cacheDir, "garment_${runId}_${side.name.lowercase()}.png")
-                    savePng(result.cutout, out)
+                    // Use timestamp to force Coil to reload (same path would be cached)
+                    val out = File(cacheDir, "garment_${runId}_${side.name.lowercase()}_${System.currentTimeMillis()}.png")
+                    try {
+                        savePng(result.cutout, out)
+                    } finally {
+                        // pipeline returns a fresh bitmap, recycle after saving to avoid OOM
+                        runCatching { if (!result.cutout.isRecycled) result.cutout.recycle() }
+                        // clean up imported temp file
+                        runCatching { imported.delete() }
+                    }
+                    // Delete old cutout file for this side
+                    oldPath?.let { runCatching { File(it).delete() } }
                     out
                 }
                 _state.update { current ->
