@@ -17,6 +17,7 @@ import com.example.myapplicationkoG.domain.model.MaskAsset
 import com.example.myapplicationkoG.domain.model.Point
 import com.example.myapplicationkoG.domain.model.VectorPath
 import com.example.myapplicationkoG.domain.model.Viewport
+import com.example.myapplicationkoG.inference.InferenceResult
 import com.example.myapplicationkoG.storage.ImageCache
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -247,7 +248,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
                 // 2. Run the on-device pipeline (YOLO → SAM 2.1 → OpenCV).
                 //    This produces a 1080x1080 design-space bitmap + a mask.
                 val result = withContext(Dispatchers.IO) {
-                    inference.run(source)
+                    inference.run(Uri.fromFile(file))
                 }
                 val dsPath = withContext(Dispatchers.IO) {
                     ImageCache.exportBitmap(getApplication(), result.designSpace, "design_${side.name.lowercase()}.png")
@@ -308,8 +309,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { current ->
             val doc = current.document ?: emptyDocument(source)
             val updated = when (side) {
-                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, garmentMask = null, layers = emptyList()))
-                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, garmentMask = null, layers = emptyList()))
+                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, garmentMask = null, designSpacePath = null, layers = emptyList()))
+                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, garmentMask = null, designSpacePath = null, layers = emptyList()))
             }
             current.copy(document = updated, activeSide = side)
         }
@@ -320,8 +321,8 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
         _state.update { current ->
             val doc = current.document ?: emptyDocument(source)
             val updated = when (side) {
-                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, mask, layers = emptyList()))
-                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, mask, layers = emptyList()))
+                GarmentSideId.FRONT -> doc.copy(front = GarmentSide(source, mask, designSpacePath = null, layers = emptyList()))
+                GarmentSideId.BACK -> doc.copy(back = GarmentSide(source, mask, designSpacePath = null, layers = emptyList()))
             }
             current.copy(document = updated, isLoading = false, errorMessage = null)
         }
@@ -344,10 +345,20 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
             val doc = current.document ?: emptyDocument(source)
             val updated = when (side) {
                 GarmentSideId.FRONT -> doc.copy(
-                    front = GarmentSide(source, mask, designSpacePath, emptyList())
+                    front = GarmentSide(
+                        sourceImage = source,
+                        garmentMask = mask,
+                        designSpacePath = designSpacePath,
+                        layers = emptyList()
+                    )
                 )
                 GarmentSideId.BACK -> doc.copy(
-                    back = GarmentSide(source, mask, designSpacePath, emptyList())
+                    back = GarmentSide(
+                        sourceImage = source,
+                        garmentMask = mask,
+                        designSpacePath = designSpacePath,
+                        layers = emptyList()
+                    )
                 )
             }
             current.copy(document = updated, isLoading = false, errorMessage = null)
@@ -357,7 +368,7 @@ class EditorViewModel(app: Application) : AndroidViewModel(app) {
 
     private fun emptyDocument(seed: ImageAsset): ClothingDocument {
         val id = UUID.randomUUID().toString()
-        val side = GarmentSide(seed, null, emptyList())
+        val side = GarmentSide(seed, null, null, emptyList())
         return ClothingDocument(id = id, front = side, back = side)
     }
 

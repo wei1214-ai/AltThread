@@ -5,37 +5,55 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
 import androidx.core.graphics.scale
-import com.example.myapplicationkoG.domain.model.GarmentSide
-import com.example.myapplicationkoG.domain.model.ImageRef
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlin.math.max
 
 /**
- * Single entry point used by [GarmentInputViewModel] to turn a user
- * photo into a fully processed `GarmentSide` ready for the editor.
+ * Result of running the on-device AI inference pipeline on a single
+ * garment photo.
+ *
+ * @param sourceUri The Uri passed in by the caller.
+ * @param sourceBitmap Decoded, downscaled bitmap used for inference.
+ * @param mask Binary (single-channel) mask produced by SAM 2.1 decoder.
+ *   Pixel 0 = background, 255 = clothing. Same dimensions as [sourceBitmap].
+ * @param designSpace The garment after OpenCV deskew, rotation, and center-
+ *   placing on a 1080x1080 pure-white canvas — what the user sees first in
+ *   the editor.
+ */
+data class InferenceResult(
+    val sourceUri: Uri,
+    val sourceBitmap: Bitmap,
+    val mask: Bitmap,
+    val designSpace: Bitmap,
+)
+
+/**
+ * Single entry point used by the Editor (via [EditorViewModel]) to turn a
+ * user photo into a fully processed side ready for the Design Space.
  *
  * Pipeline:
  *   photo (Uri) → decode → downscale → YOLO bbox → SAM mask
- *   → OpenCV deskew + center on 1080x1080 → GarmentSide
+ *   → OpenCV deskew + center on 1080x1080 → InferenceResult
  */
 class ClothingInferencePipeline(context: Context) {
 
     private val appContext = context.applicationContext
     private val models = ModelInferenceManager(appContext)
 
-    suspend fun run(uri: Uri): GarmentSide = withContext(Dispatchers.IO) {
+    suspend fun run(uri: Uri): InferenceResult = withContext(Dispatchers.IO) {
         val sourceBitmap = decodeScaled(uri, maxEdge = 1280)
         val bboxes = models.detectClothingBboxes(sourceBitmap)
-        val bestBox = bboxes.maxBy { it.width() * it.height() }
+        val bestBox = bboxes.maxByOrNull { it.width() * it.height() }
+            ?: error("No clothing detected by YOLO — try a clearer photo with the garment filling most of the frame.")
         val mask = models.decodeMask(sourceBitmap, bestBox)
         val designSpace = OpenCVPostProcessor.process(sourceBitmap, mask)
 
-        GarmentSide(
-            sourceImage = ImageRef(uri = uri.toString()),
-            designSpace = designSpace, // kept in memory; persisted later as PNG path
-            designSpacePath = null,
+        InferenceResult(
+            sourceUri = uri,
+            sourceBitmap = sourceBitmap,
             mask = mask,
+            designSpace = designSpace,
         )
     }
 
