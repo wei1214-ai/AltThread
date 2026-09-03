@@ -39,6 +39,14 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 
     private val runId: String = UUID.randomUUID().toString()
 
+    fun clearAll() {
+        // Delete cached files and reset state so re-entering Design Space is clean
+        _state.value.frontCutoutPath?.let { runCatching { File(it).delete() } }
+        _state.value.backCutoutPath?.let { runCatching { File(it).delete() } }
+        // Keep cacheDir but clear state
+        _state.value = GarmentInputUiState()
+    }
+
     fun onPickedImage(side: GarmentSideId, uri: Uri) {
         if (_state.value.isLoading) return
         viewModelScope.launch {

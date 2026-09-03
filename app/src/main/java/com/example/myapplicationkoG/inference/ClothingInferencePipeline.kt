@@ -112,10 +112,8 @@ class ClothingInferencePipeline(context: Context) {
         maskResized.getPixels(maskPx, 0, srcW, 0, 0, srcW, srcH)
         for (i in srcPx.indices) {
             val alpha = (maskPx[i] ushr 24) and 0xFF
-            // Fully opaque for garment, fully transparent for background
-            // Using threshold: alpha >0 means garment
-            val a = if (alpha > 127) 0xFF else 0x00
-            srcPx[i] = (a shl 24) or (srcPx[i] and 0x00FFFFFF)
+            // Keep feathered alpha from SAM (0-255) for anti-aliased edge
+            srcPx[i] = (alpha shl 24) or (srcPx[i] and 0x00FFFFFF)
         }
         cut.setPixels(srcPx, 0, srcW, 0, 0, srcW, srcH)
         if (maskResized !== maskArgb) maskResized.recycle()

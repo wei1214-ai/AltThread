@@ -198,7 +198,10 @@ fun AltThreadApp(
             composable(Screen.Search.route) { SearchScreen() }
             composable(Screen.Studio.route) {
                 StudioScreen(
-                    onStartDesign = { navController.navigate(Screen.GarmentInput.route) }
+                    onStartDesign = {
+                        garmentInputVm.clearAll()
+                        navController.navigate(Screen.GarmentInput.route)
+                    }
                 )
             }
             composable(Screen.Profile.route) {
@@ -275,7 +278,10 @@ fun AltThreadApp(
                 GarmentInputScreen(
                     viewModel = garmentInputVm,
                     onOpenEditor = { navController.navigate(Screen.Editor.route) },
-                    onBack = { navController.popBackStack() },
+                    onBack = {
+                        garmentInputVm.clearAll()
+                        navController.popBackStack()
+                    },
                 )
             }
             composable(Screen.Editor.route) {

@@ -507,8 +507,9 @@ class ModelInferenceManager(
                 val v10 = mask[y1][x0]
                 val v11 = mask[y1][x1]
                 val v = (1 - dy) * ((1 - dx) * v00 + dx * v01) + dy * ((1 - dx) * v10 + dx * v11)
-                val on = if (v > 0f) 0xFF else 0x00
-                pixels[y * outW + x] = (on shl 24) or 0x00FFFFFF
+                // Feathered alpha instead of hard threshold to avoid jagged edges
+                val alpha = (255f * (1f / (1f + kotlin.math.exp(-v * 4f)))).toInt().coerceIn(0, 255)
+                pixels[y * outW + x] = (alpha shl 24) or 0x00FFFFFF
             }
         }
         out.setPixels(pixels, 0, outW, 0, 0, outW, outH)

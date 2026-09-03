@@ -225,10 +225,10 @@ private fun PickerBox(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (hasImage) Color(0xFFE7F4EE) else Color.White)
+            .background(if (hasImage) Cyan.copy(alpha = 0.15f) else Color.White)
             .border(
                 width = 1.5.dp,
-                color = if (hasImage) Color(0xFF2E7D5B) else Color(0xFFCCCCCC),
+                color = if (hasImage) MidnightBlue else Color(0xFFCCCCCC),
                 shape = RoundedCornerShape(16.dp),
             )
     ) {
@@ -245,7 +245,7 @@ private fun PickerBox(
                         modifier = Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFEEEEEE)),
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(label, fontWeight = FontWeight.Bold, color = Color(0xFF2E7D5B))
+                    Text(label, fontWeight = FontWeight.Bold, color = MidnightBlue)
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
