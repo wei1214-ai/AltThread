@@ -8,6 +8,9 @@ sealed class Screen(val route: String) {
     object Studio : Screen("studio")
     object Profile : Screen("profile")
     object EditProfile : Screen("edit_profile")
+    object Settings : Screen("settings")
+    object ForgotPassword : Screen("forgot_password")
+    object ResetPassword : Screen("reset_password")
 
     // Part 1 editor flow
     object GarmentInput : Screen("garment_input")

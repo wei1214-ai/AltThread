@@ -29,6 +29,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.TabRowDefaults
@@ -75,7 +76,7 @@ fun CustomTabBar(
     Column {
         TabRow(
             selectedTabIndex = selectedTabIndex,
-            containerColor = Color.White,
+            containerColor = MaterialTheme.colorScheme.surface,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
                     Modifier.tabIndicatorOffset(tabPositions[selectedTabIndex]),
@@ -106,7 +107,8 @@ fun CustomTabBar(
 fun ProfileScreen(
     onEditProfile: () -> Unit,
     onShowFollowers: (String) -> Unit,
-    onShowFollowing: (String) -> Unit
+    onShowFollowing: (String) -> Unit,
+    onOpenSetting:()-> Unit
 ) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var errorMessage by remember { mutableStateOf("") }
@@ -189,7 +191,7 @@ fun ProfileScreen(
         columns = GridCells.Fixed(3),
         modifier = Modifier
             .fillMaxSize()
-            .background(color = Color.White),
+            .background(color = MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(16.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -204,7 +206,7 @@ fun ProfileScreen(
                         .align(Alignment.End),
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = { }) {
+                    IconButton(onClick = onOpenSetting) {
                         Icon(
                             painter = painterResource(id = R.drawable.setting),
                             contentDescription = "Settings",

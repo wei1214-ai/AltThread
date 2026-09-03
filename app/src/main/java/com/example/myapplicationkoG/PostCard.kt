@@ -32,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,7 +116,7 @@ fun PostCard(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -150,7 +151,7 @@ fun PostCard(
                     Text(
                         text = post.clothingCategory,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     val postedTime = formatPostTime(post.createdAt)
 
@@ -158,7 +159,7 @@ fun PostCard(
                         Text(
                             text = "Posted $postedTime",
                             fontSize = 11.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -311,7 +312,7 @@ fun PostCard(
                     .fillMaxWidth()
                     .height(450.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(16.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -372,7 +373,7 @@ fun PostCard(
                                             Text(
                                                 text = comment.content,
                                                 fontSize = 13.sp,
-                                                color = Color.Black
+                                                color = MaterialTheme.colorScheme.surface
                                             )
                                         }
                                     }
@@ -395,7 +396,7 @@ fun PostCard(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
                             singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(color = Color.Black),
+                            textStyle = LocalTextStyle.current.copy(color = MaterialTheme.colorScheme.surface),
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))

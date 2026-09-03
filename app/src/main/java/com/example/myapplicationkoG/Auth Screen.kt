@@ -148,7 +148,8 @@ private fun AuthPrimaryButton(
 
 @Composable
 fun AuthScreen(
-    onLoginSuccess: () -> Unit = {}
+    onLoginSuccess: () -> Unit = {},
+    onForgotPassword: () -> Unit = {}
 ) {
     var isLogin by remember { mutableStateOf( true) }
     var email by remember { mutableStateOf("") }
@@ -378,7 +379,12 @@ fun AuthScreen(
 
                     Spacer(modifier = Modifier.height(16.dp))
 
-                    Box(modifier = Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onForgotPassword() },
+                        contentAlignment = Alignment.Center
+                    ) {
                         Text(
                             text = "Forgot password?",
                             color = MidnightBlue,

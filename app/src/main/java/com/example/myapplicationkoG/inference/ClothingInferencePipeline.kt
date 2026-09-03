@@ -32,28 +32,10 @@ class ClothingInferencePipeline(context: Context) {
 
     private val appContext = context.applicationContext
     private val models = ModelInferenceManager(appContext)
-    private val clothNet = U2NetClothSegmenter(appContext)
 
     suspend fun run(file: File): InferenceResult {
         val sourceBitmap = decodeScaled(file, maxEdge = 1280)
         try {
-            // Prefer dedicated cloth model when the user drops cloth_u2net.onnx in.
-            // It segments upper/lower/full body directly, no YOLO box or SAM needed.
-            val clothFile = runCatching { clothNet.modelFile() }.getOrNull()
-            if (clothFile != null) {
-                val mask = clothNet.segment(sourceBitmap)
-                try {
-                    val coverage = maskCoverage(mask)
-                    if (coverage < 0.20f) {
-                        error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
-                    }
-                    Log.d("ClothingPipeline", "U2NET coverage=$coverage")
-                    val cutout = cutoutOntoCanvas(sourceBitmap, mask, canvasSize = 1080)
-                    return InferenceResult(cutout = cutout)
-                } finally {
-                    runCatching { if (!mask.isRecycled) mask.recycle() }
-                }
-            }
             val bboxes = models.detectClothingBboxes(sourceBitmap)
             if (bboxes.isEmpty()) {
                 error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
