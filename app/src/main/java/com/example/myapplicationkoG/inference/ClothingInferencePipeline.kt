@@ -22,8 +22,9 @@ data class InferenceResult(
 
 /**
  * Pipeline:
- *   photo file → decode → cloth U2NET mask (if cloth_u2net.onnx present)
- *   else YOLO bbox → SAM mask → cut out + center on 1080x1080
+ *   photo file → decode → cloth U2NET mask → cut out + center on 1080x1080
+ *
+ * U2NET only. YOLO and SAM have been removed from the project.
  *
  * Runs on Dispatchers.IO. No deskew, no contour math — just the AI
  * cutout blended onto a white canvas.
@@ -31,25 +32,21 @@ data class InferenceResult(
 class ClothingInferencePipeline(context: Context) {
 
     private val appContext = context.applicationContext
-    private val models = ModelInferenceManager(appContext)
+    private val clothNet = U2NetClothSegmenter(appContext)
 
     suspend fun run(file: File): InferenceResult {
         val sourceBitmap = decodeScaled(file, maxEdge = 1280)
         try {
-            val bboxes = models.detectClothingBboxes(sourceBitmap)
-            if (bboxes.isEmpty()) {
-                error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
-            }
-            val bestBox = bboxes.maxByOrNull { it.width() * it.height() }
-                ?: error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
-            // Require garment to fill reasonable area, otherwise not a full cloth
-            val areaRatio = (bestBox.width() * bestBox.height()) / (sourceBitmap.width * sourceBitmap.height).toFloat()
-            if (areaRatio < 0.20f) {
-                error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
-            }
-            Log.d("ClothingPipeline", "YOLO bestBox=$bestBox areaRatio=$areaRatio among ${bboxes.size}")
-            val mask = models.decodeMask(sourceBitmap, bestBox)
+            val clothFile = runCatching { clothNet.modelFile() }.getOrNull()
+                ?: error("cloth_segmentation.onnx missing. Please add the model to assets.")
+            Log.d("ClothingPipeline", "U2NET model=${clothFile.absolutePath}")
+            val mask = clothNet.segment(sourceBitmap)
             try {
+                val coverage = maskCoverage(mask)
+                if (coverage < 0.20f) {
+                    error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
+                }
+                Log.d("ClothingPipeline", "U2NET coverage=$coverage")
                 val cutout = cutoutOntoCanvas(sourceBitmap, mask, canvasSize = 1080)
                 return InferenceResult(cutout = cutout)
             } finally {

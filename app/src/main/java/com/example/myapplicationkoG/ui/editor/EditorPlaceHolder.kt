@@ -148,7 +148,9 @@ fun EditorPlaceHolder(
                     horizontalArrangement = Arrangement.spacedBy(24.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    repeat(3) { idx ->
+                    val toolIcons = listOf(R.drawable.dye, R.drawable.stitch, R.drawable.patch)
+                    val toolNames = listOf("Dye", "Stitch", "Patch")
+                    toolIcons.forEachIndexed { idx, iconRes ->
                         val isSelected = selectedTool == idx
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
@@ -159,21 +161,20 @@ fun EditorPlaceHolder(
                                     .size(56.dp)
                                     .clip(CircleShape)
                                     .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
-                                    .border(1.dp, if (isSelected) MidnightBlue else Color(0xFFE0E0E0), CircleShape)
                                     .clickable {
                                         selectedTool = if (isSelected) null else idx
                                     },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "${idx + 1}",
-                                    color = if (isSelected) MidnightBlue else Color.Gray,
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 16.sp
+                                Icon(
+                                    painter = painterResource(id = iconRes),
+                                    contentDescription = toolNames[idx],
+                                    tint = if (isSelected) MidnightBlue else Color.Gray,
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                             Text(
-                                text = if (idx == 0) "Dye" else " ",
+                                text = toolNames[idx],
                                 color = if (isSelected) MidnightBlue else Color.Gray,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp

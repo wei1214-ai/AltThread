@@ -23,7 +23,7 @@ import java.util.UUID
  *
  * Flow per side (FRONT then BACK):
  *   1. Copy the picked Uri into app private storage (file:// is stable).
- *   2. Run on-device YOLO + SAM 2.1 → cutout bitmap.
+ *   2. Run on-device cloth U2NET → cutout bitmap.
  *   3. Save the cutout as a PNG so the next screen can pick it up.
  *
  * UI just shows the final cutout preview for each side.
