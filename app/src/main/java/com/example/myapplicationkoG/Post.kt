@@ -29,6 +29,9 @@ data class Post(
     @SerialName("clothing_category")
     val clothingCategory: String = "For You",
 
+    @SerialName("post_type")
+    val postType: String = "Post",
+
     val caption: String = "",
 
     @SerialName("like_count")

@@ -71,6 +71,7 @@ fun FilterChip(
 // Home page
 @Composable
 fun HomeScreen(
+    refreshKey: Int = 0,
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
 ) {
 
@@ -97,7 +98,7 @@ fun HomeScreen(
     )
 
     // Load posts whenever selectedFilter changes
-    LaunchedEffect(selectedFilter) {
+    LaunchedEffect(selectedFilter, refreshKey) {
         isLoading = true
         errorMessage = null
 

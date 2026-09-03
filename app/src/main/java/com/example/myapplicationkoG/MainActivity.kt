@@ -16,6 +16,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -121,6 +122,7 @@ fun AltThreadApp(
     val currentRoute = navBackStackEntry?.destination?.route
 
     var sharedPost by remember { mutableStateOf<Post?>(null) }
+    var postsRefreshKey by remember { mutableIntStateOf(0) }
     var isLoadingSharedPost by remember { mutableStateOf(false) }
     val postRepository = remember { PostRepository() }
 
@@ -237,12 +239,21 @@ fun AltThreadApp(
                 )
             }
             composable(Screen.Upload.route) {
-                UploadScreen(
-                    onClose = { navController.popBackStack() }
+                CreatePostScreen(
+                    onPostPublished = {
+                        postsRefreshKey++
+
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Upload.route) { inclusive = true }
+                            launchSingleTop = true
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
                 )
             }
             composable(Screen.Home.route) {
                 HomeScreen(
+                    refreshKey = postsRefreshKey,
                     onUserClick = { userId,username,avatarUrl ->
                         navigateToUserProfile(userId, username, avatarUrl)
                     }

@@ -122,6 +122,8 @@ fun ProfileScreen(
     var isSavedLoading by remember { mutableStateOf(false) }
     var selectedPostForDetail by remember { mutableStateOf<Post?>(null) }
     val followRepository = remember { FollowRepository() }
+    var myPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
+    var isMyPostsLoading by remember { mutableStateOf(true) }
 
     var postCount by remember { mutableIntStateOf(0) }
     var followerCount by remember { mutableIntStateOf(0) }
@@ -146,11 +148,18 @@ fun ProfileScreen(
         try {
             val loadedProfile = repository.getMyProfile()
             profile = loadedProfile
+
+            val allPosts = postRepository.getPosts(category = "All")
+            myPosts = allPosts.filter { post ->
+                post.userId == loadedProfile.id
+            }
             postCount = postRepository.getPostCount(loadedProfile.id)
             followerCount = followRepository.getFollowerCount(loadedProfile.id)
             followingCount = followRepository.getFollowingCount(loadedProfile.id)
         } catch (e: Exception) {
             errorMessage = e.message ?: "Could not load profile"
+        } finally {
+            isMyPostsLoading = false
         }
     }
 
@@ -401,16 +410,65 @@ fun ProfileScreen(
         }
 
         when (selectedTabIndex) {
-            0, 1 -> {
+            0 -> {
+                if (isMyPostsLoading) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(150.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            CircularProgressIndicator(color = MidnightBlue)
+                        }
+                    }
+                } else if (myPosts.isEmpty()) {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(30.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "No posts yet.",
+                                color = textColorForTheme(Color.Gray)
+                            )
+                        }
+                    }
+                } else {
+                    items(myPosts, key = { it.id }) { post ->
+                        Box(
+                            modifier = Modifier
+                                .aspectRatio(1f)
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable {
+                                    selectedPostForDetail = post
+                                }
+                        ) {
+                            AsyncImage(
+                                model = post.mediaUrl,
+                                contentDescription = post.clothingTitle,
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier.fillMaxSize()
+                            )
+                        }
+                    }
+                }
+            }
+
+            1 -> {
                 items(15) {
                     Box(
                         modifier = Modifier
                             .aspectRatio(1f)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color.LightGray)
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
                     )
                 }
             }
+
             2 -> {
                 if (isSavedLoading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
@@ -431,7 +489,10 @@ fun ProfileScreen(
                                 .padding(30.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No saved posts found.", color = textColorForTheme(Color.Gray))
+                            Text(
+                                "No saved posts found.",
+                                color = textColorForTheme(Color.Gray)
+                            )
                         }
                     }
                 } else {
@@ -440,7 +501,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .aspectRatio(1f)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFF0F0F0))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                 .clickable {
                                     selectedPostForDetail = post
                                 }

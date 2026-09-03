@@ -1,13 +1,17 @@
 package com.example.myapplicationkoG
 
+import android.content.Context
+import android.net.Uri
 import com.example.myapplicationkoG.ui.ProfileRepository
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
+import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.util.UUID
 
 @Serializable
 data class PostComment(
@@ -23,6 +27,37 @@ data class PostComment(
 @Serializable
 private data class SimplePostIdRow(
     @SerialName("post_id") val postId: String
+)
+
+@Serializable
+private data class NewPost(
+    @SerialName("user_id")
+    val userId: String,
+
+    val username: String,
+
+    @SerialName("user_profile_pic_url")
+    val userProfilePicUrl: String?,
+
+    @SerialName("media_url")
+    val mediaUrl: String,
+
+    @SerialName("is_video")
+    val isVideo: Boolean = false,
+
+    @SerialName("clothing_title")
+    val clothingTitle: String,
+
+    @SerialName("clothing_category")
+    val clothingCategory: String,
+
+    @SerialName("post_type")
+    val postType: String,
+
+    val caption: String,
+
+    @SerialName("like_count")
+    val likeCount: Int = 0
 )
 
 class PostRepository {
@@ -135,6 +170,56 @@ class PostRepository {
                 .size
         } catch (e: Exception) {
             0
+        }
+    }
+
+    /** Uploads the selected image and creates a new row in the posts table. */
+    suspend fun createPost(
+        context: Context,
+        imageUri: Uri,
+        category: String,
+        bio: String,
+        isChallenge: Boolean
+    ): Boolean = withContext(Dispatchers.IO) {
+        try {
+            val user = supabase.auth.currentUserOrNull()
+                ?: error("Please log in before posting.")
+            val profile = ProfileRepository().getMyProfile()
+
+            val imageBytes = context.contentResolver.openInputStream(imageUri)
+                ?.use { it.readBytes() }
+                ?: error("Could not read the selected image.")
+
+            val imagePath = "${user.id}/${UUID.randomUUID()}.jpg"
+            val bucket = supabase.storage.from("cloth")
+            bucket.upload(imagePath, imageBytes)
+
+            val newPost = NewPost(
+                userId = user.id,
+                username = profile.username?.ifBlank { "User" } ?: "User",
+                userProfilePicUrl = profile.avatar_url,
+                mediaUrl = bucket.publicUrl(imagePath),
+                isVideo = false,
+
+                // Your app currently displays clothingTitle on each post card.
+                clothingTitle = category,
+
+                // Value selected from the category dropdown.
+                clothingCategory = category,
+
+                // Value selected from Post / Challenge radio buttons.
+                postType = if (isChallenge) "Challenge" else "Post",
+
+                caption = bio.trim(),
+                likeCount = 0
+            )
+
+            supabase.from("posts").insert(newPost)
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            throw e
         }
     }
 

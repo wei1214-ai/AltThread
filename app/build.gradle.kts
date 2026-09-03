@@ -60,6 +60,10 @@ android {
 }
 
 dependencies {
+    //Crop pics
+    implementation("com.github.yalantis:ucrop:2.2.11")
+    implementation("androidx.appcompat:appcompat:1.7.1")
+
     implementation(platform(libs.compose.bom))
 
     // Supabase
