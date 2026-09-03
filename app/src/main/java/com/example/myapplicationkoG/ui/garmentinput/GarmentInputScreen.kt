@@ -132,7 +132,7 @@ fun GarmentInputScreen(
         Text("New Design Space", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1B1B1B))
         Spacer(Modifier.height(6.dp))
         Text(
-            "Upload a clear FRONT photo, then a BACK photo. Lay the garment flat so the AI can isolate it cleanly.",
+            "Upload a clear FRONT photo, then a BACK photo. Lay the garment flat so the garment can be isolated clearly.",
             fontSize = 14.sp,
             color = Color(0xFF666666),
         )
@@ -160,21 +160,37 @@ fun GarmentInputScreen(
             )
         }
 
-        if (state.isLoading) {
-            Spacer(Modifier.height(20.dp))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF1B1B1B))
-                Spacer(Modifier.size(12.dp))
-                Text("Processing image…", fontSize = 13.sp, color = Color(0xFF1B1B1B))
+        // 垂直居中在 BACK 框与按钮之间
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(60.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                if (state.isLoading) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF1B1B1B))
+                        Spacer(Modifier.size(12.dp))
+                        Text("Processing image…", fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                    }
+                }
+                state.frontError?.let {
+                    if (state.isLoading) Spacer(Modifier.height(4.dp))
+                    Text("FRONT: $it", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
+                state.backError?.let {
+                    Spacer(Modifier.height(2.dp))
+                    Text("BACK: $it", color = MaterialTheme.colorScheme.error, fontSize = 12.sp)
+                }
             }
         }
-
-        state.errorMessage?.let {
-            Spacer(Modifier.height(12.dp))
-            Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp)
-        }
-
-        Spacer(Modifier.height(20.dp))
 
         Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
             Button(
@@ -216,11 +232,9 @@ private fun PickerBox(
                 shape = RoundedCornerShape(16.dp),
             )
     ) {
-        // Main center content - clicking it also triggers album (fallback)
+        // Main center content - 大框不再点开相册，只靠右下角两个小按钮
         Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .clickable(enabled = enabled, onClick = onAlbumClick),
+            modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
         ) {
             if (hasImage) {

@@ -110,7 +110,7 @@ fun StudioScreen(
             ) {
                 StudioCard(
                     imageRes = R.drawable.studiobutton1,
-                    title = "Start a Design",
+                    title = "Start Your Own Design",
                     onClick = onStartDesign
                 )
                 StudioCard(

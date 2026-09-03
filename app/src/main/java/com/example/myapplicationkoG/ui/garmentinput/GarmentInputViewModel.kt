@@ -42,7 +42,12 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
     fun onPickedImage(side: GarmentSideId, uri: Uri) {
         if (_state.value.isLoading) return
         viewModelScope.launch {
-            _state.update { it.copy(isLoading = true, errorMessage = null) }
+            _state.update {
+                when (side) {
+                    GarmentSideId.FRONT -> it.copy(isLoading = true, frontError = null)
+                    GarmentSideId.BACK -> it.copy(isLoading = true, backError = null)
+                }
+            }
             try {
                 // Remember old path to delete after new one succeeds (avoid Coil cache showing old image)
                 val oldPath = when (side) {
@@ -69,13 +74,17 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _state.update { current ->
                     when (side) {
-                        GarmentSideId.FRONT -> current.copy(frontCutoutPath = cutout.absolutePath, isLoading = false)
-                        GarmentSideId.BACK -> current.copy(backCutoutPath = cutout.absolutePath, isLoading = false)
+                        GarmentSideId.FRONT -> current.copy(frontCutoutPath = cutout.absolutePath, frontError = null, isLoading = false)
+                        GarmentSideId.BACK -> current.copy(backCutoutPath = cutout.absolutePath, backError = null, isLoading = false)
                     }
                 }
             } catch (t: Throwable) {
+                val msg = t.message ?: "Failed to process image"
                 _state.update {
-                    it.copy(isLoading = false, errorMessage = t.message ?: "Failed to process image")
+                    when (side) {
+                        GarmentSideId.FRONT -> it.copy(isLoading = false, frontError = msg)
+                        GarmentSideId.BACK -> it.copy(isLoading = false, backError = msg)
+                    }
                 }
             }
         }
@@ -103,6 +112,7 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 data class GarmentInputUiState(
     val frontCutoutPath: String? = null,
     val backCutoutPath: String? = null,
+    val frontError: String? = null,
+    val backError: String? = null,
     val isLoading: Boolean = false,
-    val errorMessage: String? = null,
 )

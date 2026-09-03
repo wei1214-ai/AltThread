@@ -43,7 +43,7 @@ class ClothingInferencePipeline(context: Context) {
                 ?: error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
             // Require garment to fill reasonable area, otherwise not a full cloth
             val areaRatio = (bestBox.width() * bestBox.height()) / (sourceBitmap.width * sourceBitmap.height).toFloat()
-            if (areaRatio < 0.12f) {
+            if (areaRatio < 0.20f) {
                 error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
             }
             Log.d("ClothingPipeline", "YOLO bestBox=$bestBox areaRatio=$areaRatio among ${bboxes.size}")
