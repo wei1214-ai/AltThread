@@ -96,7 +96,6 @@ fun AltThreadApp(
     var isLoadingSharedPost by remember { mutableStateOf(false) }
     val postRepository = remember { PostRepository() }
 
-    // 通用跳转他人主页的方法（自动对 URL 进行 Encode 防止路径报错）
     val navigateToOtherUserProfile = { userId:String, username: String, avatarUrl: String ->
         val encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8.toString())
         val encodedAvatarUrl = URLEncoder.encode(
@@ -217,7 +216,6 @@ fun AltThreadApp(
                 )
             }
 
-            // 新增：他人主页路由与参数解析
             composable(
                 route = "other_user_profile/{userId}/{username}/{avatarUrl}",
                 arguments = listOf(

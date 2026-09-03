@@ -22,7 +22,8 @@ data class InferenceResult(
 
 /**
  * Pipeline:
- *   photo file → decode → YOLO bbox → SAM mask → cut out + center on 1080x1080
+ *   photo file → decode → cloth U2NET mask (if cloth_u2net.onnx present)
+ *   else YOLO bbox → SAM mask → cut out + center on 1080x1080
  *
  * Runs on Dispatchers.IO. No deskew, no contour math — just the AI
  * cutout blended onto a white canvas.
@@ -31,10 +32,28 @@ class ClothingInferencePipeline(context: Context) {
 
     private val appContext = context.applicationContext
     private val models = ModelInferenceManager(appContext)
+    private val clothNet = U2NetClothSegmenter(appContext)
 
     suspend fun run(file: File): InferenceResult {
         val sourceBitmap = decodeScaled(file, maxEdge = 1280)
         try {
+            // Prefer dedicated cloth model when the user drops cloth_u2net.onnx in.
+            // It segments upper/lower/full body directly, no YOLO box or SAM needed.
+            val clothFile = runCatching { clothNet.modelFile() }.getOrNull()
+            if (clothFile != null) {
+                val mask = clothNet.segment(sourceBitmap)
+                try {
+                    val coverage = maskCoverage(mask)
+                    if (coverage < 0.20f) {
+                        error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")
+                    }
+                    Log.d("ClothingPipeline", "U2NET coverage=$coverage")
+                    val cutout = cutoutOntoCanvas(sourceBitmap, mask, canvasSize = 1080)
+                    return InferenceResult(cutout = cutout)
+                } finally {
+                    runCatching { if (!mask.isRecycled) mask.recycle() }
+                }
+            }
             val bboxes = models.detectClothingBboxes(sourceBitmap)
             if (bboxes.isEmpty()) {
                 error("Invalid photo: no full garment detected. Please upload a clear flat-lay photo with the whole garment visible.")
@@ -258,6 +277,74 @@ class ClothingInferencePipeline(context: Context) {
         }
         bmp.setPixels(pixels, 0, w, 0, 0, w, h)
         return bmp
+    }
+
+    private fun maskCoverage(mask: Bitmap): Float {
+        val w = mask.width
+        val h = mask.height
+        val pixels = IntArray(w * h)
+        mask.getPixels(pixels, 0, w, 0, 0, w, h)
+        var fg = 0
+        for (p in pixels) if (((p ushr 24) and 0xFF) > 127) fg++
+        return fg.toFloat() / (w * h).toFloat()
+    }
+
+    /**
+     * Fill interior holes in SAM mask so inner patterns are kept.
+     * White T-shirt pattern is often predicted as background hole;
+     * flood fill from borders marks true background, the rest is garment.
+     */
+    private fun fillMaskHoles(mask: Bitmap): Bitmap {
+        val w = mask.width
+        val h = mask.height
+        val pixels = IntArray(w * h)
+        mask.getPixels(pixels, 0, w, 0, 0, w, h)
+        val fg = BooleanArray(w * h) { ((pixels[it] ushr 24) and 0xFF) > 127 }
+        val visited = BooleanArray(w * h)
+        val queue = ArrayDeque<Int>()
+        for (x in 0 until w) {
+            if (!fg[x]) { visited[x] = true; queue.add(x) }
+            val b = (h - 1) * w + x
+            if (!fg[b]) { visited[b] = true; queue.add(b) }
+        }
+        for (y in 0 until h) {
+            val l = y * w
+            if (!fg[l] && !visited[l]) { visited[l] = true; queue.add(l) }
+            val r = y * w + w - 1
+            if (!fg[r] && !visited[r]) { visited[r] = true; queue.add(r) }
+        }
+        while (queue.isNotEmpty()) {
+            val cur = queue.removeFirst()
+            val cx = cur % w
+            val cy = cur / w
+            if (cx > 0) {
+                val n = cur - 1
+                if (!fg[n] && !visited[n]) { visited[n] = true; queue.add(n) }
+            }
+            if (cx < w - 1) {
+                val n = cur + 1
+                if (!fg[n] && !visited[n]) { visited[n] = true; queue.add(n) }
+            }
+            if (cy > 0) {
+                val n = cur - w
+                if (!fg[n] && !visited[n]) { visited[n] = true; queue.add(n) }
+            }
+            if (cy < h - 1) {
+                val n = cur + w
+                if (!fg[n] && !visited[n]) { visited[n] = true; queue.add(n) }
+            }
+        }
+        var changed = false
+        for (i in pixels.indices) {
+            if (!fg[i] && !visited[i]) {
+                pixels[i] = (0xFF shl 24) or 0x00FFFFFF
+                changed = true
+            }
+        }
+        if (!changed) return mask
+        val out = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+        out.setPixels(pixels, 0, w, 0, 0, w, h)
+        return out
     }
 
     companion object {

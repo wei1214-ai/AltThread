@@ -13,8 +13,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.WindowInsets
-import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
@@ -48,6 +46,8 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
@@ -236,7 +236,6 @@ fun AuthScreen(
             .imePadding()
             .navigationBarsPadding()
     ) {
-        // Upper Border
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -281,7 +280,6 @@ fun AuthScreen(
             }
         }
 
-        // Lower Border - tab 上下 20, textfield 间 8, button 上方 20
         Box(
             modifier = Modifier
                 .fillMaxWidth()

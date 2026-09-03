@@ -52,8 +52,8 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _state.update {
                 when (side) {
-                    GarmentSideId.FRONT -> it.copy(isLoading = true, frontError = null)
-                    GarmentSideId.BACK -> it.copy(isLoading = true, backError = null)
+                    GarmentSideId.FRONT -> it.copy(isLoading = true, loadingSide = GarmentSideId.FRONT, frontError = null)
+                    GarmentSideId.BACK -> it.copy(isLoading = true, loadingSide = GarmentSideId.BACK, backError = null)
                 }
             }
             try {
@@ -82,16 +82,16 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 _state.update { current ->
                     when (side) {
-                        GarmentSideId.FRONT -> current.copy(frontCutoutPath = cutout.absolutePath, frontError = null, isLoading = false)
-                        GarmentSideId.BACK -> current.copy(backCutoutPath = cutout.absolutePath, backError = null, isLoading = false)
+                        GarmentSideId.FRONT -> current.copy(frontCutoutPath = cutout.absolutePath, frontError = null, isLoading = false, loadingSide = null)
+                        GarmentSideId.BACK -> current.copy(backCutoutPath = cutout.absolutePath, backError = null, isLoading = false, loadingSide = null)
                     }
                 }
             } catch (t: Throwable) {
                 val msg = t.message ?: "Failed to process image"
                 _state.update {
                     when (side) {
-                        GarmentSideId.FRONT -> it.copy(isLoading = false, frontError = msg)
-                        GarmentSideId.BACK -> it.copy(isLoading = false, backError = msg)
+                        GarmentSideId.FRONT -> it.copy(isLoading = false, loadingSide = null, frontError = msg)
+                        GarmentSideId.BACK -> it.copy(isLoading = false, loadingSide = null, backError = msg)
                     }
                 }
             }
@@ -123,4 +123,5 @@ data class GarmentInputUiState(
     val frontError: String? = null,
     val backError: String? = null,
     val isLoading: Boolean = false,
+    val loadingSide: GarmentSideId? = null,
 )

@@ -54,7 +54,7 @@ import kotlinx.coroutines.delay
 fun SearchScreen() {
 
     var keyword by remember { mutableStateOf("") }
-    // "latest" 或 "highest_likes"
+    // "latest" or "highest_likes"
     var selectedSortBy by remember { mutableStateOf("latest") }
     var isFilterMenuExpanded by remember { mutableStateOf(false) }
 
@@ -64,11 +64,11 @@ fun SearchScreen() {
 
     val repository = remember { PostRepository() }
 
-    // 监听 关键字(keyword) 和 排序规则(selectedSortBy) 的变化
+    // Observe keyword and sort changes
     LaunchedEffect(keyword, selectedSortBy) {
         isLoading = true
 
-        // 当输入框为空时，直接根据当前排序规则获取所有帖子
+        // When input is empty, load all posts with current sort
         if (keyword.isBlank()) {
             try {
                 results = repository.getPosts(category = "All", sortBy = selectedSortBy)
@@ -80,11 +80,11 @@ fun SearchScreen() {
             return@LaunchedEffect
         }
 
-        // 防抖处理（Debounce）
+        // Debounce
         delay(400)
 
         try {
-            // 搜索时把当前选中的排序规则（selectedSortBy）也传进去
+            // Pass current sort rule into search
             results = repository.searchPosts(query = keyword.trim(), sortBy = selectedSortBy)
         } catch (e: Exception) {
             results = emptyList()
@@ -93,7 +93,7 @@ fun SearchScreen() {
         }
     }
 
-    // 点击图片展示 PostCard 弹窗
+    // Show PostCard dialog on image click
     selectedPostForDetail?.let { post ->
         Dialog(onDismissRequest = { selectedPostForDetail = null }) {
             Box(
@@ -112,7 +112,7 @@ fun SearchScreen() {
             .background(Color.White)
     ) {
 
-        // 搜索栏与 Filter 按钮
+        // Search bar and Filter button
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -149,7 +149,7 @@ fun SearchScreen() {
 
             Spacer(modifier = Modifier.width(12.dp))
 
-            // Filter 按钮及其下拉菜单（DropdownMenu）
+            // Filter button with DropdownMenu
             Box {
                 Box(
                     modifier = Modifier
@@ -167,7 +167,7 @@ fun SearchScreen() {
                     )
                 }
 
-                // 弹出排序选择菜单
+                // Sort options menu
                 DropdownMenu(
                     expanded = isFilterMenuExpanded,
                     onDismissRequest = { isFilterMenuExpanded = false },
@@ -202,7 +202,7 @@ fun SearchScreen() {
             }
         }
 
-        // 内容展示区域
+        // Content area
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),

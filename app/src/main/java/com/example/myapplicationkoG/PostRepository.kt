@@ -83,10 +83,10 @@ class PostRepository {
             val result = supabase.from("posts")
                 .select {
                     filter {
-                        // 包含标题模糊匹配
+                        // fuzzy match on title
                         ilike("clothing_title", "%$query%")
                     }
-                    // 动态排序支持
+                    // dynamic sorting support
                     if (sortBy == "highest_likes") {
                         order(column = "like_count", order = Order.DESCENDING)
                     } else {
@@ -138,10 +138,10 @@ class PostRepository {
         }
     }
 
-    // 重构：精确同步点赞人次与数据库 like_count 字段
+    // Sync like count with database like_count field
     suspend fun toggleLike(postId: String): Int = withContext(Dispatchers.IO) {
         try {
-            // 1. 检查当前用户是否已点赞
+            // 1. Check if current user already liked
             val userLiked = supabase.from("post_likes").select {
                 filter {
                     eq("post_id", postId)
@@ -149,7 +149,7 @@ class PostRepository {
                 }
             }.decodeList<SimplePostIdRow>().isNotEmpty()
 
-            // 2. 根据状态插入或删除点赞记录
+            // 2. Insert or delete like record based on state
             if (userLiked) {
                 supabase.from("post_likes").delete {
                     filter {
@@ -167,13 +167,13 @@ class PostRepository {
                 )
             }
 
-            // 3. 计算最新真实点赞总数
+            // 3. Count latest total likes
             val allLikes = supabase.from("post_likes").select {
                 filter { eq("post_id", postId) }
             }.decodeList<SimplePostIdRow>()
             val newLikeCount = allLikes.size
 
-            // 4. 更新 Posts 表中的 like_count 计数器
+            // 4. Update like_count counter in posts table
             supabase.from("posts").update(
                 mapOf("like_count" to newLikeCount)
             ) {

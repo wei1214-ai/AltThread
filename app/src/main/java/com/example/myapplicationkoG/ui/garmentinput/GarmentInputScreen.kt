@@ -160,7 +160,7 @@ fun GarmentInputScreen(
             )
         }
 
-        // 垂直居中在 BACK 框与按钮之间
+        // Center vertically between BACK box and buttons
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -178,7 +178,12 @@ fun GarmentInputScreen(
                     ) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF1B1B1B))
                         Spacer(Modifier.size(12.dp))
-                        Text("Processing image…", fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                        val sideLabel = when (state.loadingSide) {
+                            GarmentSideId.FRONT -> "Processing FRONT image…"
+                            GarmentSideId.BACK -> "Processing BACK image…"
+                            else -> "Processing image…"
+                        }
+                        Text(sideLabel, fontSize = 13.sp, color = Color(0xFF1B1B1B))
                     }
                 }
                 state.frontError?.let {
@@ -232,7 +237,7 @@ private fun PickerBox(
                 shape = RoundedCornerShape(16.dp),
             )
     ) {
-        // Main center content - 大框不再点开相册，只靠右下角两个小按钮
+        // Main center content - large box no longer opens album, use bottom-right buttons only
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center,
