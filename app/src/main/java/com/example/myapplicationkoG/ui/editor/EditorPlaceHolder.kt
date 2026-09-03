@@ -75,7 +75,7 @@ fun EditorPlaceHolder(
     }
 
     // Zoom state for garment
-    var scale by remember { mutableFloatStateOf(1f) }
+    var scale by remember { mutableFloatStateOf(1.35f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
     val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
         scale = (scale * zoomChange).coerceIn(0.8f, 4f)
@@ -130,11 +130,6 @@ fun EditorPlaceHolder(
                     IconButton(onClick = onBack) {
                         Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MidnightBlue)
                     }
-                },
-                actions = {
-                    TopBarActionButton(iconRes = R.drawable.undo, contentDesc = "Undo", onClick = { /* TODO undo */ })
-                    TopBarActionButton(iconRes = R.drawable.redo, contentDesc = "Redo", onClick = { /* TODO redo */ })
-                    TopBarActionButton(iconRes = R.drawable.save, contentDesc = "Save", onClick = { saveCurrent() })
                 }
             )
         },
@@ -155,22 +150,33 @@ fun EditorPlaceHolder(
                 ) {
                     repeat(3) { idx ->
                         val isSelected = selectedTool == idx
-                        Box(
-                            modifier = Modifier
-                                .size(56.dp)
-                                .clip(CircleShape)
-                                .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
-                                .border(1.dp, if (isSelected) MidnightBlue else Color(0xFFE0E0E0), CircleShape)
-                                .clickable {
-                                    selectedTool = if (isSelected) null else idx
-                                },
-                            contentAlignment = Alignment.Center
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(56.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
+                                    .border(1.dp, if (isSelected) MidnightBlue else Color(0xFFE0E0E0), CircleShape)
+                                    .clickable {
+                                        selectedTool = if (isSelected) null else idx
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "${idx + 1}",
+                                    color = if (isSelected) MidnightBlue else Color.Gray,
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 16.sp
+                                )
+                            }
                             Text(
-                                text = "${idx + 1}",
+                                text = if (idx == 0) "Dye" else " ",
                                 color = if (isSelected) MidnightBlue else Color.Gray,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 16.sp
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -185,173 +191,233 @@ fun EditorPlaceHolder(
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            Text(
-                "Design Space",
-                fontSize = 24.sp,
-                fontWeight = FontWeight.ExtraBold,
-                color = MidnightBlue
-            )
-            Spacer(Modifier.height(4.dp))
-            Text(
-                "Pinch to zoom • Tap 1 for Dip Dye",
-                fontSize = 13.sp,
-                color = Color(0xFF666666),
-                fontWeight = FontWeight.Medium
-            )
-            Spacer(Modifier.height(12.dp))
-
-            Box(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
             ) {
                 Box(
                     modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(20.dp))
-                        .background(Color(0xFFF4F6F6))
-                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
-                    contentAlignment = Alignment.Center
+                        .fillMaxWidth()
+                        .weight(1f)
                 ) {
-                    if (currentPath != null) {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .transformable(state = transformState)
-                                .graphicsLayer(
-                                    scaleX = scale,
-                                    scaleY = scale,
-                                    translationX = offset.x,
-                                    translationY = offset.y
-                                )
-                        ) {
-                            if (dyedImage != null && selectedTool == 0) {
-                                Image(
-                                    bitmap = dyedImage!!,
-                                    contentDescription = currentSide.name,
-                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
-                                )
-                            } else {
-                                AsyncImage(
-                                    model = currentPath,
-                                    contentDescription = currentSide.name,
-                                    modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
-                                )
-                            }
-                            if (isDyeing && selectedTool == 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopCenter)
-                                        .padding(top = 48.dp)
-                                        .clip(RoundedCornerShape(12.dp))
-                                        .background(Color(0xCC000000))
-                                        .padding(horizontal = 12.dp, vertical = 6.dp)
-                                ) {
-                                    Text("Dyeing...", color = Color.White, fontSize = 12.sp)
-                                }
-                            }
-                        }
-                    } else {
-                        Text("No image", color = Color(0xFF999999))
-                    }
                     Box(
                         modifier = Modifier
-                            .align(Alignment.TopCenter)
-                            .padding(top = 12.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Cyan)
-                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                            .fillMaxSize()
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Color.White)
+                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Text(currentSide.name, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    }
-                    if (currentSide == GarmentSideId.FRONT && state.backCutoutPath != null) {
+                        if (currentPath != null) {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .transformable(state = transformState)
+                                    .graphicsLayer(
+                                        scaleX = scale,
+                                        scaleY = scale,
+                                        translationX = offset.x,
+                                        translationY = offset.y
+                                    )
+                            ) {
+                                if (dyedImage != null && selectedTool == 0) {
+                                    Image(
+                                        bitmap = dyedImage!!,
+                                        contentDescription = currentSide.name,
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
+                                    )
+                                } else {
+                                    AsyncImage(
+                                        model = currentPath,
+                                        contentDescription = currentSide.name,
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
+                                    )
+                                }
+                            }
+                        } else {
+                            Text("No image", color = Color(0xFF999999))
+                        }
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .clip(
-                                    RoundedCornerShape(
-                                        topStart = 16.dp,
-                                        topEnd = 16.dp,
-                                        bottomStart = 0.dp,
-                                        bottomEnd = 0.dp
-                                    )
-                                )
+                                .align(Alignment.TopCenter)
+                                .padding(top = 12.dp)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
-                                .clickable {
-                                    scale = 1f; offset = Offset.Zero
-                                    currentSide = GarmentSideId.BACK
-                                }
-                                .padding(horizontal = 20.dp, vertical = 10.dp),
-                            contentAlignment = Alignment.Center
+                                .padding(horizontal = 14.dp, vertical = 6.dp)
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            Text(currentSide.name, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        }
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.TopStart)
+                                .padding(start = 12.dp, top = 12.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Cyan)
+                                    .clickable { /* TODO undo */ },
+                                contentAlignment = Alignment.Center
                             ) {
-                                Text("View Back", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                                 Icon(
-                                    painter = painterResource(id = R.drawable.arrowright),
-                                    contentDescription = "Go to back",
+                                    painter = painterResource(id = R.drawable.undo),
+                                    contentDescription = "Undo",
                                     tint = MidnightBlue,
-                                    modifier = Modifier.size(16.dp)
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(CircleShape)
+                                    .background(Cyan)
+                                    .clickable { /* TODO redo */ },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.redo),
+                                    contentDescription = "Redo",
+                                    tint = MidnightBlue,
+                                    modifier = Modifier.size(18.dp)
                                 )
                             }
                         }
-                    }
-                    if (currentSide == GarmentSideId.BACK && state.frontCutoutPath != null) {
                         Box(
                             modifier = Modifier
-                                .align(Alignment.BottomCenter)
-                                .clip(
-                                    RoundedCornerShape(
-                                        topStart = 16.dp,
-                                        topEnd = 16.dp,
-                                        bottomStart = 0.dp,
-                                        bottomEnd = 0.dp
-                                    )
-                                )
+                                .align(Alignment.TopEnd)
+                                .padding(end = 12.dp, top = 12.dp)
+                                .size(36.dp)
+                                .clip(CircleShape)
                                 .background(Cyan)
-                                .clickable {
-                                    scale = 1f; offset = Offset.Zero
-                                    currentSide = GarmentSideId.FRONT
-                                }
-                                .padding(horizontal = 20.dp, vertical = 10.dp),
+                                .clickable { saveCurrent() },
                             contentAlignment = Alignment.Center
                         ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                            Icon(
+                                painter = painterResource(id = R.drawable.save),
+                                contentDescription = "Save",
+                                tint = MidnightBlue,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        if (currentSide == GarmentSideId.FRONT && state.backCutoutPath != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .size(width = 220.dp, height = 44.dp)
+                                    .clip(
+                                        RoundedCornerShape(
+                                            topStart = 16.dp,
+                                            topEnd = 16.dp,
+                                            bottomStart = 0.dp,
+                                            bottomEnd = 0.dp
+                                        )
+                                    )
+                                    .background(Cyan)
+                                    .clickable {
+                                        scale = 1.35f; offset = Offset.Zero
+                                        currentSide = GarmentSideId.BACK
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
                             ) {
-                                Icon(
-                                    painter = painterResource(id = R.drawable.arrowleft),
-                                    contentDescription = "Go to front",
-                                    tint = MidnightBlue,
-                                    modifier = Modifier.size(16.dp)
-                                )
-                                Text("View Front", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Box(
+                                        modifier = Modifier.size(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.arrowleft),
+                                            contentDescription = "Go to back",
+                                            tint = MidnightBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                    Text(
+                                        text = "View Back",
+                                        color = MidnightBlue,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                    Spacer(modifier = Modifier.size(32.dp))
+                                }
+                            }
+                        }
+                        if (currentSide == GarmentSideId.BACK && state.frontCutoutPath != null) {
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .size(width = 220.dp, height = 44.dp)
+                                    .clip(
+                                        RoundedCornerShape(
+                                            topStart = 16.dp,
+                                            topEnd = 16.dp,
+                                            bottomStart = 0.dp,
+                                            bottomEnd = 0.dp
+                                        )
+                                    )
+                                    .background(Cyan)
+                                    .clickable {
+                                        scale = 1.35f; offset = Offset.Zero
+                                        currentSide = GarmentSideId.FRONT
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Spacer(modifier = Modifier.size(32.dp))
+                                    Text(
+                                        text = "View Front",
+                                        color = MidnightBlue,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 13.sp,
+                                        modifier = Modifier.weight(1f),
+                                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                                    )
+                                    Box(
+                                        modifier = Modifier.size(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            painter = painterResource(id = R.drawable.arrowright),
+                                            contentDescription = "Go to front",
+                                            tint = MidnightBlue,
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
                 }
 
                 if (selectedTool == 0) {
+                    Spacer(modifier = Modifier.height(8.dp))
                     Column(
                         modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 56.dp)
                             .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
+                            .clip(RoundedCornerShape(14.dp))
                             .background(Color.White)
-                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
-                            .padding(horizontal = 16.dp, vertical = 10.dp)
+                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Dip Dye", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Text("Dip Dye", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             dyeColors.forEach { c ->
                                 Box(
                                     modifier = Modifier
-                                        .size(32.dp)
+                                        .size(28.dp)
                                         .clip(CircleShape)
                                         .background(c)
                                         .border(
@@ -363,47 +429,25 @@ fun EditorPlaceHolder(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text("Dip height", color = Color.Gray, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Dip height", color = Color.Gray, fontSize = 11.sp)
                         Slider(
                             value = dyeHeight,
                             onValueChange = { dyeHeight = it },
-                            valueRange = 0.2f..0.85f
+                            valueRange = 0.2f..0.85f,
+                            modifier = Modifier.height(24.dp)
                         )
-                        Text("Strength", color = Color.Gray, fontSize = 12.sp)
+                        Text("Strength", color = Color.Gray, fontSize = 11.sp)
                         Slider(
                             value = dyeStrength,
                             onValueChange = { dyeStrength = it },
-                            valueRange = 0.2f..0.85f
+                            valueRange = 0.2f..0.85f,
+                            modifier = Modifier.height(24.dp)
                         )
                     }
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun TopBarActionButton(
-    @DrawableRes iconRes: Int,
-    contentDesc: String,
-    onClick: () -> Unit
-) {
-    Box(
-        modifier = Modifier
-            .padding(end = 4.dp)
-            .size(40.dp)
-            .clip(RoundedCornerShape(12.dp))
-            .background(Cyan)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center
-    ) {
-        Icon(
-            painter = painterResource(id = iconRes),
-            contentDescription = contentDesc,
-            tint = MidnightBlue,
-            modifier = Modifier.size(22.dp)
-        )
     }
 }
 
