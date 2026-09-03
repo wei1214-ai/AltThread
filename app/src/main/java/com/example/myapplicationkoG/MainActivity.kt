@@ -271,6 +271,15 @@ fun AltThreadApp(
                     onThemeModeChanged = onThemeModeChanged,
                     onBack = {
                         navController.popBackStack()
+                    },
+                    onLogout = {
+                        navController.navigate(Screen.Auth.route){
+                            popUpTo(0){ // Clear navigation history,
+                                // after logout user press back button wont
+                                // go back to previous screen
+                                inclusive = true
+                            }
+                        }
                     }
                 )
             }

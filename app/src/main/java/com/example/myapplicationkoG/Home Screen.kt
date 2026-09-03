@@ -62,7 +62,7 @@ fun FilterChip(
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
-            color = if (isSelected) MidnightBlue else Color.Gray,
+            color = textColorForTheme(if (isSelected) MidnightBlue else Color.Gray),
             maxLines = 1
         )
     }
@@ -131,7 +131,7 @@ fun HomeScreen(
                         text = "AltThread",
                         fontSize = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MidnightBlue,
+                        color = textColorForTheme(MidnightBlue),
                         modifier = Modifier.align(Alignment.Center)
                     )
 
@@ -223,7 +223,7 @@ fun HomeScreen(
                 ) {
                     Text(
                         text = "No posts found.",
-                        color = Color.Gray
+                        color = textColorForTheme(Color.Gray)
                     )
                 }
             }

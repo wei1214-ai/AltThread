@@ -218,7 +218,7 @@ fun SearchScreen() {
             ) {
                 Text(
                     text = "No outfits found",
-                    color = Color.Gray,
+                    color = textColorForTheme(Color.Gray),
                     fontSize = 16.sp,
                     fontWeight = FontWeight.Medium
                 )

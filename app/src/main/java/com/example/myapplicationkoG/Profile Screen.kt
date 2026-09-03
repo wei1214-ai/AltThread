@@ -70,8 +70,8 @@ fun CustomTabBar(
     onTabSelected: (Int) -> Unit
 ) {
     val tabs = listOf("Posts", "Challenges", "Saved")
-    val activeColor = MidnightBlue
-    val inactiveColor = Color.Gray
+    val activeColor = textColorForTheme(MidnightBlue)
+    val inactiveColor = textColorForTheme(Color.Gray)
 
     Column {
         TabRow(
@@ -259,18 +259,18 @@ fun ProfileScreen(
                             text = profile?.username ?: "New user",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
                         Text(
                             text = "@${profile?.username ?: "newuser"}",
                             fontWeight = FontWeight.SemiBold,
                             fontSize = 16.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
                         Text(
                             text = profile?.bio ?: "Add a bio in Edit profile",
                             fontSize = 14.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
                     }
                 }
@@ -305,9 +305,9 @@ fun ProfileScreen(
                             "$postCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
-                        Text("Posts", fontSize = 14.sp, color = MidnightBlue)
+                        Text("Posts", fontSize = 14.sp, color = textColorForTheme(MidnightBlue))
                     }
                     Column(
                         modifier = Modifier
@@ -319,9 +319,9 @@ fun ProfileScreen(
                             "$followerCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
-                        Text("Followers", fontSize = 14.sp, color = MidnightBlue)
+                        Text("Followers", fontSize = 14.sp, color = textColorForTheme(MidnightBlue))
                     }
                     Column(
                         modifier = Modifier
@@ -333,9 +333,9 @@ fun ProfileScreen(
                             "$followingCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
-                            color = MidnightBlue
+                            color = textColorForTheme(MidnightBlue)
                         )
-                        Text("Following", fontSize = 14.sp, color = MidnightBlue)
+                        Text("Following", fontSize = 14.sp, color = textColorForTheme(MidnightBlue))
                     }
                 }
 
@@ -377,7 +377,7 @@ fun ProfileScreen(
                             text = "Digital Wardrobe",
                             fontSize = 20.sp,
                             fontWeight = FontWeight.ExtraBold,
-                            color = Cyan
+                            color = textColorForTheme(Cyan)
                         )
                     }
                     Icon(
@@ -431,7 +431,7 @@ fun ProfileScreen(
                                 .padding(30.dp),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text("No saved posts found.", color = Color.Gray)
+                            Text("No saved posts found.", color = textColorForTheme(Color.Gray))
                         }
                     }
                 } else {

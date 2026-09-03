@@ -9,30 +9,48 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.ui.theme.ThemeMode
+import io.github.jan.supabase.auth.auth
+import kotlinx.coroutines.launch
 
 @Composable
 fun SettingsScreen(
     selectedThemeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onLogout: () -> Unit
 ) {
+    val scope = rememberCoroutineScope()
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .padding(24.dp)
+            .padding(24.dp),
+
     ) {
+        IconButton(onClick = onBack) {
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+            contentDescription = "Back to profile",
+            tint = MaterialTheme.colorScheme.onBackground
+        )
+    }
         Text(
             text = "Settings",
             fontSize = 26.sp,
@@ -72,10 +90,19 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.padding(top = 24.dp))
 
         Button(
-            onClick = onBack,
+            onClick = {
+                scope.launch {
+                    try {
+                        supabase.auth.signOut()
+                        onLogout()
+                    } catch (e: Exception) {
+
+                    }
+                }
+            },
             modifier = Modifier.fillMaxWidth()
         ) {
-            Text("Back to profile")
+            Text("Log out")
         }
     }
 }
