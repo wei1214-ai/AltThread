@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
@@ -48,7 +49,7 @@ fun BottomNavBar(
             .fillMaxWidth()
             .padding(horizontal = 12.dp)
             .height(120.dp),
-        containerColor = Color.White
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         bottomNavItems.forEach { item ->
             val isSelected = currentRoute == item.route

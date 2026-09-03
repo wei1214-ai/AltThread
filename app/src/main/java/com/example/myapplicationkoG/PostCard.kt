@@ -32,6 +32,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -115,7 +116,7 @@ fun PostCard(
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(16.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
@@ -145,12 +146,12 @@ fun PostCard(
                         text = post.username,
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
                     Text(
                         text = post.clothingCategory,
                         fontSize = 12.sp,
-                        color = Color.Gray
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     val postedTime = formatPostTime(post.createdAt)
 
@@ -158,7 +159,7 @@ fun PostCard(
                         Text(
                             text = "Posted $postedTime",
                             fontSize = 11.sp,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -277,7 +278,7 @@ fun PostCard(
                 text = "$likeCount likes",
                 fontSize = 13.sp,
                 fontWeight = FontWeight.Bold,
-                color = MidnightBlue,
+                color = textColorForTheme(MidnightBlue),
                 modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
             )
 
@@ -288,7 +289,7 @@ fun PostCard(
                 text = post.clothingTitle,
                 fontWeight = FontWeight.Bold,
                 fontSize = 15.sp,
-                color = MidnightBlue,
+                color = textColorForTheme(MidnightBlue),
                 modifier = Modifier.padding(horizontal = 4.dp)
             )
 
@@ -296,7 +297,7 @@ fun PostCard(
                 Text(
                     text = post.caption,
                     fontSize = 13.sp,
-                    color = Color.DarkGray,
+                    color = textColorForTheme(Color.DarkGray),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
             }
@@ -311,7 +312,7 @@ fun PostCard(
                     .fillMaxWidth()
                     .height(450.dp)
                     .clip(RoundedCornerShape(16.dp))
-                    .background(Color.White)
+                    .background(MaterialTheme.colorScheme.surface)
                     .padding(16.dp)
             ) {
                 Column(modifier = Modifier.fillMaxSize()) {
@@ -319,7 +320,7 @@ fun PostCard(
                         text = "Comments",
                         fontWeight = FontWeight.Bold,
                         fontSize = 18.sp,
-                        color = MidnightBlue,
+                        color = textColorForTheme(MidnightBlue),
                         modifier = Modifier.padding(bottom = 12.dp)
                     )
 
@@ -330,7 +331,7 @@ fun PostCard(
                             }
                         } else if (commentsList.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("No comments yet. Be the first!", color = Color.Gray)
+                                Text("No comments yet. Be the first!", color = textColorForTheme(Color.Gray))
                             }
                         } else {
                             LazyColumn(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -338,7 +339,7 @@ fun PostCard(
                                     Row(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .background(Color(0xFFF6F8FA), RoundedCornerShape(10.dp))
+                                            .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(10.dp))
                                             .padding(10.dp),
                                         verticalAlignment = Alignment.Top
                                     ) {
@@ -362,7 +363,7 @@ fun PostCard(
                                                 text = comment.username,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 13.sp,
-                                                color = MidnightBlue,
+                                                color = textColorForTheme(MidnightBlue),
                                                 modifier = Modifier.clickable {
                                                     showCommentsDialog = false
                                                     onUserClick?.invoke(comment.userId,comment.username, comment.avatar_url ?: "")
@@ -372,7 +373,7 @@ fun PostCard(
                                             Text(
                                                 text = comment.content,
                                                 fontSize = 13.sp,
-                                                color = Color.Black
+                                                color = textColorForTheme(Color.Black)
                                             )
                                         }
                                     }
@@ -395,7 +396,9 @@ fun PostCard(
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
                             singleLine = true,
-                            textStyle = LocalTextStyle.current.copy(color = Color.Black),
+                            textStyle = LocalTextStyle.current.copy(
+                                color = textColorForTheme(Color.Black)
+                            ),
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))

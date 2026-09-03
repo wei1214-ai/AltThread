@@ -20,6 +20,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -61,7 +62,7 @@ fun FilterChip(
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
-            color = if (isSelected) MidnightBlue else Color.Gray,
+            color = textColorForTheme(if (isSelected) MidnightBlue else Color.Gray),
             maxLines = 1
         )
     }
@@ -113,7 +114,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color.White),
+            .background(MaterialTheme.colorScheme.background),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -130,7 +131,7 @@ fun HomeScreen(
                         text = "AltThread",
                         fontSize = 40.sp,
                         fontWeight = FontWeight.ExtraBold,
-                        color = MidnightBlue,
+                        color = textColorForTheme(MidnightBlue),
                         modifier = Modifier.align(Alignment.Center)
                     )
 
@@ -222,7 +223,7 @@ fun HomeScreen(
                 ) {
                     Text(
                         text = "No posts found.",
-                        color = Color.Gray
+                        color = textColorForTheme(Color.Gray)
                     )
                 }
             }

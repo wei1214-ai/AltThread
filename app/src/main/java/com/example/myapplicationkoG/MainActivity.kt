@@ -18,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,6 +35,7 @@ import com.example.myapplicationkoG.ui.garmentinput.GarmentInputScreen
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputViewModel
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import com.example.myapplicationkoG.ui.theme.ThemeMode
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.handleDeeplinks
 import java.net.URLDecoder
@@ -44,22 +46,36 @@ class MainActivity : ComponentActivity() {
 
     private val garmentInputViewModel: GarmentInputViewModel by viewModels()
     private var sharedPostIdState = mutableStateOf<String?>(null)
+    private var passwordRecoveryState = mutableStateOf(false)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         supabase.handleDeeplinks(intent)
         extractPostIdFromIntent(intent)
+        extractPasswordRecoveryFromIntent(intent)
 
         enableEdgeToEdge()
         setContent {
-            AltThreadTheme {
+            var savedThemeMode by rememberSaveable {
+                mutableStateOf(ThemeMode.SYSTEM.name)
+            }
+
+            val themeMode = ThemeMode.valueOf(savedThemeMode)
+
+            AltThreadTheme(themeMode = themeMode) {
                 val sharedPostId = sharedPostIdState.value
 
                 AltThreadApp(
                     garmentInputVm = garmentInputViewModel,
                     sharedPostId = sharedPostId,
-                    onDismissSharedPost = { sharedPostIdState.value = null }
+                    onDismissSharedPost = { sharedPostIdState.value = null },
+                    passwordRecoveryRequested = passwordRecoveryState.value,
+                    onDismissPasswordRecovery = { passwordRecoveryState.value = false },
+                    themeMode = themeMode,
+                    onThemeModeChanged = { newThemeMode ->
+                        savedThemeMode = newThemeMode.name
+                    }
                 )
             }
         }
@@ -69,6 +85,7 @@ class MainActivity : ComponentActivity() {
         super.onNewIntent(intent)
         supabase.handleDeeplinks(intent)
         extractPostIdFromIntent(intent)
+        extractPasswordRecoveryFromIntent(intent)
     }
 
     private fun extractPostIdFromIntent(intent: Intent?) {
@@ -80,13 +97,24 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
+    private fun extractPasswordRecoveryFromIntent(intent: Intent?) {
+        val data = intent?.data
+        if (data?.scheme == "altthread" && data.host == "reset-password") {
+            passwordRecoveryState.value = true
+        }
+    }
 }
 
 @Composable
 fun AltThreadApp(
     garmentInputVm: GarmentInputViewModel,
     sharedPostId: String? = null,
-    onDismissSharedPost: () -> Unit = {}
+    onDismissSharedPost: () -> Unit = {},
+    passwordRecoveryRequested: Boolean = false,
+    onDismissPasswordRecovery: () -> Unit = {},
+    themeMode: ThemeMode,
+    onThemeModeChanged: (ThemeMode) -> Unit
 ) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
@@ -95,6 +123,14 @@ fun AltThreadApp(
     var sharedPost by remember { mutableStateOf<Post?>(null) }
     var isLoadingSharedPost by remember { mutableStateOf(false) }
     val postRepository = remember { PostRepository() }
+
+    LaunchedEffect(passwordRecoveryRequested) {
+        if (passwordRecoveryRequested) {
+            navController.navigate(Screen.ResetPassword.route) {
+                launchSingleTop = true
+            }
+        }
+    }
 
     val navigateToOtherUserProfile = { userId:String, username: String, avatarUrl: String ->
         val encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8.toString())
@@ -179,6 +215,24 @@ fun AltThreadApp(
                         navController.navigate(Screen.Home.route) {
                             popUpTo(Screen.Auth.route) { inclusive = true }
                         }
+                    },
+                    onForgotPassword = {
+                        navController.navigate(Screen.ForgotPassword.route)
+                    }
+                )
+            }
+            composable(Screen.ForgotPassword.route) {
+                ForgotPasswordScreen(
+                    onBack = { navController.popBackStack() }
+                )
+            }
+            composable(Screen.ResetPassword.route) {
+                ResetPasswordScreen(
+                    onPasswordUpdated = {
+                        onDismissPasswordRecovery()
+                        navController.navigate(Screen.Auth.route) {
+                            popUpTo(Screen.Auth.route) { inclusive = true }
+                        }
                     }
                 )
             }
@@ -207,7 +261,26 @@ fun AltThreadApp(
                 ProfileScreen(
                     onEditProfile = { navController.navigate(Screen.EditProfile.route) },
                     onShowFollowers = { userId -> navController.navigate("followers/$userId") },
-                    onShowFollowing = { userId -> navController.navigate("following/$userId") }
+                    onShowFollowing = { userId -> navController.navigate("following/$userId") },
+                    onOpenSetting = { navController.navigate(Screen.Settings.route)}
+                )
+            }
+            composable(Screen.Settings.route) {
+                SettingsScreen(
+                    selectedThemeMode = themeMode,
+                    onThemeModeChanged = onThemeModeChanged,
+                    onBack = {
+                        navController.popBackStack()
+                    },
+                    onLogout = {
+                        navController.navigate(Screen.Auth.route){
+                            popUpTo(0){ // Clear navigation history,
+                                // after logout user press back button wont
+                                // go back to previous screen
+                                inclusive = true
+                            }
+                        }
+                    }
                 )
             }
             composable(Screen.EditProfile.route) {
