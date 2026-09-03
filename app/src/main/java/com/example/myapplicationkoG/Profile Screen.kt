@@ -104,7 +104,9 @@ fun CustomTabBar(
 
 @Composable
 fun ProfileScreen(
-    onEditProfile: () -> Unit
+    onEditProfile: () -> Unit,
+    onShowFollowers: (String) -> Unit,
+    onShowFollowing: (String) -> Unit
 ) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var errorMessage by remember { mutableStateOf("") }
@@ -117,6 +119,11 @@ fun ProfileScreen(
     var savedPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
     var isSavedLoading by remember { mutableStateOf(false) }
     var selectedPostForDetail by remember { mutableStateOf<Post?>(null) }
+    val followRepository = remember { FollowRepository() }
+
+    var postCount by remember { mutableIntStateOf(0) }
+    var followerCount by remember { mutableIntStateOf(0) }
+    var followingCount by remember { mutableIntStateOf(0) }
 
     val avatarPicker = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.GetContent()
@@ -135,7 +142,11 @@ fun ProfileScreen(
 
     LaunchedEffect(Unit) {
         try {
-            profile = repository.getMyProfile()
+            val loadedProfile = repository.getMyProfile()
+            profile = loadedProfile
+            postCount = postRepository.getPostCount(loadedProfile.id)
+            followerCount = followRepository.getFollowerCount(loadedProfile.id)
+            followingCount = followRepository.getFollowingCount(loadedProfile.id)
         } catch (e: Exception) {
             errorMessage = e.message ?: "Could not load profile"
         }
@@ -289,7 +300,7 @@ fun ProfileScreen(
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "36",
+                            "$postCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = MidnightBlue
@@ -297,11 +308,13 @@ fun ProfileScreen(
                         Text("Posts", fontSize = 14.sp, color = MidnightBlue)
                     }
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { profile?.let { onShowFollowers(it.id) } },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "446",
+                            "$followerCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = MidnightBlue
@@ -309,11 +322,13 @@ fun ProfileScreen(
                         Text("Followers", fontSize = 14.sp, color = MidnightBlue)
                     }
                     Column(
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { profile?.let { onShowFollowing(it.id) } },
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
-                            "344",
+                            "$followingCount",
                             fontWeight = FontWeight.Bold,
                             fontSize = 20.sp,
                             color = MidnightBlue

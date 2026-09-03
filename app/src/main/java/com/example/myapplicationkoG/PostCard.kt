@@ -31,6 +31,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -53,6 +54,9 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 // Helper function to safely extract avatar string from Post regardless of property naming
 private fun extractAvatarUrl(post: Post): String {
@@ -70,11 +74,23 @@ private fun extractAvatarUrl(post: Post): String {
     }
 }
 
+private fun formatPostTime(createdAt: String): String {
+    if (createdAt.isBlank()) return ""
+
+    return runCatching {
+        OffsetDateTime.parse(createdAt)
+            .atZoneSameInstant(ZoneId.systemDefault())
+            .format(DateTimeFormatter.ofPattern("d MMM yyyy, h:mm a"))
+    }.getOrElse {
+        createdAt
+    }
+}
+
 @Composable
 fun PostCard(
     post: Post,
     modifier: Modifier = Modifier,
-    onUserClick: ((username: String, avatarUrl: String) -> Unit)? = null
+    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
 ) {
     val repository = remember { PostRepository() }
     val scope = rememberCoroutineScope()
@@ -91,6 +107,8 @@ fun PostCard(
     var commentsList by remember { mutableStateOf<List<PostComment>>(emptyList()) }
     var isLoadingComments by remember { mutableStateOf(false) }
     var newCommentText by remember { mutableStateOf("") }
+    var isSendingComment by remember { mutableStateOf(false) }
+    var commentError by remember { mutableStateOf<String?>(null) }
 
     Card(
         modifier = modifier
@@ -108,7 +126,7 @@ fun PostCard(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clickable {
-                        onUserClick?.invoke(post.username, avatarUrl)
+                        onUserClick?.invoke(post.userId, post.username, avatarUrl)
                     }
             ) {
                 AsyncImage(
@@ -134,6 +152,15 @@ fun PostCard(
                         fontSize = 12.sp,
                         color = Color.Gray
                     )
+                    val postedTime = formatPostTime(post.createdAt)
+
+                    if (postedTime.isNotBlank()) {
+                        Text(
+                            text = "Posted $postedTime",
+                            fontSize = 11.sp,
+                            color = Color.Gray
+                        )
+                    }
                 }
             }
 
@@ -179,14 +206,16 @@ fun PostCard(
                 }
 
                 // Comment Button
-                IconButton(onClick = {
-                    showCommentsDialog = true
-                    scope.launch {
-                        isLoadingComments = true
-                        commentsList = repository.getComments(post.id)
-                        isLoadingComments = false
+                IconButton(
+                    onClick = {
+                        showCommentsDialog = true
+                        scope.launch {
+                            isLoadingComments = true
+                            commentsList = repository.getComments(post.id)
+                            isLoadingComments = false
+                        }
                     }
-                }) {
+                ) {
                     Icon(
                         imageVector = Icons.Outlined.ModeComment,
                         contentDescription = "Comment",
@@ -314,14 +343,14 @@ fun PostCard(
                                         verticalAlignment = Alignment.Top
                                     ) {
                                         AsyncImage(
-                                            model = comment.userAvatar ?: "https://via.placeholder.com/150",
+                                            model = comment.avatar_url ?: "https://via.placeholder.com/150",
                                             contentDescription = "Avatar",
                                             modifier = Modifier
                                                 .size(32.dp)
                                                 .clip(CircleShape)
                                                 .clickable {
                                                     showCommentsDialog = false
-                                                    onUserClick?.invoke(comment.username, comment.userAvatar ?: "")
+                                                    onUserClick?.invoke(comment.userId, comment.username, comment.avatar_url ?: "")
                                                 },
                                             contentScale = ContentScale.Crop
                                         )
@@ -336,7 +365,7 @@ fun PostCard(
                                                 color = MidnightBlue,
                                                 modifier = Modifier.clickable {
                                                     showCommentsDialog = false
-                                                    onUserClick?.invoke(comment.username, comment.userAvatar ?: "")
+                                                    onUserClick?.invoke(comment.userId,comment.username, comment.avatar_url ?: "")
                                                 }
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))
@@ -365,21 +394,29 @@ fun PostCard(
                             placeholder = { Text("Add a comment...", fontSize = 13.sp) },
                             modifier = Modifier.weight(1f),
                             shape = RoundedCornerShape(20.dp),
-                            singleLine = true
+                            singleLine = true,
+                            textStyle = LocalTextStyle.current.copy(color = Color.Black),
                         )
 
                         Spacer(modifier = Modifier.width(8.dp))
 
                         IconButton(
                             onClick = {
-                                if (newCommentText.isNotBlank()) {
-                                    val textToSend = newCommentText
-                                    newCommentText = ""
-                                    scope.launch {
-                                        val added = repository.addComment(post.id, textToSend)
-                                        if (added != null) {
-                                            commentsList = commentsList + added
-                                        }
+                                if (newCommentText.isBlank() || isSendingComment) return@IconButton
+
+                                val textToSend = newCommentText.trim()
+                                isSendingComment = true
+                                commentError = null
+
+                                scope.launch {
+                                    val saved = repository.addComment(post.id, textToSend)
+                                    isSendingComment = false
+
+                                    if (saved) {
+                                        newCommentText = ""
+                                        commentsList = repository.getComments(post.id)
+                                    } else {
+                                        commentError = "Could not send comment. Please try again."
                                     }
                                 }
                             }

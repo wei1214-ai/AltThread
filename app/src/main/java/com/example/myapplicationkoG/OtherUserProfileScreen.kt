@@ -1,6 +1,7 @@
 package com.example.myapplicationkoG
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,9 +17,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -26,8 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,27 +43,45 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import kotlinx.coroutines.launch
 
 @Composable
 fun OtherUserProfileScreen(
+    userId: String,
     username: String,
     avatarUrl: String,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    onShowFollowers: (String) -> Unit,
+    onShowFollowing: (String) -> Unit
 ) {
-    val repository = remember { PostRepository() }
-    var userPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
-    var isLoading by remember { mutableStateOf(true) }
+    val postRepository = remember { PostRepository() }
+    val followRepository = remember { FollowRepository() }
+    val scope = rememberCoroutineScope()
 
-    LaunchedEffect(username) {
+    var userPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
+    var followerCount by remember { mutableIntStateOf(0) }
+    var followingCount by remember { mutableIntStateOf(0) }
+    var isFollowing by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isFollowActionLoading by remember { mutableStateOf(false) }
+
+    suspend fun loadProfileData() {
         isLoading = true
+
         try {
-            val allPosts = repository.getPosts(category = "All")
-            userPosts = allPosts.filter { it.username.equals(username, ignoreCase = true) }
-        } catch (e: Exception) {
-            userPosts = emptyList()
+            val allPosts = postRepository.getPosts(category = "All")
+
+            userPosts = allPosts.filter { it.userId == userId }
+            followerCount = followRepository.getFollowerCount(userId)
+            followingCount = followRepository.getFollowingCount(userId)
+            isFollowing = followRepository.isFollowing(userId)
         } finally {
             isLoading = false
         }
+    }
+
+    LaunchedEffect(userId) {
+        loadProfileData()
     }
 
     Column(
@@ -68,7 +89,6 @@ fun OtherUserProfileScreen(
             .fillMaxSize()
             .background(Color.White)
     ) {
-        // Top Bar
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -82,7 +102,9 @@ fun OtherUserProfileScreen(
                     tint = MidnightBlue
                 )
             }
+
             Spacer(modifier = Modifier.width(8.dp))
+
             Text(
                 text = username,
                 fontSize = 20.sp,
@@ -91,7 +113,6 @@ fun OtherUserProfileScreen(
             )
         }
 
-        // Profile Header Info
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -99,7 +120,9 @@ fun OtherUserProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             AsyncImage(
-                model = if (avatarUrl.isNotBlank()) avatarUrl else "https://via.placeholder.com/150",
+                model = avatarUrl.ifBlank {
+                    "https://via.placeholder.com/150"
+                },
                 contentDescription = "Avatar",
                 modifier = Modifier
                     .size(90.dp)
@@ -118,22 +141,79 @@ fun OtherUserProfileScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            Button(
+                enabled = !isFollowActionLoading,
+                onClick = {
+                    scope.launch {
+                        isFollowActionLoading = true
+
+                        try {
+                            if (isFollowing) {
+                                followRepository.unfollow(userId)
+                            } else {
+                                followRepository.follow(userId)
+                            }
+
+                            // Refreshes the button and follower number immediately.
+                            isFollowing = followRepository.isFollowing(userId)
+                            followerCount = followRepository.getFollowerCount(userId)
+                        } finally {
+                            isFollowActionLoading = false
+                        }
+                    }
+                }
+            ) {
+                Text(if (isFollowing) "Unfollow" else "Follow")
+            }
+
+            Spacer(modifier = Modifier.height(16.dp))
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "${userPosts.size}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MidnightBlue)
-                    Text(text = "Posts", fontSize = 12.sp, color = Color.Gray)
+                    Text(
+                        text = "${userPosts.size}",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MidnightBlue
+                    )
+                    Text("Posts", fontSize = 12.sp, color = Color.Gray)
                 }
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(text = "${userPosts.sumOf { it.likeCount }}", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MidnightBlue)
-                    Text(text = "Total Likes", fontSize = 12.sp, color = Color.Gray)
+
+                Column(
+                    modifier = Modifier.clickable {
+                        onShowFollowers(userId)
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "$followerCount",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MidnightBlue
+                    )
+                    Text("Followers", fontSize = 12.sp, color = Color.Gray)
+                }
+
+                Column(
+                    modifier = Modifier.clickable {
+                        onShowFollowing(userId)
+                    },
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "$followingCount",
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = MidnightBlue
+                    )
+                    Text("Following", fontSize = 12.sp, color = Color.Gray)
                 }
             }
         }
 
-        // User Posts List
         if (isLoading) {
             Box(
                 modifier = Modifier.fillMaxSize(),
@@ -160,4 +240,3 @@ fun OtherUserProfileScreen(
         }
     }
 }
-

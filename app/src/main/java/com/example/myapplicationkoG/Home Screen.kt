@@ -70,7 +70,7 @@ fun FilterChip(
 // Home page
 @Composable
 fun HomeScreen(
-    onUserClick: ((username: String, avatarUrl: String) -> Unit)? = null
+    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
 ) {
 
     // Selected filter

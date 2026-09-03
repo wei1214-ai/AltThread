@@ -97,13 +97,27 @@ fun AltThreadApp(
     val postRepository = remember { PostRepository() }
 
     // 通用跳转他人主页的方法（自动对 URL 进行 Encode 防止路径报错）
-    val navigateToOtherUserProfile = { username: String, avatarUrl: String ->
+    val navigateToOtherUserProfile = { userId:String, username: String, avatarUrl: String ->
         val encodedUsername = URLEncoder.encode(username, StandardCharsets.UTF_8.toString())
         val encodedAvatarUrl = URLEncoder.encode(
             avatarUrl.ifEmpty { "https://via.placeholder.com/150" },
             StandardCharsets.UTF_8.toString()
         )
-        navController.navigate("other_user_profile/$encodedUsername/$encodedAvatarUrl")
+        val encodedUserId = URLEncoder.encode(
+            userId,
+            StandardCharsets.UTF_8.toString()
+        )
+
+        navController.navigate("other_user_profile/$encodedUserId/$encodedUsername/$encodedAvatarUrl")
+    }
+
+    val navigateToUserProfile = { userId: String, username: String, avatarUrl: String ->
+        val currentUserId = supabase.auth.currentUserOrNull()?.id
+        if (userId == currentUserId) {
+            navController.navigate(Screen.Profile.route) { launchSingleTop = true }
+        } else {
+            navigateToOtherUserProfile(userId, username, avatarUrl)
+        }
     }
 
     LaunchedEffect(sharedPostId) {
@@ -135,9 +149,9 @@ fun AltThreadApp(
                 } else if (sharedPost != null) {
                     PostCard(
                         post = sharedPost!!,
-                        onUserClick = { username, avatarUrl ->
+                        onUserClick = {userId, username, avatarUrl ->
                             onDismissSharedPost()
-                            navigateToOtherUserProfile(username, avatarUrl)
+                            navigateToUserProfile(userId, username, avatarUrl)
                         }
                     )
                 } else {
@@ -176,8 +190,8 @@ fun AltThreadApp(
             }
             composable(Screen.Home.route) {
                 HomeScreen(
-                    onUserClick = { username, avatarUrl ->
-                        navigateToOtherUserProfile(username, avatarUrl)
+                    onUserClick = { userId,username,avatarUrl ->
+                        navigateToUserProfile(userId, username, avatarUrl)
                     }
                 )
             }
@@ -189,7 +203,9 @@ fun AltThreadApp(
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
-                    onEditProfile = { navController.navigate(Screen.EditProfile.route) }
+                    onEditProfile = { navController.navigate(Screen.EditProfile.route) },
+                    onShowFollowers = { userId -> navController.navigate("followers/$userId") },
+                    onShowFollowing = { userId -> navController.navigate("following/$userId") }
                 )
             }
             composable(Screen.EditProfile.route) {
@@ -200,22 +216,58 @@ fun AltThreadApp(
 
             // 新增：他人主页路由与参数解析
             composable(
-                route = "other_user_profile/{username}/{avatarUrl}",
+                route = "other_user_profile/{userId}/{username}/{avatarUrl}",
                 arguments = listOf(
+                    navArgument("userId") { type = NavType.StringType },
                     navArgument("username") { type = NavType.StringType },
                     navArgument("avatarUrl") { type = NavType.StringType }
                 )
             ) { backStackEntry ->
+                val encodedUserId = backStackEntry.arguments?.getString("userId") ?: ""
                 val encodedUsername = backStackEntry.arguments?.getString("username") ?: ""
                 val encodedAvatarUrl = backStackEntry.arguments?.getString("avatarUrl") ?: ""
 
+                val decodedUserId = URLDecoder.decode(encodedUserId, StandardCharsets.UTF_8.toString())
                 val decodedUsername = URLDecoder.decode(encodedUsername, StandardCharsets.UTF_8.toString())
                 val decodedAvatarUrl = URLDecoder.decode(encodedAvatarUrl, StandardCharsets.UTF_8.toString())
 
                 OtherUserProfileScreen(
+                    userId = decodedUserId,
                     username = decodedUsername,
                     avatarUrl = decodedAvatarUrl,
-                    onBackClick = { navController.popBackStack() }
+                    onBackClick = { navController.popBackStack() },
+                    onShowFollowers = { userId -> navController.navigate("followers/$userId") },
+                    onShowFollowing = { userId -> navController.navigate("following/$userId") }
+                )
+            }
+
+            composable(
+                route = "followers/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                FollowListScreen(
+                    userId = userId,
+                    showFollowers = true,
+                    onBackClick = { navController.popBackStack() },
+                    onUserClick = { selectedUserId, username, avatarUrl ->
+                        navigateToUserProfile(selectedUserId, username, avatarUrl)
+                    }
+                )
+            }
+
+            composable(
+                route = "following/{userId}",
+                arguments = listOf(navArgument("userId") { type = NavType.StringType })
+            ) { backStackEntry ->
+                val userId = backStackEntry.arguments?.getString("userId") ?: ""
+                FollowListScreen(
+                    userId = userId,
+                    showFollowers = false,
+                    onBackClick = { navController.popBackStack() },
+                    onUserClick = { selectedUserId, username, avatarUrl ->
+                        navigateToUserProfile(selectedUserId, username, avatarUrl)
+                    }
                 )
             }
 

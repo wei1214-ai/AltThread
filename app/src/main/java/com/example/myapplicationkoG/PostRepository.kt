@@ -1,5 +1,7 @@
 package com.example.myapplicationkoG
 
+import com.example.myapplicationkoG.ui.ProfileRepository
+import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 import kotlinx.coroutines.Dispatchers
@@ -13,7 +15,7 @@ data class PostComment(
     @SerialName("post_id") val postId: String,
     @SerialName("user_id") val userId: String = "AltUser",
     @SerialName("username") val username: String = "AltUser",
-    @SerialName("user_avatar") val userAvatar: String? = null,
+    @SerialName("avatar_url") val avatar_url: String? = null,
     val content: String,
     @SerialName("created_at") val createdAt: String? = null
 )
@@ -121,6 +123,20 @@ class PostRepository {
             emptyList()
         }
     }
+    suspend fun getPostCount(userId: String): Int {
+        return try {
+            supabase.from("posts")
+                .select {
+                    filter {
+                        eq("user_id", userId)
+                    }
+                }
+                .decodeList<Post>()
+                .size
+        } catch (e: Exception) {
+            0
+        }
+    }
 
     // 重构：精确同步点赞人次与数据库 like_count 字段
     suspend fun toggleLike(postId: String): Int = withContext(Dispatchers.IO) {
@@ -184,19 +200,34 @@ class PostRepository {
     }
 
     // Add new comment
-    suspend fun addComment(postId: String, content: String): PostComment? = withContext(Dispatchers.IO) {
-        val newComment = PostComment(
-            postId = postId,
-            userId = CURRENT_USER,
-            username = CURRENT_USER,
-            content = content
-        )
+    suspend fun addComment(postId: String, content: String): Boolean = withContext(Dispatchers.IO) {
         try {
-            supabase.from("post_comments").insert(newComment)
-            newComment
+            val user = supabase.auth.currentUserOrNull()
+                ?: error("Please log in before commenting.")
+
+            val profile = ProfileRepository().getMyProfile()
+
+            val username =  profile.username
+                ?.ifBlank { "User" }
+                ?: "User"
+
+            val avatar_url = profile.avatar_url
+
+
+            supabase.from("post_comments").insert(
+                mapOf(
+                    "post_id" to postId,
+                    "user_id" to user.id,
+                    "username" to username,
+                    "avatar_url" to avatar_url,
+                    "content" to content.trim()
+                )
+            )
+
+            true
         } catch (e: Exception) {
             e.printStackTrace()
-            null
+            false
         }
     }
 
