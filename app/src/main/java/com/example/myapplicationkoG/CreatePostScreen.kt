@@ -3,6 +3,7 @@ package com.example.myapplicationkoG
 import android.app.Activity
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -15,16 +16,21 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.CameraAlt
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.PhotoLibrary
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +45,7 @@ import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -65,30 +72,39 @@ fun CreatePostScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { PostRepository() }
+
     val categories = listOf(
-        "For You",
         "Trend",
         "Vintage",
         "Streetwear"
     )
 
-    var selectedCategory by remember { mutableStateOf("For You") }
+    var selectedCategory by remember { mutableStateOf(categories.first()) }
     var isCategoryMenuOpen by remember { mutableStateOf(false) }
+
+    // 1. Added State for Clothing Title (e.g., Long Sleeve, Pants)
+    var clothingTitle by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
-    var imageUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Supports up to 9 image URIs
+    val imageUris = remember { mutableStateListOf<Uri>() }
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
+
+    // Toggle post classification (Post vs Challenge)
     var isChallenge by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
+    // UCrop Launcher for single-image cropping
     val cropLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
     ) { result ->
         if (result.resultCode == Activity.RESULT_OK) {
             val croppedUri = result.data?.let { UCrop.getOutput(it) }
-
             if (croppedUri != null) {
-                imageUri = croppedUri
+                if (imageUris.size < 9) {
+                    imageUris.add(croppedUri)
+                }
                 errorMessage = null
             }
         } else if (result.resultCode == UCrop.RESULT_ERROR) {
@@ -96,43 +112,37 @@ fun CreatePostScreen(
                 ?: "Could not crop the image."
         }
     }
-    fun startCrop(sourceUri: Uri) {
-        val destinationUri = Uri.fromFile(
-            File(
-                context.cacheDir,
-                "cropped_post_${System.currentTimeMillis()}.jpg"
-            )
-        )
 
-        val cropIntent = UCrop.of(sourceUri, destinationUri)
-            .withAspectRatio(1f, 1f) // Square Instagram-style crop
-            .getIntent(context)
-
-        cropLauncher.launch(cropIntent)
-    }
-
+    // Gallery Picker supporting up to 9 photos
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.GetContent()
-    ) { uri ->
-        if (uri != null) {
-            imageUri = uri
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
+    ) { uris ->
+        if (uris.isNotEmpty()) {
+            val availableSpace = 9 - imageUris.size
+            val urisToAdd = uris.take(availableSpace)
+            imageUris.addAll(urisToAdd)
             errorMessage = null
         }
     }
 
+    // Camera Launcher
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicture()
     ) { photoWasSaved ->
-        if (photoWasSaved) {
-            imageUri = pendingCameraUri
+        if (photoWasSaved && pendingCameraUri != null) {
+            if (imageUris.size < 9) {
+                imageUris.add(pendingCameraUri!!)
+            }
             errorMessage = null
         }
-
         pendingCameraUri = null
     }
 
-
     fun openCamera() {
+        if (imageUris.size >= 9) {
+            errorMessage = "You can only select up to 9 photos."
+            return
+        }
         val file = File(context.cacheDir, "post_${System.currentTimeMillis()}.jpg")
         val cameraUri = FileProvider.getUriForFile(
             context,
@@ -147,9 +157,11 @@ fun CreatePostScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
+            .imePadding() // Keyboard overlap fix
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
+        // Top Bar Header
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(
@@ -169,20 +181,16 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        Box(
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // Category Selection Dropdown
+        Box(modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(
-                onClick = {
-                    isCategoryMenuOpen = true
-                },
+                onClick = { isCategoryMenuOpen = true },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
                     text = "Category: $selectedCategory",
                     modifier = Modifier.weight(1f)
                 )
-
                 Icon(
                     imageVector = Icons.Default.ArrowDropDown,
                     contentDescription = "Choose category"
@@ -191,15 +199,11 @@ fun CreatePostScreen(
 
             DropdownMenu(
                 expanded = isCategoryMenuOpen,
-                onDismissRequest = {
-                    isCategoryMenuOpen = false
-                }
+                onDismissRequest = { isCategoryMenuOpen = false }
             ) {
                 categories.forEach { category ->
                     DropdownMenuItem(
-                        text = {
-                            Text(category)
-                        },
+                        text = { Text(category) },
                         onClick = {
                             selectedCategory = category
                             isCategoryMenuOpen = false
@@ -211,6 +215,7 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // Selected Media Gallery Display (1 to 9 photos)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -220,23 +225,58 @@ fun CreatePostScreen(
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            if (imageUri == null) {
+            if (imageUris.isEmpty()) {
                 Text(
-                    text = "Choose a photo for your post",
+                    text = "Select up to 9 photos for your post",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
-                AsyncImage(
-                    model = imageUri,
-                    contentDescription = "Selected post photo",
-                    modifier = Modifier.fillMaxSize(),
-                    contentScale = ContentScale.Crop
-                )
+                LazyRow(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    itemsIndexed(imageUris) { index, uri ->
+                        Box(
+                            modifier = Modifier
+                                .size(240.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                        ) {
+                            AsyncImage(
+                                model = uri,
+                                contentDescription = "Photo ${index + 1}",
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                            // Remove photo button
+                            Box(
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .padding(8.dp)
+                                    .size(28.dp)
+                                    .clip(CircleShape)
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
+                                    .clickable { imageUris.removeAt(index) },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Remove photo",
+                                    tint = MaterialTheme.colorScheme.onSurface,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
         Spacer(Modifier.height(12.dp))
 
+        // Image Selection Action Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -249,14 +289,31 @@ fun CreatePostScreen(
             )
             UploadChoiceButton(
                 modifier = Modifier.weight(1f),
-                label = "Gallery",
+                label = "Gallery (${imageUris.size}/9)",
                 icon = Icons.Default.PhotoLibrary,
-                onClick = { galleryLauncher.launch("image/*") }
+                onClick = {
+                    galleryLauncher.launch(
+                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                    )
+                }
             )
         }
 
         Spacer(Modifier.height(16.dp))
 
+        // 2. Clothing Type / Title Input Field
+        OutlinedTextField(
+            value = clothingTitle,
+            onValueChange = { clothingTitle = it },
+            label = { Text("Clothing Type (e.g. Long Sleeve, Pants)") },
+            placeholder = { Text("Long Sleeve") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        Spacer(Modifier.height(16.dp))
+
+        // 3. Caption / Bio Input Field
         OutlinedTextField(
             value = bio,
             onValueChange = { bio = it },
@@ -267,6 +324,7 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // Post Classification Toggle
         Text(
             text = "Publish as",
             fontWeight = FontWeight.Bold,
@@ -296,29 +354,35 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
+        // Publish Action Button
         Button(
             enabled = !isPublishing,
             onClick = {
                 when {
-                    imageUri == null -> errorMessage = "Please choose a photo."
+                    imageUris.isEmpty() -> errorMessage = "Please choose at least one photo."
+                    clothingTitle.isBlank() -> errorMessage = "Please enter a clothing type (title)."
                     else -> scope.launch {
                         isPublishing = true
                         errorMessage = null
-                        try{
+                        try {
+                            val finalPostType = if (isChallenge) "Challenge" else "Post"
+
+                            // 4. Pass clothingTitle as 'title' parameter to createPost
                             repository.createPost(
                                 context = context,
-                                imageUri = imageUri!!,
+                                imageUris = imageUris,
+                                title = clothingTitle,
                                 category = selectedCategory,
                                 bio = bio,
+                                postType = finalPostType,
                                 isChallenge = isChallenge
                             )
                             onPostPublished()
-                        }catch (e: Exception){
-                            errorMessage = e.message?:"Could not publish the post."
-                        }finally {
+                        } catch (e: Exception) {
+                            errorMessage = e.message ?: "Could not publish the post."
+                        } finally {
                             isPublishing = false
                         }
-
                     }
                 }
             },

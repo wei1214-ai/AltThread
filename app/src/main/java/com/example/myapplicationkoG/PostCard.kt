@@ -1,8 +1,14 @@
 package com.example.myapplicationkoG
 
 import android.content.Intent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.spring
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.rememberTransformableState
+import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,10 +22,13 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
@@ -36,7 +45,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,13 +56,17 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
@@ -87,6 +102,7 @@ private fun formatPostTime(createdAt: String): String {
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PostCard(
     post: Post,
@@ -99,9 +115,37 @@ fun PostCard(
 
     val avatarUrl = remember(post) { extractAvatarUrl(post) }
 
+    // Intelligently extract multi-image list: fallback to single mediaUrl if mediaUrls is empty
+    val imagesList = remember(post) {
+        if (post.mediaUrls.isNotEmpty()) {
+            post.mediaUrls
+        } else if (post.mediaUrl.isNotBlank()) {
+            listOf(post.mediaUrl)
+        } else {
+            emptyList()
+        }
+    }
+
+    val pagerState = rememberPagerState(pageCount = { imagesList.size })
+
+    // Fullscreen state variables
+    var showFullScreenViewer by remember { mutableStateOf(false) }
+    var fullScreenInitialPage by remember { mutableIntStateOf(0) }
+
+    // Local mutable state for optimistic UI updates
     var isLiked by remember { mutableStateOf(post.isLikedByCurrentUser) }
     var likeCount by remember { mutableIntStateOf(post.likeCount) }
     var isSaved by remember { mutableStateOf(post.isFavoritedByCurrentUser) }
+
+    // Synchronize UI state when the post model changes
+    LaunchedEffect(post) {
+        isLiked = post.isLikedByCurrentUser
+        likeCount = post.likeCount
+        isSaved = post.isFavoritedByCurrentUser
+    }
+
+    // Double-tap heart scale animation state
+    val doubleTapHeartScale = remember { Animatable(0f) }
 
     // Comments dialog states
     var showCommentsDialog by remember { mutableStateOf(false) }
@@ -110,6 +154,20 @@ fun PostCard(
     var newCommentText by remember { mutableStateOf("") }
     var isSendingComment by remember { mutableStateOf(false) }
     var commentError by remember { mutableStateOf<String?>(null) }
+
+    // Unified helper function for handling like execution
+    fun handleLikeToggle() {
+        val targetIsLiked = !isLiked
+        isLiked = targetIsLiked
+        likeCount = if (targetIsLiked) likeCount + 1 else (likeCount - 1).coerceAtLeast(0)
+
+        scope.launch {
+            val serverCount = repository.toggleLike(post.id)
+            if (serverCount != -1) {
+                likeCount = serverCount
+            }
+        }
+    }
 
     Card(
         modifier = modifier
@@ -167,16 +225,110 @@ fun PostCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 2. Post Media
-            AsyncImage(
-                model = post.mediaUrl,
-                contentDescription = post.clothingTitle,
+            // 2. Post Media Container (Fix horizontal swipe + Single tap for Full Screen Viewer)
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(300.dp)
-                    .clip(RoundedCornerShape(12.dp)),
-                contentScale = ContentScale.Crop
-            )
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(MaterialTheme.colorScheme.surfaceVariant),
+                contentAlignment = Alignment.Center
+            ) {
+                if (imagesList.isNotEmpty()) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize()
+                    ) { page ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(isLiked) {
+                                    detectTapGestures(
+                                        onTap = {
+                                            fullScreenInitialPage = page
+                                            showFullScreenViewer = true
+                                        },
+                                        onDoubleTap = {
+                                            if (!isLiked) {
+                                                handleLikeToggle()
+                                            }
+                                            scope.launch {
+                                                doubleTapHeartScale.snapTo(0f)
+                                                doubleTapHeartScale.animateTo(
+                                                    targetValue = 1.2f,
+                                                    animationSpec = spring(dampingRatio = 0.5f)
+                                                )
+                                                doubleTapHeartScale.animateTo(0f)
+                                            }
+                                        }
+                                    )
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            AsyncImage(
+                                model = imagesList[page],
+                                contentDescription = post.clothingTitle,
+                                modifier = Modifier.fillMaxSize(),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+
+                    // Double-tap animated heart pop-up overlay
+                    if (doubleTapHeartScale.value > 0f) {
+                        Icon(
+                            imageVector = Icons.Filled.Favorite,
+                            contentDescription = "Double Tap Heart",
+                            tint = Color.Red.copy(alpha = 0.85f),
+                            modifier = Modifier
+                                .size(100.dp)
+                                .graphicsLayer {
+                                    scaleX = doubleTapHeartScale.value
+                                    scaleY = doubleTapHeartScale.value
+                                }
+                        )
+                    }
+
+                    // Top-right page indicator
+                    if (imagesList.size > 1) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(10.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.Black.copy(alpha = 0.6f))
+                                .padding(horizontal = 8.dp, vertical = 4.dp)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1}/${imagesList.size}",
+                                color = Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    // Bottom carousel dots indicator
+                    if (imagesList.size > 1) {
+                        Row(
+                            modifier = Modifier
+                                .align(Alignment.BottomCenter)
+                                .padding(bottom = 10.dp),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            repeat(imagesList.size) { iteration ->
+                                val isSelected = pagerState.currentPage == iteration
+                                Box(
+                                    modifier = Modifier
+                                        .size(if (isSelected) 7.dp else 5.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) MidnightBlue else Color.White.copy(alpha = 0.6f))
+                                )
+                            }
+                        }
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(10.dp))
 
@@ -186,18 +338,7 @@ fun PostCard(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Like Button
-                IconButton(onClick = {
-                    val targetIsLiked = !isLiked
-                    isLiked = targetIsLiked
-                    likeCount = if (targetIsLiked) likeCount + 1 else (likeCount - 1).coerceAtLeast(0)
-
-                    scope.launch {
-                        val serverCount = repository.toggleLike(post.id)
-                        if (serverCount != -1) {
-                            likeCount = serverCount
-                        }
-                    }
-                }) {
+                IconButton(onClick = { handleLikeToggle() }) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                         contentDescription = "Like",
@@ -244,17 +385,18 @@ fun PostCard(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Rich Detail Share Button
+                // Share Button
                 IconButton(onClick = {
+                    val currentDisplayImage = imagesList.getOrNull(pagerState.currentPage) ?: post.mediaUrl
                     val formattedShareText = """
                         ✨ Look at this amazing outfit on AltThread!
                         
-                        👕 Title: ${post.clothingTitle}
+                        👕 Clothing Type: ${post.clothingTitle}
                         🏷️ Category: ${post.clothingCategory}
                         👤 Posted by: @${post.username}
                         
                         🖼️ Image:
-                        ${post.mediaUrl}
+                        $currentDisplayImage
                     """.trimIndent()
 
                     val sendIntent = Intent().apply {
@@ -284,22 +426,122 @@ fun PostCard(
 
             Spacer(modifier = Modifier.height(4.dp))
 
-            // 5. Title & Caption
-            Text(
-                text = post.clothingTitle,
-                fontWeight = FontWeight.Bold,
-                fontSize = 15.sp,
-                color = textColorForTheme(MidnightBlue),
-                modifier = Modifier.padding(horizontal = 4.dp)
-            )
+            // 5. Clothing Type / Title Display
+            val isValidTitle = remember(post.clothingTitle, post.clothingCategory) {
+                post.clothingTitle.isNotBlank() &&
+                        !post.clothingTitle.equals("For You", ignoreCase = true) &&
+                        !post.clothingTitle.equals(post.clothingCategory, ignoreCase = true)
+            }
 
-            if (post.caption.isNotBlank()) {
+            if (isValidTitle) {
+                Text(
+                    text = post.clothingTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = textColorForTheme(MidnightBlue),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+
+            // 6. Detailed Bio / Caption Display
+            if (post.caption.isNotBlank() && !post.caption.equals(post.clothingTitle, ignoreCase = true)) {
                 Text(
                     text = post.caption,
                     fontSize = 13.sp,
                     color = textColorForTheme(Color.DarkGray),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
                 )
+            }
+        }
+    }
+
+    // 7. Fullscreen Image Viewer Modal
+    if (showFullScreenViewer && imagesList.isNotEmpty()) {
+        Dialog(
+            onDismissRequest = { showFullScreenViewer = false },
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            val fullPagerState = rememberPagerState(
+                initialPage = fullScreenInitialPage,
+                pageCount = { imagesList.size }
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+            ) {
+                HorizontalPager(
+                    state = fullPagerState,
+                    modifier = Modifier.fillMaxSize()
+                ) { page ->
+                    var scale by remember { mutableFloatStateOf(1f) }
+                    var offset by remember { mutableStateOf(Offset.Zero) }
+
+                    val transformableState = rememberTransformableState { zoomChange, offsetChange, _ ->
+                        scale = (scale * zoomChange).coerceIn(1f, 4f)
+                        if (scale > 1f) {
+                            offset += offsetChange
+                        } else {
+                            offset = Offset.Zero
+                        }
+                    }
+
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .transformable(state = transformableState)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onTap = { showFullScreenViewer = false }
+                                )
+                            },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        AsyncImage(
+                            model = imagesList[page],
+                            contentDescription = "Full Screen Photo",
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .graphicsLayer(
+                                    scaleX = scale,
+                                    scaleY = scale,
+                                    translationX = offset.x,
+                                    translationY = offset.y
+                                ),
+                            contentScale = ContentScale.Fit
+                        )
+                    }
+                }
+
+                // Close Button
+                IconButton(
+                    onClick = { showFullScreenViewer = false },
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = Color.White,
+                        modifier = Modifier.size(28.dp)
+                    )
+                }
+
+                // Image counter (Top Left)
+                if (imagesList.size > 1) {
+                    Text(
+                        text = "${fullPagerState.currentPage + 1}/${imagesList.size}",
+                        color = Color.White,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(28.dp)
+                    )
+                }
             }
         }
     }
@@ -366,7 +608,7 @@ fun PostCard(
                                                 color = textColorForTheme(MidnightBlue),
                                                 modifier = Modifier.clickable {
                                                     showCommentsDialog = false
-                                                    onUserClick?.invoke(comment.userId,comment.username, comment.avatar_url ?: "")
+                                                    onUserClick?.invoke(comment.userId, comment.username, comment.avatar_url ?: "")
                                                 }
                                             )
                                             Spacer(modifier = Modifier.height(2.dp))

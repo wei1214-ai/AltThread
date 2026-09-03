@@ -4,7 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 
-// 1. Main Post Model
+// 1. Main Post Model with Multi-Image Support (Up to 9 images)
 @Serializable
 data class Post(
     val id: String = "",
@@ -17,8 +17,13 @@ data class Post(
     @SerialName("user_profile_pic_url")
     val userProfilePicUrl: String? = null,
 
+    // Primary single image URL (retained for backward compatibility)
     @SerialName("media_url")
     val mediaUrl: String = "",
+
+    // List of multiple image URLs (supports 1 to 9 photos per post)
+    @SerialName("media_urls")
+    val mediaUrls: List<String> = emptyList(),
 
     @SerialName("is_video")
     val isVideo: Boolean = false,
@@ -40,13 +45,17 @@ data class Post(
     @SerialName("created_at")
     val createdAt: String = "",
 
-    // UI state helper fields (ignored by Supabase during direct JSON parsing)
+    // UI state helper fields (ignored during direct Supabase JSON parsing)
     @Transient
     val isLikedByCurrentUser: Boolean = false,
 
     @Transient
     val isFavoritedByCurrentUser: Boolean = false
-)
+) {
+    // Helper property: Returns mediaUrls if non-empty, otherwise falls back to single mediaUrl
+    val allMediaUrls: List<String>
+        get() = if (mediaUrls.isNotEmpty()) mediaUrls else listOfNotNull(mediaUrl.ifEmpty { null })
+}
 
 // 2. Track who liked which post
 @Serializable

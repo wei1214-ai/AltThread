@@ -74,7 +74,6 @@ fun HomeScreen(
     refreshKey: Int = 0,
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
 ) {
-
     // Selected filter
     var selectedFilter by remember { mutableStateOf("For You") }
 
@@ -97,6 +96,8 @@ fun HomeScreen(
         "Streetwear"
     )
 
+    val backgroundColor = MaterialTheme.colorScheme.background
+
     // Load posts whenever selectedFilter changes
     LaunchedEffect(selectedFilter, refreshKey) {
         isLoading = true
@@ -115,7 +116,7 @@ fun HomeScreen(
     LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background),
+            .background(backgroundColor),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -156,7 +157,7 @@ fun HomeScreen(
                     }
                 }
 
-                // Filter row
+                // Filter row (带主题自适应边缘渐变)
                 Row(
                     modifier = Modifier
                         .height(40.dp)
@@ -165,7 +166,7 @@ fun HomeScreen(
                             drawRect(
                                 brush = Brush.horizontalGradient(
                                     0.85f to Color.Transparent,
-                                    1.0f to Color.White
+                                    1.0f to backgroundColor
                                 )
                             )
                         }

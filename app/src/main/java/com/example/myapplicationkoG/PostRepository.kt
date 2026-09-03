@@ -8,6 +8,8 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Order
 import io.github.jan.supabase.storage.storage
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -17,10 +19,10 @@ import java.util.UUID
 data class PostComment(
     val id: String = "",
     @SerialName("post_id") val postId: String,
-    @SerialName("user_id") val userId: String = "AltUser",
-    @SerialName("username") val username: String = "AltUser",
+    @SerialName("user_id") val userId: String = "",
+    @SerialName("username") val username: String = "",
     @SerialName("avatar_url") val avatar_url: String? = null,
-    val content: String,
+    @SerialName("comment_text") val content: String,
     @SerialName("created_at") val createdAt: String? = null
 )
 
@@ -39,8 +41,13 @@ private data class NewPost(
     @SerialName("user_profile_pic_url")
     val userProfilePicUrl: String?,
 
+    // Primary single image URL (for backward compatibility)
     @SerialName("media_url")
     val mediaUrl: String,
+
+    // Array/List of image URLs (supports 1-9 photos)
+    @SerialName("media_urls")
+    val mediaUrls: List<String> = emptyList(),
 
     @SerialName("is_video")
     val isVideo: Boolean = false,
@@ -62,23 +69,27 @@ private data class NewPost(
 
 class PostRepository {
 
-    private val CURRENT_USER = "AltUser"
-
     private val samplePost = Post(
         id = "1",
         username = "AltUser",
         userProfilePicUrl = "https://via.placeholder.com/150",
         mediaUrl = "https://fqyixgfokvnvpudiruej.supabase.co/storage/v1/object/public/cloth/althread.jpg",
+        mediaUrls = listOf("https://fqyixgfokvnvpudiruej.supabase.co/storage/v1/object/public/cloth/althread.jpg"),
         isVideo = false,
         clothingTitle = "Streetwear Outfit Set",
-        clothingCategory = "For You",
+        clothingCategory = "Trend",
         caption = "Sharing my latest clothing set from AltThread!",
         likeCount = 12
     )
 
-    // Get posts with likes and favorites state
+    // Helper to retrieve currently authenticated user ID safely
+    private fun getCurrentUserId(): String? {
+        return supabase.auth.currentUserOrNull()?.id
+    }
+
+    // Get posts with real-time likes and favorites state
     suspend fun getPosts(
-        category: String = "For You",
+        category: String = "All",
         sortBy: String = "latest"
     ): List<Post> = withContext(Dispatchers.IO) {
         try {
@@ -118,10 +129,8 @@ class PostRepository {
             val result = supabase.from("posts")
                 .select {
                     filter {
-                        // fuzzy match on title
-                        ilike("clothing_title", "%$query%")
+                        ilike("caption", "%$query%")
                     }
-                    // dynamic sorting support
                     if (sortBy == "highest_likes") {
                         order(column = "like_count", order = Order.DESCENDING)
                     } else {
@@ -158,6 +167,7 @@ class PostRepository {
             emptyList()
         }
     }
+
     suspend fun getPostCount(userId: String): Int {
         return try {
             supabase.from("posts")
@@ -173,43 +183,60 @@ class PostRepository {
         }
     }
 
-    /** Uploads the selected image and creates a new row in the posts table. */
+    /** Helper: Uploads a single Uri to Supabase storage bucket and returns its public URL */
+    private suspend fun uploadSingleImage(
+        context: Context,
+        uri: Uri,
+        userId: String
+    ): String = withContext(Dispatchers.IO) {
+        val imageBytes = context.contentResolver.openInputStream(uri)
+            ?.use { it.readBytes() }
+            ?: error("Could not read image URI: $uri")
+
+        val imagePath = "$userId/${UUID.randomUUID()}.jpg"
+        val bucket = supabase.storage.from("cloth")
+        bucket.upload(imagePath, imageBytes)
+        return@withContext bucket.publicUrl(imagePath)
+    }
+
+    /**
+     * Multi-image enabled post creation function.
+     */
     suspend fun createPost(
         context: Context,
-        imageUri: Uri,
+        imageUris: List<Uri>,
+        title: String,
         category: String,
         bio: String,
-        isChallenge: Boolean
+        postType: String = "Post",
+        isChallenge: Boolean = false
     ): Boolean = withContext(Dispatchers.IO) {
         try {
+            if (imageUris.isEmpty()) {
+                error("Please select at least one image.")
+            }
+
             val user = supabase.auth.currentUserOrNull()
                 ?: error("Please log in before posting.")
             val profile = ProfileRepository().getMyProfile()
 
-            val imageBytes = context.contentResolver.openInputStream(imageUri)
-                ?.use { it.readBytes() }
-                ?: error("Could not read the selected image.")
+            // ⚡ 并行异步上传多张图片
+            val uploadedPublicUrls = imageUris.map { uri ->
+                async { uploadSingleImage(context, uri, user.id) }
+            }.awaitAll()
 
-            val imagePath = "${user.id}/${UUID.randomUUID()}.jpg"
-            val bucket = supabase.storage.from("cloth")
-            bucket.upload(imagePath, imageBytes)
+            val primaryMediaUrl = uploadedPublicUrls.firstOrNull() ?: ""
 
             val newPost = NewPost(
                 userId = user.id,
                 username = profile.username?.ifBlank { "User" } ?: "User",
                 userProfilePicUrl = profile.avatar_url,
-                mediaUrl = bucket.publicUrl(imagePath),
+                mediaUrl = primaryMediaUrl,
+                mediaUrls = uploadedPublicUrls,
                 isVideo = false,
-
-                // Your app currently displays clothingTitle on each post card.
-                clothingTitle = category,
-
-                // Value selected from the category dropdown.
+                clothingTitle = title.trim(),
                 clothingCategory = category,
-
-                // Value selected from Post / Challenge radio buttons.
-                postType = if (isChallenge) "Challenge" else "Post",
-
+                postType = if (isChallenge) "Challenge" else postType,
                 caption = bio.trim(),
                 likeCount = 0
             )
@@ -223,42 +250,67 @@ class PostRepository {
         }
     }
 
-    // Sync like count with database like_count field
+    /** Overloaded single-image createPost function for backward compatibility */
+    suspend fun createPost(
+        context: Context,
+        imageUri: Uri,
+        title: String,
+        category: String,
+        bio: String,
+        isChallenge: Boolean
+    ): Boolean {
+        return createPost(
+            context = context,
+            imageUris = listOf(imageUri),
+            title = title,
+            category = category,
+            bio = bio,
+            postType = if (isChallenge) "Challenge" else "Post",
+            isChallenge = isChallenge
+        )
+    }
+
+    // Dynamically toggle like status based on authenticated user
     suspend fun toggleLike(postId: String): Int = withContext(Dispatchers.IO) {
         try {
-            // 1. Check if current user already liked
+            val userId = getCurrentUserId() ?: return@withContext -1
+
+            // 1. Check if authenticated user already liked the post
             val userLiked = supabase.from("post_likes").select {
                 filter {
                     eq("post_id", postId)
-                    eq("user_id", CURRENT_USER)
+                    eq("user_id", userId)
                 }
             }.decodeList<SimplePostIdRow>().isNotEmpty()
 
-            // 2. Insert or delete like record based on state
+            // 2. Add or remove like entry
             if (userLiked) {
                 supabase.from("post_likes").delete {
                     filter {
                         eq("post_id", postId)
-                        eq("user_id", CURRENT_USER)
+                        eq("user_id", userId)
                     }
                 }
             } else {
+                val profile = ProfileRepository().getMyProfile()
+                val username = profile.username?.ifBlank { "User" } ?: "User"
+
                 supabase.from("post_likes").insert(
                     mapOf(
                         "post_id" to postId,
-                        "user_id" to CURRENT_USER,
-                        "username" to CURRENT_USER
+                        "user_id" to userId,
+                        "username" to username
                     )
                 )
             }
 
-            // 3. Count latest total likes
+            // 3. Query total count for updated post
             val allLikes = supabase.from("post_likes").select {
                 filter { eq("post_id", postId) }
             }.decodeList<SimplePostIdRow>()
             val newLikeCount = allLikes.size
 
-            // 4. Update like_count counter in posts table
+            // 4. Persist count back to the post row
             supabase.from("posts").update(
                 mapOf("like_count" to newLikeCount)
             ) {
@@ -272,7 +324,7 @@ class PostRepository {
         }
     }
 
-    // Get comments from Supabase
+    // Fetch comments from Supabase
     suspend fun getComments(postId: String): List<PostComment> = withContext(Dispatchers.IO) {
         try {
             supabase.from("post_comments").select {
@@ -292,12 +344,11 @@ class PostRepository {
 
             val profile = ProfileRepository().getMyProfile()
 
-            val username =  profile.username
+            val username = profile.username
                 ?.ifBlank { "User" }
                 ?: "User"
 
             val avatar_url = profile.avatar_url
-
 
             supabase.from("post_comments").insert(
                 mapOf(
@@ -305,7 +356,7 @@ class PostRepository {
                     "user_id" to user.id,
                     "username" to username,
                     "avatar_url" to avatar_url,
-                    "content" to content.trim()
+                    "comment_text" to content.trim()
                 )
             )
 
@@ -316,15 +367,18 @@ class PostRepository {
         }
     }
 
-    // Toggle Favorite
+    // Toggle Favorite dynamically
     suspend fun toggleFavourite(postId: String, isSaved: Boolean) = withContext(Dispatchers.IO) {
         try {
+            val userId = getCurrentUserId() ?: return@withContext
             if (isSaved) {
-                supabase.from("post_favorites").insert(mapOf("post_id" to postId, "user_id" to CURRENT_USER))
+                supabase.from("post_favorites").insert(
+                    mapOf("post_id" to postId, "user_id" to userId)
+                )
             } else {
                 supabase.from("post_favorites").delete {
                     filter {
-                        eq("user_id", CURRENT_USER)
+                        eq("user_id", userId)
                         eq("post_id", postId)
                     }
                 }
@@ -336,8 +390,9 @@ class PostRepository {
 
     private suspend fun getLikedPostIdsForCurrentUser(): Set<String> {
         return try {
+            val userId = getCurrentUserId() ?: return emptySet()
             supabase.from("post_likes").select {
-                filter { eq("user_id", CURRENT_USER) }
+                filter { eq("user_id", userId) }
             }.decodeList<SimplePostIdRow>().map { it.postId }.toSet()
         } catch (e: Exception) {
             emptySet()
@@ -346,8 +401,9 @@ class PostRepository {
 
     private suspend fun getFavoritedPostIdsForCurrentUser(): Set<String> {
         return try {
+            val userId = getCurrentUserId() ?: return emptySet()
             supabase.from("post_favorites").select {
-                filter { eq("user_id", CURRENT_USER) }
+                filter { eq("user_id", userId) }
             }.decodeList<SimplePostIdRow>().map { it.postId }.toSet()
         } catch (e: Exception) {
             emptySet()

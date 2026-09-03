@@ -24,6 +24,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
@@ -108,7 +109,7 @@ fun ProfileScreen(
     onEditProfile: () -> Unit,
     onShowFollowers: (String) -> Unit,
     onShowFollowing: (String) -> Unit,
-    onOpenSetting:()-> Unit
+    onOpenSetting: () -> Unit
 ) {
     var profile by remember { mutableStateOf<UserProfile?>(null) }
     var errorMessage by remember { mutableStateOf("") }
@@ -438,6 +439,9 @@ fun ProfileScreen(
                     }
                 } else {
                     items(myPosts, key = { it.id }) { post ->
+                        val coverUrl = post.mediaUrls.firstOrNull() ?: post.mediaUrl
+                        val isMultiImage = post.mediaUrls.size > 1
+
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -448,11 +452,30 @@ fun ProfileScreen(
                                 }
                         ) {
                             AsyncImage(
-                                model = post.mediaUrl,
+                                model = coverUrl,
                                 contentDescription = post.clothingTitle,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            // 多图叠加角标提示 (右上角)
+                            if (isMultiImage) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Collections,
+                                        contentDescription = "Multiple Images",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -497,6 +520,9 @@ fun ProfileScreen(
                     }
                 } else {
                     items(savedPosts, key = { it.id }) { post ->
+                        val coverUrl = post.mediaUrls.firstOrNull() ?: post.mediaUrl
+                        val isMultiImage = post.mediaUrls.size > 1
+
                         Box(
                             modifier = Modifier
                                 .aspectRatio(1f)
@@ -507,11 +533,30 @@ fun ProfileScreen(
                                 }
                         ) {
                             AsyncImage(
-                                model = post.mediaUrl,
+                                model = coverUrl,
                                 contentDescription = post.clothingTitle,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()
                             )
+
+                            // 多图叠加角标提示 (右上角)
+                            if (isMultiImage) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.TopEnd)
+                                        .padding(6.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.5f))
+                                        .padding(4.dp)
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.Collections,
+                                        contentDescription = "Multiple Images",
+                                        tint = Color.White,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                 }
