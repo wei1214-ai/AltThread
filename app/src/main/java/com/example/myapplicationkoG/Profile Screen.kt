@@ -66,14 +66,14 @@ import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
 
 /**
- * Custom TabBar component for switching between "Posts", "Challenges", and "Saved" tabs.
+ * Custom TabBar component for switching between combined posts/challenges and saved posts.
  */
 @Composable
 fun CustomTabBar(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    val tabs = listOf("Posts", "Challenges", "Saved")
+    val tabs = listOf("Post & Challenge", "Saved")
     val activeColor = textColorForTheme(MidnightBlue)
     val inactiveColor = textColorForTheme(Color.Gray)
 
@@ -112,6 +112,7 @@ fun CustomTabBar(
  */
 @Composable
 fun ProfileScreen(
+    refreshKey: Int = 0,
     onEditProfile: () -> Unit,
     onShowFollowers: (String) -> Unit,
     onShowFollowing: (String) -> Unit,
@@ -164,7 +165,10 @@ fun ProfileScreen(
         }
     }
 
-    LaunchedEffect(Unit) {
+    // Reload when a post/challenge is published, including when this destination
+    // remains on the navigation back stack.
+    LaunchedEffect(refreshKey) {
+        isMyPostsLoading = true
         try {
             val loadedProfile = repository.getMyProfile()
             profile = loadedProfile
@@ -411,7 +415,7 @@ fun ProfileScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No posts yet.",
+                                text = "No posts or challenges yet.",
                                 color = textColorForTheme(Color.Gray)
                             )
                         }

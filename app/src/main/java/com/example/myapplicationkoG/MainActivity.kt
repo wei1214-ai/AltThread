@@ -322,6 +322,7 @@ fun AltThreadApp(
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
+                    refreshKey = postsRefreshKey,
                     onEditProfile = { navController.navigate(Screen.EditProfile.route) },
                     onShowFollowers = { userId -> navController.navigate("followers/$userId") },
                     onShowFollowing = { userId -> navController.navigate("following/$userId") },
