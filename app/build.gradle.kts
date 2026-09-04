@@ -77,6 +77,7 @@ android {
 }
 
 dependencies {
+    implementation("io.coil-kt:coil-video:2.6.0")
     // Crop pics
     implementation("com.github.yalantis:ucrop:2.2.11")
     implementation("androidx.appcompat:appcompat:1.7.1")

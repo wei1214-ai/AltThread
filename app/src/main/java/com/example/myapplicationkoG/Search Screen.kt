@@ -50,6 +50,11 @@ import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.delay
+import androidx.compose.ui.platform.LocalContext
+import coil.ImageLoader
+import coil.decode.VideoFrameDecoder
+import coil.request.ImageRequest
+import coil.request.videoFrameMillis
 
 @Composable
 fun SearchScreen() {
@@ -62,6 +67,16 @@ fun SearchScreen() {
     var results by remember { mutableStateOf<List<Post>>(emptyList()) }
     var isLoading by remember { mutableStateOf(false) }
     var selectedPostForDetail by remember { mutableStateOf<Post?>(null) }
+
+    val context = LocalContext.current
+
+    val thumbnailImageLoader = remember {
+        ImageLoader.Builder(context)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .build()
+    }
 
     val repository = remember { PostRepository() }
 
@@ -235,8 +250,15 @@ fun SearchScreen() {
                     items = results,
                     key = { it.id }
                 ) { post ->
+                    val coverUrl = post.mediaUrls.firstOrNull() ?: post.mediaUrl
+
                     AsyncImage(
-                        model = post.mediaUrl,
+                        model = ImageRequest.Builder(context)
+                            .data(coverUrl)
+                            .videoFrameMillis(1_000)
+                            .crossfade(true)
+                            .build(),
+                        imageLoader = thumbnailImageLoader,
                         contentDescription = post.caption,
                         modifier = Modifier
                             .fillMaxWidth()

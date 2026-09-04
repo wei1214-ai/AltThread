@@ -80,6 +80,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+import com.example.myapplicationkoG.textColorForTheme
 
 data class DyeState(val color: Color, val strength: Float)
 data class PlacedButton(val pos: Offset, val scale: Float, val color: Color, val style: Int = 0, val rotation: Float = 0f)
@@ -1049,16 +1050,16 @@ fun EditorPlaceHolder(
     if (saveDialogVisible) {
         AlertDialog(
             onDismissRequest = { if (!isSaving) saveDialogVisible = false },
-            title = { Text("Save Design", color = MidnightBlue, fontWeight = FontWeight.Bold) },
+            title = { Text("Save Design", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold) },
             text = {
                 Column {
-                    Text("Name your design", color = Color.Gray, fontSize = 13.sp)
+                    Text("Name your design", color =textColorForTheme(Color.Gray), fontSize = 13.sp)
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = saveName,
                         onValueChange = { saveName = it },
                         singleLine = true,
-                        placeholder = { Text("My design") },
+                        placeholder = { Text("My design", color = textColorForTheme(Color.Gray)) },
                         modifier = Modifier.fillMaxWidth()
                     )
                 }
@@ -1119,13 +1120,13 @@ fun EditorPlaceHolder(
                     if (isSaving) {
                         CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MidnightBlue, strokeWidth = 2.dp)
                     } else {
-                        Text("Save", color = MidnightBlue)
+                        Text("Save", color = textColorForTheme(MidnightBlue))
                     }
                 }
             },
             dismissButton = {
                 TextButton(onClick = { saveDialogVisible = false }, enabled = !isSaving) {
-                    Text("Cancel")
+                    Text("Cancel", color = textColorForTheme(MidnightBlue))
                 }
             }
         )

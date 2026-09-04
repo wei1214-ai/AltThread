@@ -64,6 +64,10 @@ import com.example.myapplicationkoG.ui.UserProfile
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
+import coil.ImageLoader
+import coil.request.ImageRequest
+import coil.decode.VideoFrameDecoder
+import coil.request.videoFrameMillis
 
 /**
  * Custom TabBar component for switching between combined posts/challenges and saved posts.
@@ -124,6 +128,13 @@ fun ProfileScreen(
     val postRepository = remember { PostRepository() }
     val followRepository = remember { FollowRepository() }
     val context = LocalContext.current
+    val thumbnailImageLoader = remember {
+        ImageLoader.Builder(context)
+            .components {
+                add(VideoFrameDecoder.Factory())
+            }
+            .build()
+    }
     val scope = rememberCoroutineScope()
 
     var selectedTabIndex by remember { mutableIntStateOf(0) }
@@ -435,7 +446,12 @@ fun ProfileScreen(
                                 }
                         ) {
                             AsyncImage(
-                                model = coverUrl,
+                                model = ImageRequest.Builder(context)
+                                    .data(coverUrl)
+                                    .videoFrameMillis(1_000)
+                                    .crossfade(true)
+                                    .build(),
+                                imageLoader = thumbnailImageLoader,
                                 contentDescription = post.clothingTitle,
                                 contentScale = ContentScale.Crop,
                                 modifier = Modifier.fillMaxSize()

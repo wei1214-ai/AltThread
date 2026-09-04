@@ -304,10 +304,7 @@ class PostRepository {
                 isChallenge -> "Challenge"
                 else -> postType
             }
-            val effectiveChallengeId = challengePostId ?: if (designId != null) {
-                // auto-reference if design was created from a challenge
-                ShareDesignSession.selected?.state?.challengePostId
-            } else null
+            val effectiveChallengeId = challengePostId
             val newPost = NewPost(
                 userId = user.id,
                 username = profile.username?.ifBlank { "User" } ?: "User",
