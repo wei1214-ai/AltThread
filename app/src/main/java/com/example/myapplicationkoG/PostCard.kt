@@ -143,6 +143,7 @@ fun PostCard(
     modifier: Modifier = Modifier,
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
     onAcceptChallenge: ((Post) -> Unit)? = null,
+    onLikeStateChanged: ((postId: String, isLiked: Boolean, likeCount: Int) -> Unit)? = null,
     onDeletePost: ((Post) -> Unit)? = null
 ) {
     val repository = remember { PostRepository() }
@@ -198,14 +199,23 @@ fun PostCard(
     var commentError by remember { mutableStateOf<String?>(null) }
 
     fun handleLikeToggle() {
+        val previousIsLiked = isLiked
+        val previousLikeCount = likeCount
         val targetIsLiked = !isLiked
         isLiked = targetIsLiked
         likeCount = if (targetIsLiked) likeCount + 1 else (likeCount - 1).coerceAtLeast(0)
+        onLikeStateChanged?.invoke(post.id, isLiked, likeCount)
 
         scope.launch {
             val serverCount = repository.toggleLike(post.id)
             if (serverCount != -1) {
                 likeCount = serverCount
+                onLikeStateChanged?.invoke(post.id, isLiked, likeCount)
+            } else {
+                // Do not leave the feed showing a change that was not saved.
+                isLiked = previousIsLiked
+                likeCount = previousLikeCount
+                onLikeStateChanged?.invoke(post.id, isLiked, likeCount)
             }
         }
     }
