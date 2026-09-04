@@ -3,82 +3,36 @@ package com.example.myapplicationkoG
 import android.content.ContentValues
 import android.content.Context
 import android.provider.MediaStore
+import android.util.Base64
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import kotlinx.serialization.json.putJsonArray
-import kotlinx.serialization.json.putJsonObject
 import okhttp3.MediaType.Companion.toMediaType
-import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.RequestBody.Companion.asRequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.File
-import java.util.UUID
 import java.util.concurrent.TimeUnit
-import kotlin.random.Random
 
 object VtonConfig {
+    // kept for backwards compat, no longer used directly
     const val BASE_URL = "https://yisol-idm-vton.hf.space"
-    const val API = "tryon"
-    val TOKEN: String get() = BuildConfig.HF_TOKEN
-    val TOKEN2: String get() = BuildConfig.HF_TOKEN2
-    fun tokens(): List<String> = listOfNotNull(
-        TOKEN.takeIf { it.isNotBlank() },
-        TOKEN2.takeIf { it.isNotBlank() }
-    )
 }
 
 class VtonRepository {
 
     private val client = OkHttpClient.Builder()
         .connectTimeout(30, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
+        .readTimeout(180, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
         .build()
 
     private val json = Json { ignoreUnknownKeys = true }
-
-    private fun auth(url: String, token: String = VtonConfig.TOKEN): Request.Builder {
-        val b = Request.Builder().url(url)
-        if (token.isNotBlank()) {
-            b.header("Authorization", "Bearer $token")
-        }
-        return b
-    }
-
-    private suspend fun uploadImage(file: File, token: String = VtonConfig.TOKEN): String = withContext(Dispatchers.IO) {
-        val body = MultipartBody.Builder()
-            .setType(MultipartBody.FORM)
-            .addFormDataPart(
-                "files", file.name,
-                file.asRequestBody("image/jpeg".toMediaType())
-            )
-            .build()
-        val req = auth("${VtonConfig.BASE_URL}/upload?upload_id=${UUID.randomUUID().toString().replace("-", "")}", token)
-            .post(body)
-            .build()
-        val resp = client.newCall(req).execute()
-        val respBody = resp.body?.string() ?: error("Empty upload response")
-        if (!resp.isSuccessful) {
-            if (resp.code == 429 || respBody.contains("quota", ignoreCase = true)) {
-                error("QUOTA_EXCEEDED")
-            }
-            error("Upload failed (${resp.code}): $respBody")
-        }
-        json.parseToJsonElement(respBody).jsonArray.first().jsonPrimitive.content
-    }
 
     private fun padToRatio(file: File, ratioW: Int = 3, ratioH: Int = 4): File {
         val src = android.graphics.BitmapFactory.decodeFile(file.absolutePath)
@@ -109,140 +63,56 @@ class VtonRepository {
         return tmp
     }
 
+    private fun fileToBase64(file: File): String {
+        val bytes = file.readBytes()
+        val b64 = Base64.encodeToString(bytes, Base64.NO_WRAP)
+        // server accepts both with and without data URI prefix; we send with prefix for clarity
+        return "data:image/jpeg;base64,$b64"
+    }
+
     suspend fun runTryOn(
         personFile: File,
         garmentFile: File,
         prompt: String = "a photo of a garment"
-    ): File {
-        var lastError: Exception? = null
-        for (token in VtonConfig.tokens().ifEmpty { listOf("") }) {
-            try {
-                return runTryOnWithToken(personFile, garmentFile, prompt, token)
-            } catch (e: Exception) {
-                val msg = e.message ?: ""
-                if (msg.contains("QUOTA_EXCEEDED") || msg.contains("quota", ignoreCase = true) || msg.contains("429")) {
-                    lastError = e
-                    continue
-                }
-                throw e
-            }
-        }
-        throw lastError ?: error("Try-on failed: no token available")
-    }
-
-    private suspend fun runTryOnWithToken(
-        personFile: File,
-        garmentFile: File,
-        prompt: String,
-        token: String
     ): File = withContext(Dispatchers.IO) {
-        val personPath = uploadImage(padToRatio(personFile), token)
-        val garmentPath = uploadImage(padToRatio(garmentFile), token)
+        val personB64 = fileToBase64(padToRatio(personFile))
+        val garmentB64 = fileToBase64(padToRatio(garmentFile))
 
-        fun fileData(path: String) = buildJsonObject {
-            put("path", path)
-        }
-        val sessionHash = UUID.randomUUID().toString().replace("-", "")
         val payload = buildJsonObject {
-            put("fn_index", 2)
-            putJsonArray("data") {
-                add(buildJsonObject {
-                    put("background", fileData(personPath))
-                    putJsonArray("layers") {}
-                    put("composite", fileData(personPath))
-                })
-                add(fileData(garmentPath))
-                add(JsonPrimitive(prompt))
-                add(JsonPrimitive(true))
-                add(JsonPrimitive(false))
-                add(JsonPrimitive(30))
-                add(JsonPrimitive(Random.nextInt(0, Int.MAX_VALUE)))
-            }
-            put("session_hash", sessionHash)
+            put("personB64", JsonPrimitive(personB64))
+            put("garmentB64", JsonPrimitive(garmentB64))
+            put("prompt", JsonPrimitive(prompt))
         }.toString()
 
-        val joinReq = auth("${VtonConfig.BASE_URL}/queue/join", token)
+        val req = Request.Builder()
+            .url(AIConfig.VTON_URL)
             .post(payload.toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
+            .header("apikey", AIConfig.SUPABASE_ANON_KEY)
+            .header("Authorization", "Bearer ${AIConfig.SUPABASE_ANON_KEY}")
             .build()
-        val joinResp = client.newCall(joinReq).execute()
-        val joinBody = joinResp.body?.string() ?: error("Empty join response")
-        if (!joinResp.isSuccessful) {
-            if (joinResp.code == 429 || joinBody.contains("quota", ignoreCase = true)) error("QUOTA_EXCEEDED")
-            error("Queue join failed (${joinResp.code}): $joinBody")
-        }
 
-        val streamReq = auth("${VtonConfig.BASE_URL}/queue/data?session_hash=$sessionHash", token)
-            .header("Accept", "text/event-stream")
-            .get()
-            .build()
-        val streamResp = client.newCall(streamReq).execute()
-        if (!streamResp.isSuccessful) error("Stream failed (${streamResp.code})")
-        var resultUrl: String? = null
-        var lastError: String? = null
-        val deadline = System.currentTimeMillis() + 8 * 60 * 1000L
-        streamResp.body?.source()?.use { source ->
-            while (true) {
-                if (System.currentTimeMillis() > deadline) error("Timed out waiting for try-on result")
-                val line = try {
-                    source.readUtf8Line() ?: break
-                } catch (_: Exception) {
-                    break
-                }
-                if (!line.startsWith("data: ")) continue
-                val data = line.removePrefix("data: ").trim()
-                if (data.isEmpty()) continue
-                    try {
-                    val event = json.parseToJsonElement(data).jsonObject
-                    when (event["msg"]?.jsonPrimitive?.content) {
-                        "process_completed" -> {
-                            val output = event["output"]?.jsonObject
-                                ?: error("No output in completed event")
-                            val errField = output["error"]
-                            if (errField != null && errField.toString() != "null") {
-                                error("Try-on failed: $errField")
-                            }
-                            val dataArr = output["data"]?.jsonArray
-                                ?: error("No data in completed event")
-                            val first = dataArr.firstOrNull()
-                            resultUrl = when (first) {
-                                is JsonObject -> fileUrl(first)
-                                else -> {
-                                    val raw = first.toString().trim('"')
-                                    if (raw.isBlank() || raw == "null") error("Try-on failed: $data")
-                                    if (raw.startsWith("http")) raw
-                                    else "${VtonConfig.BASE_URL}/file=$raw"
-                                }
-                            }
-                            break
-                        }
-                        "error", "unexpected_error" -> error("Try-on failed: $data")
-                        else -> Unit
-                    }
-                } catch (e: Exception) {
-                    if (e.message?.startsWith("Try-on failed") == true) throw e
-                    lastError = data
-                }
-            }
+        val resp = client.newCall(req).execute()
+        val bodyStr = resp.body?.string() ?: error("Empty VTON response")
+        if (!resp.isSuccessful) {
+            val err = try {
+                json.parseToJsonElement(bodyStr).jsonObject["error"]?.jsonPrimitive?.content ?: bodyStr
+            } catch (_: Exception) { bodyStr }
+            error("VTON failed (${resp.code}): $err")
         }
-        val url = resultUrl ?: error("Try-on failed: ${lastError ?: "no result"}")
-        val dlReq = Request.Builder().url(url).get().build()
-        val dlResp = client.newCall(dlReq).execute()
-        val bytes = dlResp.body?.bytes() ?: error("Empty result image")
+        val obj = json.parseToJsonElement(bodyStr).jsonObject
+        if (obj["error"] != null && obj["error"].toString() != "null") {
+            val msg = obj["error"]?.jsonPrimitive?.content ?: obj["error"].toString()
+            error("VTON failed: $msg")
+        }
+        val imageData = obj["image"]?.jsonPrimitive?.content
+            ?: error("No image in VTON response: $bodyStr")
+        // image is data:image/png;base64,...
+        val b64Part = imageData.substringAfter(",", imageData)
+        val bytes = Base64.decode(b64Part, Base64.DEFAULT)
         val outFile = File.createTempFile("vton_result_", ".png")
         outFile.writeBytes(bytes)
         outFile
-    }
-
-    private fun fileUrl(obj: JsonObject): String {
-        val raw = obj["url"]?.jsonPrimitive?.content
-            ?: obj["path"]?.jsonPrimitive?.content
-            ?: error("No file url")
-        return when {
-            raw.startsWith("http") -> raw
-            raw.startsWith("/") -> VtonConfig.BASE_URL + raw
-            else -> "${VtonConfig.BASE_URL}/gradio_api/file=$raw"
-        }
     }
 
     suspend fun saveToGallery(context: Context, file: File, name: String): String =

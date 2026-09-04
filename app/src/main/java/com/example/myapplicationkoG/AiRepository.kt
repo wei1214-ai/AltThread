@@ -10,12 +10,17 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 
+data class ChatMessage(
+    val role: String,
+    val text: String,
+    val isUser: Boolean
+)
+
 @Serializable
 private data class OrMessage(val role: String, val content: String)
 
 @Serializable
-private data class OrRequest(
-    val model: String,
+private data class SupabaseFunctionRequest(
     val messages: List<OrMessage>
 )
 
@@ -35,12 +40,6 @@ private data class OrResponse(
 private data class OrError(
     val message: String = "",
     val code: String? = null
-)
-
-data class ChatMessage(
-    val role: String,
-    val text: String,
-    val isUser: Boolean
 )
 
 class AiRepository {
@@ -73,17 +72,16 @@ class AiRepository {
         }
         messages.add(OrMessage("user", userMessage))
 
-        val req = OrRequest(model = AIConfig.MODEL, messages = messages)
-        val bodyStr = json.encodeToString(OrRequest.serializer(), req)
-        val url = "${AIConfig.BASE_URL}/chat/completions"
+        // 仅打包 messages 提交给 Edge Function，Model 和 API Key 由服务端托管
+        val req = SupabaseFunctionRequest(messages = messages)
+        val bodyStr = json.encodeToString(SupabaseFunctionRequest.serializer(), req)
 
         val request = Request.Builder()
-            .url(url)
+            .url(AIConfig.SUPABASE_FUNCTION_URL)
             .post(bodyStr.toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
-            .header("Authorization", "Bearer ${AIConfig.API_KEY}")
-            .header("HTTP-Referer", AIConfig.REFERER)
-            .header("X-Title", AIConfig.TITLE)
+            .header("Authorization", "Bearer ${AIConfig.SUPABASE_ANON_KEY}")
+            .header("apikey", AIConfig.SUPABASE_ANON_KEY)
             .build()
 
         val response = client.newCall(request).execute()

@@ -31,14 +31,8 @@ android {
             ?: (project.findProperty("openrouterApiKey") as String?)
             ?: System.getenv("OPENROUTER_API_KEY") ?: ""
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterKey\"")
-        val hfToken: String = (localProps.getProperty("hfToken") as String?)
-            ?: (project.findProperty("hfToken") as String?)
-            ?: System.getenv("HF_TOKEN") ?: ""
-        buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
-        val hfToken2: String = (localProps.getProperty("hfToken2") as String?)
-            ?: (project.findProperty("hfToken2") as String?)
-            ?: System.getenv("HF_TOKEN2") ?: ""
-        buildConfigField("String", "HF_TOKEN2", "\"$hfToken2\"")
+        // HF tokens no longer baked into APK - VTON now proxies via Supabase Edge Function (AIConfig.VTON_URL)
+        // Secrets are stored in Supabase Vault, not in BuildConfig.
     }
 
     buildTypes {
