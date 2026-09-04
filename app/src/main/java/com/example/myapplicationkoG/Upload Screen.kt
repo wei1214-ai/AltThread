@@ -1,5 +1,7 @@
 package com.example.myapplicationkoG
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
@@ -63,6 +65,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.core.content.ContextCompat
+import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.di.ServiceLocator
 import com.example.myapplicationkoG.ui.theme.Cyan
@@ -128,11 +132,117 @@ fun UploadScreen(
     var isProcessingFront by remember { mutableStateOf(false) }
     var isProcessingBack by remember { mutableStateOf(false) }
 
+    var postCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var frontCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var backCameraUri by remember { mutableStateOf<Uri?>(null) }
+    var pendingCameraSide by remember { mutableStateOf<String?>(null) }
+
+    fun createCameraUri(): Uri {
+        val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
+        file.parentFile?.mkdirs()
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
-            selectedUris = uris
+            if (selectedUris.size + uris.size > 9) {
+                Toast.makeText(context, "Max 9 images", Toast.LENGTH_SHORT).show()
+                selectedUris = (selectedUris + uris).take(9)
+            } else {
+                selectedUris = selectedUris + uris
+            }
+        }
+    }
+
+    val takePostPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) postCameraUri?.let {
+            if (selectedUris.size < 9) selectedUris = selectedUris + it
+            else Toast.makeText(context, "Max 9 images", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val takeFrontPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) frontCameraUri?.let { uri ->
+            frontOrigUri = uri
+            frontError = null
+            frontCutoutPath = null
+            isProcessingFront = true
+            scope.launch {
+                try {
+                    val cutout = processChallengeImage(context, uri)
+                    frontCutoutPath = cutout.absolutePath
+                    frontError = null
+                } catch (e: Exception) {
+                    frontError = e.message ?: "Could not detect garment"
+                    frontCutoutPath = null
+                } finally {
+                    isProcessingFront = false
+                }
+            }
+        }
+    }
+
+    val takeBackPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) backCameraUri?.let { uri ->
+            backOrigUri = uri
+            backError = null
+            backCutoutPath = null
+            isProcessingBack = true
+            scope.launch {
+                try {
+                    val cutout = processChallengeImage(context, uri)
+                    backCutoutPath = cutout.absolutePath
+                    backError = null
+                } catch (e: Exception) {
+                    backError = e.message ?: "Could not detect garment"
+                    backCutoutPath = null
+                } finally {
+                    isProcessingBack = false
+                }
+            }
+        }
+    }
+
+    val requestCameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) {
+            when (pendingCameraSide) {
+                "post" -> {
+                    val uri = createCameraUri()
+                    postCameraUri = uri
+                    takePostPicture.launch(uri)
+                }
+                "front" -> {
+                    val uri = createCameraUri()
+                    frontCameraUri = uri
+                    takeFrontPicture.launch(uri)
+                }
+                "back" -> {
+                    val uri = createCameraUri()
+                    backCameraUri = uri
+                    takeBackPicture.launch(uri)
+                }
+            }
+        } else {
+            Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
+        }
+        pendingCameraSide = null
+    }
+
+    fun launchCamera(side: String) {
+        val perm = Manifest.permission.CAMERA
+        val granted = ContextCompat.checkSelfPermission(context, perm) == PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            val uri = createCameraUri()
+            when (side) {
+                "post" -> { postCameraUri = uri; takePostPicture.launch(uri) }
+                "front" -> { frontCameraUri = uri; takeFrontPicture.launch(uri) }
+                "back" -> { backCameraUri = uri; takeBackPicture.launch(uri) }
+            }
+        } else {
+            pendingCameraSide = side
+            requestCameraPermission.launch(perm)
         }
     }
 
@@ -302,22 +412,41 @@ fun UploadScreen(
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .height(180.dp)
                         .clip(RoundedCornerShape(16.dp))
                         .background(Color(0xFFF8F8F8))
                         .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
-                        .clickable {
-                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        }
-                        .padding(16.dp),
-                    contentAlignment = Alignment.Center
+                        .padding(12.dp)
                 ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Text("Tap to select images (up to 9)", color = Color.Gray, fontSize = 13.sp)
-                        if (selectedUris.isNotEmpty()) {
-                            Spacer(modifier = Modifier.height(4.dp))
-                            Text("${selectedUris.size} images selected", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                    Box(
+                        modifier = Modifier.fillMaxSize(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
+                            Spacer(modifier = Modifier.height(6.dp))
+                            Text("Tap to select images (up to 9)", color = Color.Gray, fontSize = 13.sp)
+                            if (selectedUris.isNotEmpty()) {
+                                Spacer(modifier = Modifier.height(4.dp))
+                                Text("${selectedUris.size} images selected", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            }
+                        }
+                    }
+                    Row(
+                        modifier = Modifier.align(Alignment.BottomEnd),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = "Gallery", tint = MidnightBlue, modifier = Modifier.size(18.dp))
+                        }
+                        Box(
+                            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { launchCamera("post") },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -338,6 +467,7 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
+                val postReady = selectedUris.isNotEmpty() && clothingTitleInput.isNotBlank()
                 Button(
                     onClick = {
                         if (selectedUris.isEmpty()) {
@@ -373,8 +503,8 @@ fun UploadScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(25.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue),
-                    enabled = !isUploading
+                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue, disabledContainerColor = Color(0xFFE0E0E0), disabledContentColor = Color.Gray),
+                    enabled = postReady && !isUploading
                 ) {
                     if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
                     else Text("Post", fontWeight = FontWeight.Bold, fontSize = 16.sp)
@@ -394,7 +524,8 @@ fun UploadScreen(
                     cutoutPath = frontCutoutPath,
                     isProcessing = isProcessingFront,
                     error = frontError,
-                    onPick = { pickFrontLauncher.launch("image/*") }
+                    onAlbum = { pickFrontLauncher.launch("image/*") },
+                    onCamera = { launchCamera("front") }
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 ChallengePickerBox(
@@ -403,7 +534,8 @@ fun UploadScreen(
                     cutoutPath = backCutoutPath,
                     isProcessing = isProcessingBack,
                     error = backError,
-                    onPick = { pickBackLauncher.launch("image/*") }
+                    onAlbum = { pickBackLauncher.launch("image/*") },
+                    onCamera = { launchCamera("back") }
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -432,11 +564,11 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val challengeReady = frontCutoutPath != null && backCutoutPath != null && !isProcessingFront && !isProcessingBack
+                val challengeReady = frontCutoutPath != null && backCutoutPath != null && clothingTitleInput.isNotBlank() && !isProcessingFront && !isProcessingBack
 
                 Button(
                     onClick = {
-                        if (!challengeReady) {
+                        if (frontCutoutPath == null || backCutoutPath == null) {
                             Toast.makeText(context, "Please upload and process both front and back images", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
@@ -471,7 +603,7 @@ fun UploadScreen(
                     },
                     modifier = Modifier.fillMaxWidth().height(52.dp),
                     shape = RoundedCornerShape(25.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue),
+                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue, disabledContainerColor = Color(0xFFE0E0E0), disabledContentColor = Color.Gray),
                     enabled = !isUploading && challengeReady
                 ) {
                     if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
@@ -502,7 +634,8 @@ private fun ChallengePickerBox(
     cutoutPath: String?,
     isProcessing: Boolean,
     error: String?,
-    onPick: () -> Unit
+    onAlbum: () -> Unit,
+    onCamera: () -> Unit
 ) {
     Box(
         modifier = Modifier
@@ -511,7 +644,7 @@ private fun ChallengePickerBox(
             .clip(RoundedCornerShape(16.dp))
             .background(if (cutoutPath != null) Cyan.copy(alpha = 0.12f) else Color.White)
             .border(1.5.dp, if (cutoutPath != null) MidnightBlue else Color(0xFFCCCCCC), RoundedCornerShape(16.dp))
-            .clickable { if (!isProcessing) onPick() }
+            .clickable { if (!isProcessing) onAlbum() }
             .padding(12.dp)
     ) {
         Text(label, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MidnightBlue, modifier = Modifier.align(Alignment.TopStart))
@@ -557,12 +690,23 @@ private fun ChallengePickerBox(
                 }
             }
         }
-        // small album button bottom-right
-        Box(
-            modifier = Modifier.align(Alignment.BottomEnd).size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { if (!isProcessing) onPick() },
-            contentAlignment = Alignment.Center
+        // album + camera buttons bottom-right
+        Row(
+            modifier = Modifier.align(Alignment.BottomEnd),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(18.dp))
+            Box(
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { if (!isProcessing) onAlbum() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = "Album", tint = MidnightBlue, modifier = Modifier.size(18.dp))
+            }
+            Box(
+                modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { if (!isProcessing) onCamera() },
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
+            }
         }
     }
     if (error != null && cutoutPath == null && !isProcessing) {

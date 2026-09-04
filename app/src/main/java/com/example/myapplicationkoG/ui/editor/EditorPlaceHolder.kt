@@ -397,16 +397,16 @@ fun EditorPlaceHolder(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
-                                .background(MidnightBlue)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Cyan)
                                 .clickable { showAiChat = true },
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(
-                                text = "✦",
-                                color = Color.White,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 18.sp
+                            Icon(
+                                painter = painterResource(id = R.drawable.ai),
+                                contentDescription = "AI",
+                                tint = MidnightBlue,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                         Box(

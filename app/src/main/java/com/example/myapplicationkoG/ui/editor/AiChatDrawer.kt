@@ -46,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -159,7 +160,12 @@ fun AiChatDrawer(
                                     .background(Cyan),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(text = "✦", fontSize = 28.sp, color = MidnightBlue)
+                                Icon(
+                                    painter = painterResource(id = com.example.myapplicationkoG.R.drawable.ai),
+                                    contentDescription = "AI",
+                                    tint = MidnightBlue,
+                                    modifier = Modifier.size(36.dp)
+                                )
                             }
                             Spacer(modifier = Modifier.height(12.dp))
                             Text(

@@ -127,142 +127,142 @@ fun HomeScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .background(backgroundColor),
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
-    ) {
-        // Header and filters
-        item {
-            Column {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(80.dp)
-                ) {
-                    // App title
-                    Text(
-                        text = "AltThread",
-                        fontSize = 40.sp,
-                        fontWeight = FontWeight.ExtraBold,
-                        color = textColorForTheme(MidnightBlue),
-                        modifier = Modifier.align(Alignment.Center)
-                    )
-
-                    // AI button (same drawer as Design Space)
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            // Header and filters
+            item {
+                Column {
                     Box(
                         modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(MidnightBlue)
-                            .align(Alignment.CenterEnd)
-                            .clickable { showAiChat = true },
-                        contentAlignment = Alignment.Center
+                            .fillMaxWidth()
+                            .height(80.dp)
                     ) {
-                        Text("✦", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-                    }
-                }
-                
-                Row(
-                    modifier = Modifier
-                        .height(40.dp)
-                        .drawWithContent {
-                            drawContent()
-                            if (filterScrollState.canScrollBackward) {
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        0.0f to backgroundColor,
-                                        0.15f to Color.Transparent
-                                    )
-                                )
-                            }
-                            if (filterScrollState.canScrollForward) {
-                                drawRect(
-                                    brush = Brush.horizontalGradient(
-                                        0.85f to Color.Transparent,
-                                        1.0f to backgroundColor
-                                    )
+                        // App title
+                        Text(
+                            text = "AltThread",
+                            fontSize = 40.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = textColorForTheme(MidnightBlue),
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+
+                        // AI button - same style as Profile setting button
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Cyan)
+                                .align(Alignment.CenterEnd),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(onClick = { showAiChat = true }) {
+                                Icon(
+                                    painter = painterResource(id = R.drawable.ai),
+                                    contentDescription = "AI",
+                                    tint = MidnightBlue,
+                                    modifier = Modifier.size(26.dp)
                                 )
                             }
                         }
-                        .horizontalScroll(filterScrollState),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(16.dp)
-                ) {
-                    filters.forEach { filter ->
-                        FilterChip(
-                            label = filter,
-                            isSelected = selectedFilter == filter,
-                            onClick = { selectedFilter = filter }
+                    }
+
+                    Row(
+                        modifier = Modifier
+                            .height(40.dp)
+                            .drawWithContent {
+                                drawContent()
+                                if (filterScrollState.canScrollBackward) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0.0f to backgroundColor,
+                                            0.15f to Color.Transparent
+                                        )
+                                    )
+                                }
+                                if (filterScrollState.canScrollForward) {
+                                    drawRect(
+                                        brush = Brush.horizontalGradient(
+                                            0.85f to Color.Transparent,
+                                            1.0f to backgroundColor
+                                        )
+                                    )
+                                }
+                            }
+                            .horizontalScroll(filterScrollState),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        filters.forEach { filter ->
+                            FilterChip(
+                                label = filter,
+                                isSelected = selectedFilter == filter,
+                                onClick = { selectedFilter = filter }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Loading
+            if (isLoading) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(300.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(color = Cyan)
+                    }
+                }
+            }
+            // Error
+            else if (errorMessage != null) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(30.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "Failed to load posts\n\n$errorMessage",
+                            color = Color.Red
                         )
                     }
                 }
             }
-        }
-
-        // Loading
-        if (isLoading) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(color = Cyan)
+            // No posts
+            else if (posts.isEmpty()) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(40.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "No posts found.",
+                            color = textColorForTheme(Color.Gray)
+                        )
+                    }
                 }
             }
-        }
-        // Error
-        else if (errorMessage != null) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(30.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Failed to load posts\n\n$errorMessage",
-                        color = Color.Red
+            // Display posts
+            else {
+                items(
+                    items = posts,
+                    key = { it.id }
+                ) { post ->
+                    PostCard(
+                        post = post,
+                        onUserClick = onUserClick,
+                        onAcceptChallenge = onAcceptChallenge
                     )
                 }
             }
-        }
-        // No posts
-        else if (posts.isEmpty()) {
-            item {
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(40.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "No posts found.",
-                        color = textColorForTheme(Color.Gray)
-                    )
-                }
-            }
-        }
-        // Display posts
-        else {
-            items(
-                items = posts,
-                key = { it.id }
-            ) { post ->
-                PostCard(
-                    post = post,
-                    onUserClick = onUserClick,
-                    onAcceptChallenge = onAcceptChallenge
-                )
-            }
-        }
         }
         AiChatDrawer(visible = showAiChat, onDismiss = { showAiChat = false })
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun HomeScreenPreview() {
-    HomeScreen()
 }
