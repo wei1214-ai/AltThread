@@ -75,7 +75,8 @@ fun ColumnScope.StudioCard(
 }
 @Composable
 fun StudioScreen(
-    onStartDesign: () -> Unit = {}
+    onStartDesign: () -> Unit = {},
+    onContinueDesign: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier.fillMaxSize()
@@ -119,7 +120,8 @@ fun StudioScreen(
                 )
                 StudioCard(
                     imageRes = R.drawable.studiobutton3,
-                    title = "Continue Previous Design"
+                    title = "Continue Previous Design",
+                    onClick = onContinueDesign
                 )
             }
         }

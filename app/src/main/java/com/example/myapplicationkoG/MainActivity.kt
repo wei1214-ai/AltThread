@@ -31,7 +31,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.platform.LocalContext
+import com.example.myapplicationkoG.ui.editor.DesignSession
+import com.example.myapplicationkoG.ui.editor.DyeState
 import com.example.myapplicationkoG.ui.editor.EditorPlaceHolder
+import com.example.myapplicationkoG.ui.editor.PlacedButton
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputScreen
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputViewModel
 import com.example.myapplicationkoG.ui.theme.AltThreadTheme
@@ -42,6 +47,8 @@ import io.github.jan.supabase.auth.handleDeeplinks
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
 
@@ -90,13 +97,12 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractPostIdFromIntent(intent: Intent?) {
-        val data = intent?.data
-        if (
-            data?.scheme == "altthread" &&
-            data.host == "login" &&
-            data.path == "/reset-password"
-        ) {
-            passwordRecoveryState.value = true
+        val data: Uri? = intent?.data
+        if (data != null && data.scheme == "altthread" && data.host == "post") {
+            val postId = data.lastPathSegment
+            if (!postId.isNullOrEmpty()) {
+                sharedPostIdState.value = postId
+            }
         }
     }
 
@@ -266,6 +272,9 @@ fun AltThreadApp(
                     onStartDesign = {
                         garmentInputVm.clearAll()
                         navController.navigate(Screen.GarmentInput.route)
+                    },
+                    onContinueDesign = {
+                        navController.navigate(Screen.ContinueDesigns.route)
                     }
                 )
             }
@@ -357,6 +366,34 @@ fun AltThreadApp(
                 )
             }
 
+            composable(Screen.ContinueDesigns.route) {
+                val ctx = LocalContext.current
+                ContinueDesignsScreen(
+                    onOpenDesign = { row ->
+                        val repo = DesignRepository()
+                        MainScope().launch {
+                            val (front, back) = repo.ensureLocalFiles(ctx, row)
+                            garmentInputVm.loadDesignPaths(front, back)
+                            DesignSession.stage(
+                                dye = row.state.dye.mapKeys {
+                                    com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)
+                                }.mapValues { (_, v) ->
+                                    DyeState(color = androidx.compose.ui.graphics.Color(v.color), strength = v.strength)
+                                },
+                                buttons = row.state.buttons.mapKeys {
+                                    com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)
+                                }.mapValues { (_, list) ->
+                                    list.map { PlacedButton(pos = Offset(it.x, it.y), scale = it.scale, color = androidx.compose.ui.graphics.Color(it.color)) }
+                                }
+                            )
+                            navController.navigate(Screen.Editor.route) {
+                                popUpTo(Screen.ContinueDesigns.route) { inclusive = true }
+                            }
+                        }
+                    },
+                    onBack = { navController.popBackStack() }
+                )
+            }
             composable(Screen.GarmentInput.route) {
                 GarmentInputScreen(
                     viewModel = garmentInputVm,

@@ -39,6 +39,19 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 
     private val runId: String = UUID.randomUUID().toString()
 
+    fun loadDesignPaths(front: File, back: File) {
+        _state.update {
+            it.copy(
+                frontCutoutPath = front.absolutePath,
+                backCutoutPath = back.absolutePath,
+                frontError = null,
+                backError = null,
+                isLoading = false,
+                loadingSide = null
+            )
+        }
+    }
+
     fun clearAll() {
         // Delete cached files and reset state so re-entering Design Space is clean
         _state.value.frontCutoutPath?.let { runCatching { File(it).delete() } }
@@ -65,20 +78,28 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
                 val cutout = withContext(Dispatchers.IO) {
                     val imported = copyToCache(uri)
                         ?: error("Could not import picked image")
-                    val result = inference.run(imported)
-                    // Use timestamp to force Coil to reload (same path would be cached)
-                    val out = File(cacheDir, "garment_${runId}_${side.name.lowercase()}_${System.currentTimeMillis()}.png")
                     try {
-                        savePng(result.cutout, out)
+                        // Same bytes = same cutout, reuse cache and skip inference.
+                        // v2 key: pipeline fixes must re-run instead of reusing v1 results.
+                        val out = File(cacheDir, "cutout2_${sha256(imported)}.png")
+                        if (!(out.exists() && out.length() > 0L)) {
+                            val result = inference.run(imported)
+                            try {
+                                savePng(result.cutout, out)
+                            } finally {
+                                // pipeline returns a fresh bitmap, recycle after saving to avoid OOM
+                                runCatching { if (!result.cutout.isRecycled) result.cutout.recycle() }
+                            }
+                        }
+                        // Delete old cutout file for this side
+                        if (oldPath != null && oldPath != out.absolutePath) {
+                            runCatching { File(oldPath).delete() }
+                        }
+                        out
                     } finally {
-                        // pipeline returns a fresh bitmap, recycle after saving to avoid OOM
-                        runCatching { if (!result.cutout.isRecycled) result.cutout.recycle() }
                         // clean up imported temp file
                         runCatching { imported.delete() }
                     }
-                    // Delete old cutout file for this side
-                    oldPath?.let { runCatching { File(it).delete() } }
-                    out
                 }
                 _state.update { current ->
                     when (side) {
@@ -114,6 +135,19 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         file.outputStream().use { out ->
             bitmap.compress(Bitmap.CompressFormat.PNG, 100, out)
         }
+    }
+
+    private fun sha256(file: File): String {
+        val digest = java.security.MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { ins ->
+            val buf = ByteArray(8192)
+            while (true) {
+                val n = ins.read(buf)
+                if (n <= 0) break
+                digest.update(buf, 0, n)
+            }
+        }
+        return digest.digest().joinToString("") { "%02x".format(it) }
     }
 }
 

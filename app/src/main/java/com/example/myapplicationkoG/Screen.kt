@@ -15,4 +15,6 @@ sealed class Screen(val route: String) {
     // Part 1 editor flow
     object GarmentInput : Screen("garment_input")
     object Editor : Screen("editor")
+    
+    object ContinueDesigns : Screen("continue_designs")
 }

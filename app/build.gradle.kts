@@ -21,6 +21,9 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        val openrouterKey: String = (project.findProperty("openrouterApiKey") as String?)
+            ?: System.getenv("OPENROUTER_API_KEY") ?: ""
+        buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterKey\"")
     }
 
     buildTypes {
