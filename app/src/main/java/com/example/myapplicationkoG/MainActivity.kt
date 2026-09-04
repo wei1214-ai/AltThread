@@ -108,7 +108,14 @@ class MainActivity : ComponentActivity() {
 
     private fun extractPasswordRecoveryFromIntent(intent: Intent?) {
         val data = intent?.data
-        if (data?.scheme == "altthread" && data.host == "reset-password") {
+        val isRecoveryLink = data?.getQueryParameter("type") == "recovery" ||
+            data?.fragment?.contains("type=recovery") == true
+
+        if (
+            data?.scheme == "altthread" &&
+            data.host == "login" &&
+            (data.path == "/reset-password" || isRecoveryLink)
+        ) {
             passwordRecoveryState.value = true
         }
     }
