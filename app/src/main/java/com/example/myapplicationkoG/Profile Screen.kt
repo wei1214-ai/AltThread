@@ -65,6 +65,9 @@ import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
 
+/**
+ * Custom TabBar component for switching between "Posts", "Challenges", and "Saved" tabs.
+ */
 @Composable
 fun CustomTabBar(
     selectedTabIndex: Int,
@@ -104,6 +107,9 @@ fun CustomTabBar(
     }
 }
 
+/**
+ * Main Profile Screen displaying user profile info, metrics, digital wardrobe banner, and grid content tabs.
+ */
 @Composable
 fun ProfileScreen(
     onEditProfile: () -> Unit,
@@ -115,6 +121,7 @@ fun ProfileScreen(
     var errorMessage by remember { mutableStateOf("") }
     val repository = remember { ProfileRepository() }
     val postRepository = remember { PostRepository() }
+    val followRepository = remember { FollowRepository() }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -122,7 +129,6 @@ fun ProfileScreen(
     var savedPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
     var isSavedLoading by remember { mutableStateOf(false) }
     var selectedPostForDetail by remember { mutableStateOf<Post?>(null) }
-    val followRepository = remember { FollowRepository() }
     var myPosts by remember { mutableStateOf<List<Post>>(emptyList()) }
     var isMyPostsLoading by remember { mutableStateOf(true) }
 
@@ -145,15 +151,26 @@ fun ProfileScreen(
         }
     }
 
+    // Helper to refresh posts and count after deletion
+    fun refreshMyPosts(userId: String) {
+        scope.launch {
+            try {
+                val allPosts = postRepository.getPosts(category = "All")
+                myPosts = allPosts.filter { post -> post.userId == userId }
+                postCount = postRepository.getPostCount(userId)
+            } catch (e: Exception) {
+                errorMessage = e.message ?: "Could not refresh posts"
+            }
+        }
+    }
+
     LaunchedEffect(Unit) {
         try {
             val loadedProfile = repository.getMyProfile()
             profile = loadedProfile
 
             val allPosts = postRepository.getPosts(category = "All")
-            myPosts = allPosts.filter { post ->
-                post.userId == loadedProfile.id
-            }
+            myPosts = allPosts.filter { post -> post.userId == loadedProfile.id }
             postCount = postRepository.getPostCount(loadedProfile.id)
             followerCount = followRepository.getFollowerCount(loadedProfile.id)
             followingCount = followRepository.getFollowingCount(loadedProfile.id)
@@ -178,13 +195,12 @@ fun ProfileScreen(
         }
     }
 
+    // Detail Modal Dialog when post thumbnail is clicked
     selectedPostForDetail?.let { selectedPost ->
         Dialog(onDismissRequest = {
             selectedPostForDetail = null
             if (selectedTabIndex == 2) {
-                scope.launch {
-                    savedPosts = postRepository.getFavouritePosts()
-                }
+                scope.launch { savedPosts = postRepository.getFavouritePosts() }
             }
         }) {
             Box(
@@ -192,7 +208,22 @@ fun ProfileScreen(
                     .fillMaxWidth()
                     .padding(vertical = 16.dp)
             ) {
-                PostCard(post = selectedPost)
+                PostCard(
+                    post = selectedPost,
+                    onDeletePost = { deletedPost ->
+                        // 1. Close modal immediately
+                        selectedPostForDetail = null
+
+                        // 2. Remove post from UI state instantly
+                        myPosts = myPosts.filter { it.id != deletedPost.id }
+                        postCount = (postCount - 1).coerceAtLeast(0)
+
+                        // 3. Sync with backend DB
+                        profile?.let { currentProfile ->
+                            refreshMyPosts(currentProfile.id)
+                        }
+                    }
+                )
             }
         }
     }
@@ -458,7 +489,6 @@ fun ProfileScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            // 多图叠加角标提示 (右上角)
                             if (isMultiImage) {
                                 Box(
                                     modifier = Modifier
@@ -539,7 +569,6 @@ fun ProfileScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            // 多图叠加角标提示 (右上角)
                             if (isMultiImage) {
                                 Box(
                                     modifier = Modifier

@@ -30,20 +30,26 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
+import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FavoriteBorder
 import androidx.compose.material.icons.outlined.ModeComment
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -68,13 +74,13 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
+import com.example.myapplicationkoG.ui.ProfileRepository
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
 import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 
-// Helper function to safely extract avatar string from Post regardless of property naming
 private fun extractAvatarUrl(post: Post): String {
     return try {
         val field = post::class.java.declaredFields.firstOrNull {
@@ -108,15 +114,30 @@ fun PostCard(
     post: Post,
     modifier: Modifier = Modifier,
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
-    onAcceptChallenge: ((Post) -> Unit)? = null
+    onAcceptChallenge: ((Post) -> Unit)? = null,
+    onDeletePost: ((Post) -> Unit)? = null
 ) {
     val repository = remember { PostRepository() }
+    val profileRepository = remember { ProfileRepository() }
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     val avatarUrl = remember(post) { extractAvatarUrl(post) }
 
-    // Intelligently extract multi-image list: fallback to single mediaUrl if mediaUrls is empty
+    var currentUserId by remember { mutableStateOf<String?>(null) }
+    var isMenuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        try {
+            val myProfile = profileRepository.getMyProfile()
+            currentUserId = myProfile.id
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+
     val imagesList = remember(post) {
         if (post.mediaUrls.isNotEmpty()) {
             post.mediaUrls
@@ -129,26 +150,21 @@ fun PostCard(
 
     val pagerState = rememberPagerState(pageCount = { imagesList.size })
 
-    // Fullscreen state variables
     var showFullScreenViewer by remember { mutableStateOf(false) }
     var fullScreenInitialPage by remember { mutableIntStateOf(0) }
 
-    // Local mutable state for optimistic UI updates
     var isLiked by remember { mutableStateOf(post.isLikedByCurrentUser) }
     var likeCount by remember { mutableIntStateOf(post.likeCount) }
     var isSaved by remember { mutableStateOf(post.isFavoritedByCurrentUser) }
 
-    // Synchronize UI state when the post model changes
     LaunchedEffect(post) {
         isLiked = post.isLikedByCurrentUser
         likeCount = post.likeCount
         isSaved = post.isFavoritedByCurrentUser
     }
 
-    // Double-tap heart scale animation state
     val doubleTapHeartScale = remember { Animatable(0f) }
 
-    // Comments dialog states
     var showCommentsDialog by remember { mutableStateOf(false) }
     var commentsList by remember { mutableStateOf<List<PostComment>>(emptyList()) }
     var isLoadingComments by remember { mutableStateOf(false) }
@@ -156,7 +172,6 @@ fun PostCard(
     var isSendingComment by remember { mutableStateOf(false) }
     var commentError by remember { mutableStateOf<String?>(null) }
 
-    // Unified helper function for handling like execution
     fun handleLikeToggle() {
         val targetIsLiked = !isLiked
         isLiked = targetIsLiked
@@ -180,53 +195,99 @@ fun PostCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
 
-            // 1. User Header
+            // 1. User Header & Fixed 3-Dot Button
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clickable {
-                        onUserClick?.invoke(post.userId, post.username, avatarUrl)
-                    }
+                modifier = Modifier.fillMaxWidth()
             ) {
-                AsyncImage(
-                    model = avatarUrl.ifEmpty { "https://via.placeholder.com/150" },
-                    contentDescription = "User Avatar",
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier
-                        .size(40.dp)
-                        .clip(CircleShape),
-                    contentScale = ContentScale.Crop
-                )
-
-                Spacer(modifier = Modifier.width(10.dp))
-
-                Column {
-                    Text(
-                        text = post.username,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = textColorForTheme(MidnightBlue)
+                        .weight(1f)
+                        .clickable {
+                            onUserClick?.invoke(post.userId, post.username, avatarUrl)
+                        }
+                ) {
+                    AsyncImage(
+                        model = avatarUrl.ifEmpty { "https://via.placeholder.com/150" },
+                        contentDescription = "User Avatar",
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape),
+                        contentScale = ContentScale.Crop
                     )
-                    Text(
-                        text = post.clothingCategory,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val postedTime = formatPostTime(post.createdAt)
 
-                    if (postedTime.isNotBlank()) {
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
                         Text(
-                            text = "Posted $postedTime",
-                            fontSize = 11.sp,
+                            text = post.username,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = textColorForTheme(MidnightBlue)
+                        )
+                        Text(
+                            text = post.clothingCategory,
+                            fontSize = 12.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
+                        val postedTime = formatPostTime(post.createdAt)
+
+                        if (postedTime.isNotBlank()) {
+                            Text(
+                                text = "Posted $postedTime",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                }
+
+                // 3-dot menu button for post owner
+                if (currentUserId == post.userId) {
+                    Box(
+                        modifier = Modifier.padding(start = 4.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        IconButton(
+                            onClick = { isMenuExpanded = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = textColorForTheme(MidnightBlue),
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = { isMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete Post", color = Color.Red, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Delete",
+                                        tint = Color.Red,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    isMenuExpanded = false
+                                    showDeleteDialog = true
+                                }
+                            )
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1b. Description moved above image
+            // 1b. Title & Description
             val isValidTitle = remember(post.clothingTitle, post.clothingCategory) {
                 post.clothingTitle.isNotBlank() &&
                         !post.clothingTitle.equals("For You", ignoreCase = true) &&
@@ -266,7 +327,7 @@ fun PostCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 2. Post Media Container (Fix horizontal swipe + Single tap for Full Screen Viewer)
+            // 2. Post Media
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -315,7 +376,6 @@ fun PostCard(
                         }
                     }
 
-                    // Double-tap animated heart pop-up overlay
                     if (doubleTapHeartScale.value > 0f) {
                         Icon(
                             imageVector = Icons.Filled.Favorite,
@@ -330,7 +390,6 @@ fun PostCard(
                         )
                     }
 
-                    // Top-right page indicator
                     if (imagesList.size > 1) {
                         Box(
                             modifier = Modifier
@@ -349,7 +408,6 @@ fun PostCard(
                         }
                     }
 
-                    // Bottom carousel dots indicator
                     if (imagesList.size > 1) {
                         Row(
                             modifier = Modifier
@@ -378,7 +436,6 @@ fun PostCard(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Like Button
                 IconButton(onClick = { handleLikeToggle() }) {
                     Icon(
                         imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
@@ -388,7 +445,6 @@ fun PostCard(
                     )
                 }
 
-                // Comment Button
                 IconButton(
                     onClick = {
                         showCommentsDialog = true
@@ -407,7 +463,6 @@ fun PostCard(
                     )
                 }
 
-                // Favorite Button
                 IconButton(onClick = {
                     val targetSaved = !isSaved
                     isSaved = targetSaved
@@ -426,7 +481,6 @@ fun PostCard(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                // Share Button
                 IconButton(onClick = {
                     val currentDisplayImage = imagesList.getOrNull(pagerState.currentPage) ?: post.mediaUrl
                     val formattedShareText = """
@@ -469,7 +523,46 @@ fun PostCard(
         }
     }
 
-    // 7. Fullscreen Image Viewer Modal
+    // Deletion Alert Dialog
+    if (showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
+            title = { Text("Delete Post", fontWeight = FontWeight.Bold) },
+            text = { Text("Are you sure you want to delete this post? This action cannot be undone.") },
+            confirmButton = {
+                TextButton(
+                    enabled = !isDeleting,
+                    onClick = {
+                        isDeleting = true
+                        scope.launch {
+                            val success = repository.deletePost(post.id)
+                            isDeleting = false
+                            showDeleteDialog = false
+                            if (success) {
+                                onDeletePost?.invoke(post)
+                            }
+                        }
+                    }
+                ) {
+                    if (isDeleting) {
+                        CircularProgressIndicator(modifier = Modifier.size(18.dp), color = Color.Red)
+                    } else {
+                        Text("Delete", color = Color.Red, fontWeight = FontWeight.Bold)
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    enabled = !isDeleting,
+                    onClick = { showDeleteDialog = false }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Fullscreen Image Viewer Modal
     if (showFullScreenViewer && imagesList.isNotEmpty()) {
         Dialog(
             onDismissRequest = { showFullScreenViewer = false },
@@ -528,7 +621,6 @@ fun PostCard(
                     }
                 }
 
-                // Close Button
                 IconButton(
                     onClick = { showFullScreenViewer = false },
                     modifier = Modifier
@@ -543,7 +635,6 @@ fun PostCard(
                     )
                 }
 
-                // Image counter (Top Left)
                 if (imagesList.size > 1) {
                     Text(
                         text = "${fullPagerState.currentPage + 1}/${imagesList.size}",
@@ -637,7 +728,6 @@ fun PostCard(
                         }
                     }
 
-                    // Send comment input field
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()

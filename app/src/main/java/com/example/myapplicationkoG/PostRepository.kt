@@ -15,6 +15,9 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import java.util.UUID
 
+/**
+ * Data model for post comments mapped to Supabase columns.
+ */
 @Serializable
 data class PostComment(
     val id: String = "",
@@ -26,11 +29,17 @@ data class PostComment(
     @SerialName("created_at") val createdAt: String? = null
 )
 
+/**
+ * Helper lightweight data model to query post ID references.
+ */
 @Serializable
 private data class SimplePostIdRow(
     @SerialName("post_id") val postId: String
 )
 
+/**
+ * Data payload model used for inserting new posts into Supabase.
+ */
 @Serializable
 private data class NewPost(
     @SerialName("user_id")
@@ -41,11 +50,11 @@ private data class NewPost(
     @SerialName("user_profile_pic_url")
     val userProfilePicUrl: String?,
 
-    // Primary single image URL (for backward compatibility)
+    // Primary single image URL maintained for backward compatibility
     @SerialName("media_url")
     val mediaUrl: String,
 
-    // Array/List of image URLs (supports 1-9 photos)
+    // List of image URLs supporting multi-photo posts (1-9 images)
     @SerialName("media_urls")
     val mediaUrls: List<String> = emptyList(),
 
@@ -67,8 +76,12 @@ private data class NewPost(
     val likeCount: Int = 0
 )
 
+/**
+ * Repository responsible for managing post data operations with Supabase.
+ */
 class PostRepository {
 
+    // Fallback sample post for offline/testing display
     private val samplePost = Post(
         id = "1",
         username = "AltUser",
@@ -82,12 +95,17 @@ class PostRepository {
         likeCount = 12
     )
 
-    // Helper to retrieve currently authenticated user ID safely
+    /**
+     * Helper to safely retrieve the currently authenticated user's ID.
+     */
     private fun getCurrentUserId(): String? {
         return supabase.auth.currentUserOrNull()?.id
     }
 
-    // Get posts with real-time likes and favorites state
+    /**
+     * Fetches post records filtered by category and sorted by preference.
+     * Maps user specific states like likes and favorites.
+     */
     suspend fun getPosts(
         category: String = "All",
         sortBy: String = "latest"
@@ -122,7 +140,9 @@ class PostRepository {
         }
     }
 
-    // Search posts by keyword and support sorting (Latest vs Most Liked)
+    /**
+     * Searches posts using caption keywords and returns sorted results.
+     */
     suspend fun searchPosts(query: String, sortBy: String = "latest"): List<Post> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext getPosts(category = "All", sortBy = sortBy)
         try {
@@ -154,7 +174,9 @@ class PostRepository {
         }
     }
 
-    // Fetch all posts saved/favorited by the current user
+    /**
+     * Retrieves all posts favorited by the current user.
+     */
     suspend fun getFavouritePosts(): List<Post> = withContext(Dispatchers.IO) {
         try {
             val favoritedPostIds = getFavoritedPostIdsForCurrentUser()
@@ -168,6 +190,9 @@ class PostRepository {
         }
     }
 
+    /**
+     * Counts total number of posts created by a specific user.
+     */
     suspend fun getPostCount(userId: String): Int {
         return try {
             supabase.from("posts")
@@ -183,7 +208,37 @@ class PostRepository {
         }
     }
 
-    /** Helper: Uploads a single Uri to Supabase storage bucket and returns its public URL */
+    /**
+     * Deletes a post record and its associated interactions (likes, comments, favorites) from Supabase.
+     */
+    suspend fun deletePost(postId: String): Boolean = withContext(Dispatchers.IO) {
+        try {
+            // 1. Delete associated child records first to ensure referential integrity
+            supabase.from("post_likes").delete {
+                filter { eq("post_id", postId) }
+            }
+            supabase.from("post_comments").delete {
+                filter { eq("post_id", postId) }
+            }
+            supabase.from("post_favorites").delete {
+                filter { eq("post_id", postId) }
+            }
+
+            // 2. Delete main post row
+            supabase.from("posts").delete {
+                filter { eq("id", postId) }
+            }
+
+            true
+        } catch (e: Exception) {
+            e.printStackTrace()
+            false
+        }
+    }
+
+    /**
+     * Helper function that uploads a single image file to Supabase storage and returns its public URL.
+     */
     private suspend fun uploadSingleImage(
         context: Context,
         uri: Uri,
@@ -200,7 +255,7 @@ class PostRepository {
     }
 
     /**
-     * Multi-image enabled post creation function.
+     * Uploads multiple selected images concurrently and creates a new post entry in Supabase.
      */
     suspend fun createPost(
         context: Context,
@@ -220,7 +275,7 @@ class PostRepository {
                 ?: error("Please log in before posting.")
             val profile = ProfileRepository().getMyProfile()
 
-            // ⚡ 并行异步上传多张图片
+            // Concurrently upload multiple selected image files
             val uploadedPublicUrls = imageUris.map { uri ->
                 async { uploadSingleImage(context, uri, user.id) }
             }.awaitAll()
@@ -250,7 +305,9 @@ class PostRepository {
         }
     }
 
-    /** Overloaded single-image createPost function for backward compatibility */
+    /**
+     * Overloaded function for single image creation to maintain backward compatibility.
+     */
     suspend fun createPost(
         context: Context,
         imageUri: Uri,
@@ -270,7 +327,9 @@ class PostRepository {
         )
     }
 
-    // Dynamically toggle like status based on authenticated user
+    /**
+     * Dynamically toggles like status for the authenticated user and updates post like counter.
+     */
     suspend fun toggleLike(postId: String): Int = withContext(Dispatchers.IO) {
         try {
             val userId = getCurrentUserId() ?: return@withContext -1
@@ -283,7 +342,7 @@ class PostRepository {
                 }
             }.decodeList<SimplePostIdRow>().isNotEmpty()
 
-            // 2. Add or remove like entry
+            // 2. Insert or remove like record
             if (userLiked) {
                 supabase.from("post_likes").delete {
                     filter {
@@ -304,13 +363,13 @@ class PostRepository {
                 )
             }
 
-            // 3. Query total count for updated post
+            // 3. Query total updated count
             val allLikes = supabase.from("post_likes").select {
                 filter { eq("post_id", postId) }
             }.decodeList<SimplePostIdRow>()
             val newLikeCount = allLikes.size
 
-            // 4. Persist count back to the post row
+            // 4. Update total count on the target post record
             supabase.from("posts").update(
                 mapOf("like_count" to newLikeCount)
             ) {
@@ -324,7 +383,9 @@ class PostRepository {
         }
     }
 
-    // Fetch comments from Supabase
+    /**
+     * Fetches all comments associated with a specific post.
+     */
     suspend fun getComments(postId: String): List<PostComment> = withContext(Dispatchers.IO) {
         try {
             supabase.from("post_comments").select {
@@ -336,7 +397,9 @@ class PostRepository {
         }
     }
 
-    // Add new comment
+    /**
+     * Adds a new comment to a specified post.
+     */
     suspend fun addComment(postId: String, content: String): Boolean = withContext(Dispatchers.IO) {
         try {
             val user = supabase.auth.currentUserOrNull()
@@ -367,7 +430,9 @@ class PostRepository {
         }
     }
 
-    // Toggle Favorite dynamically
+    /**
+     * Dynamically adds or removes a post from user favorites/bookmarks.
+     */
     suspend fun toggleFavourite(postId: String, isSaved: Boolean) = withContext(Dispatchers.IO) {
         try {
             val userId = getCurrentUserId() ?: return@withContext
@@ -388,6 +453,9 @@ class PostRepository {
         }
     }
 
+    /**
+     * Helper to retrieve set of post IDs liked by current user.
+     */
     private suspend fun getLikedPostIdsForCurrentUser(): Set<String> {
         return try {
             val userId = getCurrentUserId() ?: return emptySet()
@@ -399,6 +467,9 @@ class PostRepository {
         }
     }
 
+    /**
+     * Helper to retrieve set of post IDs favorited by current user.
+     */
     private suspend fun getFavoritedPostIdsForCurrentUser(): Set<String> {
         return try {
             val userId = getCurrentUserId() ?: return emptySet()
