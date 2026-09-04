@@ -39,6 +39,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -50,6 +51,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.R
+import com.example.myapplicationkoG.textColorForTheme
 import com.example.myapplicationkoG.domain.model.GarmentSideId
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
@@ -123,19 +125,21 @@ fun GarmentInputScreen(
 
     val ready = state.frontCutoutPath != null && state.backCutoutPath != null && !state.isLoading
     val enabled = !state.isLoading
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val screenBackground = if (isDarkTheme) MaterialTheme.colorScheme.background else Color(0xFFFAFAFA)
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFFFAFAFA))
+            .background(screenBackground)
             .padding(horizontal = 24.dp, vertical = 32.dp)
     ) {
-        Text("New Design Space", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = Color(0xFF1B1B1B))
+        Text("New Design Space", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = textColorForTheme(Color(0xFF1B1B1B)))
         Spacer(Modifier.height(6.dp))
         Text(
             "Upload a clear FRONT photo, then a BACK photo. Lay the garment flat so the garment can be isolated clearly.",
             fontSize = 14.sp,
-            color = Color(0xFF666666),
+            color = textColorForTheme(Color(0xFF666666)),
         )
         Spacer(Modifier.height(24.dp))
 
@@ -177,14 +181,14 @@ fun GarmentInputScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = Color(0xFF1B1B1B))
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp, color = textColorForTheme(Color(0xFF1B1B1B)))
                         Spacer(Modifier.size(12.dp))
                         val sideLabel = when (state.loadingSide) {
                             GarmentSideId.FRONT -> "Processing FRONT image…"
                             GarmentSideId.BACK -> "Processing BACK image…"
                             else -> "Processing image…"
                         }
-                        Text(sideLabel, fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                        Text(sideLabel, fontSize = 13.sp, color = textColorForTheme(Color(0xFF1B1B1B)))
                     }
                 }
                 state.frontError?.let {
@@ -203,7 +207,10 @@ fun GarmentInputScreen(
                 onClick = onBack,
                 modifier = Modifier.weight(1f).height(52.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEEEEEE), contentColor = Color(0xFF1B1B1B)),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFEEEEEE),
+                    contentColor = textColorForTheme(Color(0xFF1B1B1B))
+                ),
             ) { Text("Back", fontWeight = FontWeight.SemiBold) }
 
             Button(
@@ -227,14 +234,15 @@ private fun PickerBox(
     onCameraClick: () -> Unit
 ) {
     val hasImage = cutoutPath != null
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(if (hasImage) Cyan.copy(alpha = 0.15f) else Color.White)
+            .background(if (hasImage) Cyan.copy(alpha = 0.15f) else if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White)
             .border(
                 width = 1.5.dp,
-                color = if (hasImage) MidnightBlue else Color(0xFFCCCCCC),
+                color = if (hasImage) MidnightBlue else if (isDarkTheme) MaterialTheme.colorScheme.outline else Color(0xFFCCCCCC),
                 shape = RoundedCornerShape(16.dp),
             )
     ) {
@@ -251,13 +259,13 @@ private fun PickerBox(
                         modifier = Modifier.size(120.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFEEEEEE)),
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(label, fontWeight = FontWeight.Bold, color = MidnightBlue)
+                    Text(label, fontWeight = FontWeight.Bold, color = textColorForTheme(MidnightBlue))
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, modifier = Modifier.size(28.dp), tint = Color(0xFF1B1B1B))
+                    Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, modifier = Modifier.size(28.dp), tint = textColorForTheme(Color(0xFF1B1B1B)))
                     Spacer(Modifier.height(6.dp))
-                    Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF1B1B1B))
+                    Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = textColorForTheme(Color(0xFF1B1B1B)))
                 }
             }
         }

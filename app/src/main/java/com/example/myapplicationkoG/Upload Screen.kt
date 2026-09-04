@@ -42,6 +42,7 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
@@ -58,6 +59,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -98,7 +100,7 @@ private fun UploadTabItem(
         Text(
             text = text,
             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-            color = if (isSelected) MidnightBlue else Color.Gray,
+            color = if (isSelected) MidnightBlue else textColorForTheme(Color.Gray),
             fontSize = 14.sp
         )
     }
@@ -112,6 +114,24 @@ fun UploadScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val repository = remember { PostRepository() }
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val screenBackground = MaterialTheme.colorScheme.background
+    val contentSurface = if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White
+    val pickerSurface = if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8F8F8)
+    val pickerBorder = if (isDarkTheme) MaterialTheme.colorScheme.outline else Color(0xFFE0E0E0)
+    val tabBackground = if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else LightGray
+    val textFieldColors = OutlinedTextFieldDefaults.colors(
+        focusedTextColor = textColorForTheme(Color.Black),
+        unfocusedTextColor = textColorForTheme(Color.Black),
+        focusedLabelColor = textColorForTheme(MidnightBlue),
+        unfocusedLabelColor = textColorForTheme(Color.Gray),
+        focusedPlaceholderColor = textColorForTheme(Color.Gray),
+        unfocusedPlaceholderColor = textColorForTheme(Color.Gray),
+        focusedBorderColor = MidnightBlue,
+        unfocusedBorderColor = pickerBorder,
+        focusedContainerColor = contentSurface,
+        unfocusedContainerColor = contentSurface
+    )
 
     var selectedTab by remember { mutableStateOf("Post") } // Post, Challenge, Design
 
@@ -404,14 +424,18 @@ fun UploadScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = screenBackground,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("Upload", fontWeight = FontWeight.ExtraBold, color = MidnightBlue, fontSize = 22.sp) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
+                title = { Text("Upload", fontWeight = FontWeight.ExtraBold, color = textColorForTheme(MidnightBlue), fontSize = 22.sp) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = screenBackground,
+                    titleContentColor = textColorForTheme(MidnightBlue),
+                    navigationIconContentColor = textColorForTheme(MidnightBlue)
+                ),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
+                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = textColorForTheme(MidnightBlue))
                     }
                 }
             )
@@ -421,7 +445,7 @@ fun UploadScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(screenBackground)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
@@ -429,7 +453,7 @@ fun UploadScreen(
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(25.dp))
-                    .background(LightGray)
+                    .background(tabBackground)
                     .padding(4.dp),
                 horizontalArrangement = Arrangement.SpaceEvenly
             ) {
@@ -457,9 +481,9 @@ fun UploadScreen(
 
             if (selectedTab == "Post") {
                 // POST MODE ------------------------------------------------
-                Text("Create Post", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Text("Create Post", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = textColorForTheme(MidnightBlue))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Share your outfit with the community", fontSize = 13.sp, color = Color.Gray)
+                Text("Share your outfit with the community", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 var expanded by remember { mutableStateOf(false) }
@@ -475,10 +499,7 @@ fun UploadScreen(
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
                         enabled = selectedTab == "Post" && !isUploading,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MidnightBlue,
-                            unfocusedBorderColor = Color(0xFFE0E0E0)
-                        ),
+                        colors = textFieldColors,
                         shape = RoundedCornerShape(12.dp)
                     )
                     ExposedDropdownMenu(
@@ -512,7 +533,7 @@ fun UploadScreen(
                     maxLines = 5,
                     enabled = !isUploading,
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                    colors = textFieldColors
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -522,8 +543,8 @@ fun UploadScreen(
                         .fillMaxWidth()
                         .height(180.dp)
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Color(0xFFF8F8F8))
-                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .background(pickerSurface)
+                        .border(1.dp, pickerBorder, RoundedCornerShape(16.dp))
                         .padding(12.dp)
                 ) {
                     if (selectedUris.isEmpty()) {
@@ -537,7 +558,7 @@ fun UploadScreen(
                                 // 修改后的文案：强�?1 个视频或最�?9 张图�?
                                 Text(
                                     "Tap the buttons below to add photos/videos\n(1 video or up to 9 photos)",
-                                    color = Color.Gray,
+                                    color = textColorForTheme(Color.Gray),
                                     fontSize = 13.sp,
                                     textAlign = TextAlign.Center,
                                     lineHeight = 18.sp
@@ -549,7 +570,7 @@ fun UploadScreen(
                             val isVideoSelected = selectedUris.any { isVideoUri(it) }
                             Text(
                                 if (isVideoSelected) "1 Video selected" else "${selectedUris.size}/9 Photos selected",
-                                color = MidnightBlue,
+                                color = textColorForTheme(MidnightBlue),
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp
                             )
@@ -647,9 +668,9 @@ fun UploadScreen(
 
             } else if (selectedTab == "Challenge") {
                 // CHALLENGE MODE ------------------------------------------------
-                Text("Join Challenge", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Text("Join Challenge", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = textColorForTheme(MidnightBlue))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Upload front and back garment photos. Each will be processed to isolate the garment.", fontSize = 13.sp, color = Color.Gray)
+                Text("Upload front and back garment photos. Each will be processed to isolate the garment.", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 ChallengePickerBox(
@@ -690,7 +711,7 @@ fun UploadScreen(
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                    colors = textFieldColors
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
@@ -701,7 +722,7 @@ fun UploadScreen(
                     modifier = Modifier.fillMaxWidth().height(100.dp),
                     maxLines = 4,
                     shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                    colors = textFieldColors
                 )
 
                 Spacer(modifier = Modifier.height(24.dp))
@@ -753,9 +774,9 @@ fun UploadScreen(
                 }
             } else {
                 // DESIGN MODE ------------------------------------------------
-                Text("Share Design", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Text("Share Design", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = textColorForTheme(MidnightBlue))
                 Spacer(modifier = Modifier.height(4.dp))
-                Text("Pick a saved design. Its finished front and back become the main photos of your post.", fontSize = 13.sp, color = Color.Gray)
+                Text("Pick a saved design. Its finished front and back become the main photos of your post.", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
                 Spacer(modifier = Modifier.height(16.dp))
 
                 val hasDesigns = !designRows.isNullOrEmpty()
@@ -799,7 +820,7 @@ fun UploadScreen(
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MidnightBlue, strokeWidth = 2.dp)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Rendering your design...", fontSize = 12.sp, color = Color.Gray)
+                            Text("Rendering your design...", fontSize = 12.sp, color = textColorForTheme(Color.Gray))
                         }
                     }
 
@@ -808,7 +829,7 @@ fun UploadScreen(
                         text = pickedDesign.name.ifBlank { "Untitled design" },
                         fontWeight = FontWeight.Bold,
                         fontSize = 14.sp,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
                     val linkedChallenge = pickedDesign.state.challengePostId
                     if (!linkedChallenge.isNullOrBlank()) {
@@ -824,24 +845,24 @@ fun UploadScreen(
                     }
 
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Extra photos (optional) - ${designExtraUris.size}/7", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MidnightBlue)
+                    Text("Extra photos (optional) - ${designExtraUris.size}/7", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = textColorForTheme(MidnightBlue))
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
                             .height(if (designExtraUris.isEmpty()) 120.dp else 150.dp)
                             .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFF8F8F8))
-                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                            .background(pickerSurface)
+                            .border(1.dp, pickerBorder, RoundedCornerShape(16.dp))
                             .padding(12.dp)
                     ) {
                         if (designExtraUris.isEmpty()) {
                             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                                Text("Add 0-7 more photos (9 total max)", color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center)
+                                Text("Add 0-7 more photos (9 total max)", color = textColorForTheme(Color.Gray), fontSize = 13.sp, textAlign = TextAlign.Center)
                             }
                         } else {
                             Column(modifier = Modifier.fillMaxSize()) {
-                                Text("${designExtraUris.size}/7 extra", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Text("${designExtraUris.size}/7 extra", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
                                 Spacer(modifier = Modifier.height(6.dp))
                                 LazyRow(
                                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -912,13 +933,13 @@ fun UploadScreen(
                         maxLines = 5,
                         enabled = !isUploading,
                         shape = RoundedCornerShape(12.dp),
-                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                        colors = textFieldColors
                     )
 
                     Spacer(modifier = Modifier.height(24.dp))
 
                     val designReady = designFrontFile != null && designBackFile != null &&
-                        designCaptionInput.isNotBlank() && !isUploading && !isRenderingDesign
+                            designCaptionInput.isNotBlank() && !isUploading && !isRenderingDesign
 
                     Button(
                         onClick = {
@@ -983,9 +1004,9 @@ fun UploadScreen(
     if (showPublishDialog) {
         Dialog(onDismissRequest = { if (!isUploading) showPublishDialog = false }) {
             Box(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(20.dp)
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp)
             ) {
-                Text("Legacy dialog", color = Color.Gray)
+                Text("Legacy dialog", color = textColorForTheme(Color.Gray))
             }
         }
     }
@@ -1001,7 +1022,7 @@ private fun DesignSidePreview(
         modifier = modifier
             .height(160.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(Color(0xFFF0F0F0))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .border(1.5.dp, MidnightBlue, RoundedCornerShape(16.dp))
     ) {
         if (file != null && file.exists()) {
@@ -1013,7 +1034,7 @@ private fun DesignSidePreview(
             )
         } else {
             Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                Text(label, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                Text(label, color = textColorForTheme(Color.Gray), fontSize = 12.sp, fontWeight = FontWeight.Bold)
             }
         }
         Box(
@@ -1021,10 +1042,10 @@ private fun DesignSidePreview(
                 .align(Alignment.TopStart)
                 .padding(6.dp)
                 .clip(RoundedCornerShape(8.dp))
-                .background(Color.White.copy(alpha = 0.85f))
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.85f))
                 .padding(horizontal = 8.dp, vertical = 3.dp)
         ) {
-            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = textColorForTheme(MidnightBlue))
         }
     }
 }
@@ -1044,33 +1065,33 @@ private fun ChallengePickerBox(
             .fillMaxWidth()
             .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
-            .background(if (cutoutPath != null) Cyan.copy(alpha = 0.12f) else Color.White)
-            .border(1.5.dp, if (cutoutPath != null) MidnightBlue else Color(0xFFCCCCCC), RoundedCornerShape(16.dp))
+            .background(if (cutoutPath != null) Cyan.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface)
+            .border(1.5.dp, if (cutoutPath != null) MidnightBlue else MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp))
             .clickable { if (!isProcessing) onAlbum() }
             .padding(12.dp)
     ) {
-        Text(label, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MidnightBlue, modifier = Modifier.align(Alignment.TopStart))
+        Text(label, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = textColorForTheme(MidnightBlue), modifier = Modifier.align(Alignment.TopStart))
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
             when {
                 isProcessing -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MidnightBlue, strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Processing $label image...", fontSize = 12.sp, color = Color.Gray)
+                        Text("Processing $label image...", fontSize = 12.sp, color = textColorForTheme(Color.Gray))
                     }
                 }
                 cutoutPath != null -> {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Original", fontSize = 10.sp, color = Color.Gray)
+                            Text("Original", fontSize = 10.sp, color = textColorForTheme(Color.Gray))
                             Spacer(modifier = Modifier.height(4.dp))
                             AsyncImage(model = origUri, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFEEEEEE)), contentScale = ContentScale.Crop)
                         }
-                        Text(">", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                        Text(">", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text("Cutout", fontSize = 10.sp, color = MidnightBlue, fontWeight = FontWeight.Bold)
+                            Text("Cutout", fontSize = 10.sp, color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
-                            AsyncImage(model = cutoutPath, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(Color.White).border(1.dp, MidnightBlue, RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                            AsyncImage(model = cutoutPath, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(MaterialTheme.colorScheme.surface).border(1.dp, MidnightBlue, RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
                         }
                     }
                 }
@@ -1078,16 +1099,16 @@ private fun ChallengePickerBox(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(error, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("Tap to retry", color = Color.Gray, fontSize = 11.sp)
+                        Text("Tap to retry", color = textColorForTheme(Color.Gray), fontSize = 11.sp)
                     }
                 }
                 else -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = Color(0xFF1B1B1B), modifier = Modifier.size(26.dp))
+                        Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = textColorForTheme(Color(0xFF1B1B1B)), modifier = Modifier.size(26.dp))
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                        Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = textColorForTheme(Color(0xFF1B1B1B)))
                         Spacer(modifier = Modifier.height(4.dp))
-                        Text("Garment will be isolated", fontSize = 11.sp, color = Color.Gray)
+                        Text("Garment will be isolated", fontSize = 11.sp, color = textColorForTheme(Color.Gray))
                     }
                 }
             }

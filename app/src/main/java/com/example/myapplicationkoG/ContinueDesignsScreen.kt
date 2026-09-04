@@ -30,6 +30,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -45,6 +46,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -71,6 +73,8 @@ fun ContinueDesignsScreen(
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var deleteTarget by remember { mutableStateOf<DesignRow?>(null) }
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
+    val screenBackground = if (isDarkTheme) MaterialTheme.colorScheme.background else Color.White
 
     LaunchedEffect(Unit) {
         isLoading = true
@@ -114,20 +118,24 @@ fun ContinueDesignsScreen(
     }
 
     Scaffold(
-        containerColor = Color.White,
+        containerColor = screenBackground,
         topBar = {
             CenterAlignedTopAppBar(
                 title = {
                     Text(
                         if (pickMode) "Choose a Design" else "My Designs",
                         fontWeight = FontWeight.Bold,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
                 },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = screenBackground,
+                    titleContentColor = textColorForTheme(MidnightBlue),
+                    navigationIconContentColor = textColorForTheme(MidnightBlue)
+                ),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
+                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = textColorForTheme(MidnightBlue))
                     }
                 }
             )
@@ -137,7 +145,7 @@ fun ContinueDesignsScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(screenBackground)
         ) {
             when {
                 isLoading -> {
@@ -151,9 +159,9 @@ fun ContinueDesignsScreen(
                         modifier = Modifier.align(Alignment.Center).padding(24.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Text(text = "Failed to load", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Text(text = "Failed to load", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold, fontSize = 15.sp)
                         Spacer(modifier = Modifier.height(6.dp))
-                        Text(text = error!!, color = Color.Gray, fontSize = 13.sp)
+                        Text(text = error!!, color = textColorForTheme(Color.Gray), fontSize = 13.sp)
                     }
                 }
                 designs.isEmpty() -> {
@@ -165,17 +173,17 @@ fun ContinueDesignsScreen(
                             modifier = Modifier
                                 .size(72.dp)
                                 .clip(RoundedCornerShape(16.dp))
-                                .background(Color(0xFFF0F0F0)),
+                                .background(if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF0F0F0)),
                             contentAlignment = Alignment.Center
                         ) {
-                            Text(text = "◇", fontSize = 32.sp, color = Color.Gray)
+                            Text(text = "◇", fontSize = 32.sp, color = textColorForTheme(Color.Gray))
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text(text = "No saved designs yet", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(text = "No saved designs yet", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
                             text = if (pickMode) "Save a design first,\nthen come back to share it" else "Start a design and hit Save\nto see it here",
-                            color = Color.Gray,
+                            color = textColorForTheme(Color.Gray),
                             fontSize = 13.sp,
                             lineHeight = 18.sp
                         )
@@ -220,7 +228,7 @@ private fun DesignBlock(
 ) {
     Card(
         shape = RoundedCornerShape(25.dp),
-        colors = CardDefaults.cardColors(containerColor = Color.White),
+        colors = CardDefaults.cardColors(containerColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) MaterialTheme.colorScheme.surface else Color.White),
         elevation = CardDefaults.cardElevation(defaultElevation = 3.dp),
         modifier = Modifier
             .fillMaxWidth()
@@ -254,7 +262,7 @@ private fun DesignBlock(
                             .padding(6.dp)
                             .size(30.dp)
                             .clip(RoundedCornerShape(9.dp))
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .clickable { onLongPress() },
                         contentAlignment = Alignment.Center
                     ) {
@@ -271,7 +279,7 @@ private fun DesignBlock(
                     text = row.name.ifBlank { "Untitled" },
                     fontWeight = FontWeight.ExtraBold,
                     fontSize = 14.sp,
-                    color = MidnightBlue,
+                    color = textColorForTheme(MidnightBlue),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
@@ -279,7 +287,7 @@ private fun DesignBlock(
                 Text(
                     text = if (row.updatedAt.length >= 10) row.updatedAt.take(10) else row.updatedAt,
                     fontSize = 11.sp,
-                    color = Color.Gray
+                    color = textColorForTheme(Color.Gray)
                 )
             }
         }

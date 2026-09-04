@@ -2,6 +2,7 @@ package com.example.myapplicationkoG
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,18 +10,18 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color.Companion.White
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -39,7 +40,7 @@ fun ColumnScope.StudioCard(
     Card(
         onClick = onClick,
         shape = RoundedCornerShape(size = 25.dp),
-        colors = CardDefaults.cardColors(containerColor = White),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         modifier = modifier
             .fillMaxWidth()
             .height(170.dp)
@@ -66,7 +67,7 @@ fun ColumnScope.StudioCard(
                 text = title,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.ExtraBold,
-                color = MidnightBlue,
+                color = textColorForTheme(MidnightBlue),
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(vertical = 12.dp)
@@ -80,8 +81,11 @@ fun StudioScreen(
     onAcceptChallenge: () -> Unit = {},
     onContinueDesign: () -> Unit = {}
 ) {
+    val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
-        modifier = Modifier.fillMaxSize()
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background)
     ) {
         Image(
             painter = painterResource(id = R.drawable.studiobg),
@@ -89,7 +93,7 @@ fun StudioScreen(
             contentScale = ContentScale.Crop,
             modifier = Modifier
                 .fillMaxSize()
-                .alpha(0.5f)
+                .alpha(if (isDarkTheme) 0.18f else 0.5f)
         )
         Column(
             modifier = Modifier
@@ -97,7 +101,7 @@ fun StudioScreen(
         ) {
             Text(
                 text = "Design Studio",
-                color = MidnightBlue,
+                color = textColorForTheme(MidnightBlue),
                 fontWeight = FontWeight.ExtraBold,
                 fontSize = 40.sp,
                 modifier = Modifier.padding(all = 40.dp)

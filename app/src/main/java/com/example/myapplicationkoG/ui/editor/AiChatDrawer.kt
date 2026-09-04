@@ -16,9 +16,10 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -139,14 +140,21 @@ fun AiChatDrawer(
             // Drawer rides the keyboard: dialog window resizes for IME
             AnimatedVisibility(
                 visible = true,
-                modifier = Modifier.align(Alignment.TopEnd),
+                modifier = Modifier.align(Alignment.CenterEnd),
                 enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(280)),
                 exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(280))
             ) {
                 Column(
                     modifier = Modifier
-                        .fillMaxHeight()
-                        .width(320.dp)
+                        // Leave breathing room above and below the drawer on tall phones.
+                        .fillMaxHeight(0.88f)
+                        // Use the available phone width instead of a fixed drawer width.
+                        // The max keeps the drawer comfortable on tablets.
+                        .fillMaxWidth(0.92f)
+                        .widthIn(max = 420.dp)
+                        // Keep the message input above Android navigation buttons and the keyboard.
+                        .navigationBarsPadding()
+                        .imePadding()
                         .clip(RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
                         .background(Color.White)
                 ) {
