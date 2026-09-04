@@ -50,11 +50,11 @@ private data class NewPost(
     @SerialName("user_profile_pic_url")
     val userProfilePicUrl: String?,
 
-    // Primary single image URL maintained for backward compatibility
+    // Primary single image/video URL maintained for backward compatibility
     @SerialName("media_url")
     val mediaUrl: String,
 
-    // List of image URLs supporting multi-photo posts (1-9 images)
+    // List of media URLs supporting multi-photo/media posts
     @SerialName("media_urls")
     val mediaUrls: List<String> = emptyList(),
 
@@ -237,25 +237,31 @@ class PostRepository {
     }
 
     /**
-     * Helper function that uploads a single image file to Supabase storage and returns its public URL.
+     * Helper function that dynamically checks media type (video/image) and uploads to Supabase storage.
      */
-    private suspend fun uploadSingleImage(
+    private suspend fun uploadSingleMedia(
         context: Context,
         uri: Uri,
         userId: String
-    ): String = withContext(Dispatchers.IO) {
-        val imageBytes = context.contentResolver.openInputStream(uri)
-            ?.use { it.readBytes() }
-            ?: error("Could not read image URI: $uri")
+    ): Pair<String, Boolean> = withContext(Dispatchers.IO) {
+        val mimeType = context.contentResolver.getType(uri) ?: ""
+        val isVideo = mimeType.startsWith("video", ignoreCase = true) || uri.toString().lowercase().endsWith(".mp4")
 
-        val imagePath = "$userId/${UUID.randomUUID()}.jpg"
+        val fileExtension = if (isVideo) "mp4" else "jpg"
+        val mediaBytes = context.contentResolver.openInputStream(uri)
+            ?.use { it.readBytes() }
+            ?: error("Could not read media URI: $uri")
+
+        val mediaPath = "$userId/${UUID.randomUUID()}.$fileExtension"
         val bucket = supabase.storage.from("cloth")
-        bucket.upload(imagePath, imageBytes)
-        return@withContext bucket.publicUrl(imagePath)
+        bucket.upload(mediaPath, mediaBytes)
+
+        val publicUrl = bucket.publicUrl(mediaPath)
+        return@withContext Pair(publicUrl, isVideo)
     }
 
     /**
-     * Uploads multiple selected images concurrently and creates a new post entry in Supabase.
+     * Uploads multiple selected media items concurrently and creates a new post entry in Supabase.
      */
     suspend fun createPost(
         context: Context,
@@ -268,17 +274,20 @@ class PostRepository {
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             if (imageUris.isEmpty()) {
-                error("Please select at least one image.")
+                error("Please select at least one image or video.")
             }
 
             val user = supabase.auth.currentUserOrNull()
                 ?: error("Please log in before posting.")
             val profile = ProfileRepository().getMyProfile()
 
-            // Concurrently upload multiple selected image files
-            val uploadedPublicUrls = imageUris.map { uri ->
-                async { uploadSingleImage(context, uri, user.id) }
+            // Concurrently upload selected media items and detect if video exists
+            val uploadResults = imageUris.map { uri ->
+                async { uploadSingleMedia(context, uri, user.id) }
             }.awaitAll()
+
+            val uploadedPublicUrls = uploadResults.map { it.first }
+            val hasVideo = uploadResults.any { it.second }
 
             val primaryMediaUrl = uploadedPublicUrls.firstOrNull() ?: ""
 
@@ -288,7 +297,7 @@ class PostRepository {
                 userProfilePicUrl = profile.avatar_url,
                 mediaUrl = primaryMediaUrl,
                 mediaUrls = uploadedPublicUrls,
-                isVideo = false,
+                isVideo = hasVideo, // 💡 Dynamically pass video detection status
                 clothingTitle = title.trim(),
                 clothingCategory = category,
                 postType = if (isChallenge) "Challenge" else postType,
@@ -306,7 +315,7 @@ class PostRepository {
     }
 
     /**
-     * Overloaded function for single image creation to maintain backward compatibility.
+     * Overloaded function for single image/video creation to maintain backward compatibility.
      */
     suspend fun createPost(
         context: Context,

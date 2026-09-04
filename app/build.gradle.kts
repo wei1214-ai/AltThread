@@ -8,7 +8,7 @@ plugins {
 }
 
 kotlin {
-    // Use the full JDK installed on this machine.
+    // 💡 匹配您电脑本地已安装的 JDK 20，避免找不到 JDK 17 的构建错误
     jvmToolchain(20)
 }
 
@@ -23,6 +23,7 @@ android {
         versionCode = 1
         versionName = "1.0"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
         val localProps = Properties().apply {
             val f = rootProject.file("local.properties")
             if (f.exists()) f.inputStream().use { load(it) }
@@ -43,8 +44,7 @@ android {
     }
 
     compileOptions {
-        // Must match the Kotlin jvmToolchain (20) or Gradle fails with
-        // "Inconsistent JVM-target compatibility".
+        // 💡 保持与 jvmToolchain(20) 严格一致
         sourceCompatibility = JavaVersion.VERSION_20
         targetCompatibility = JavaVersion.VERSION_20
     }
@@ -70,7 +70,7 @@ android {
 }
 
 dependencies {
-    //Crop pics
+    // Crop pics
     implementation("com.github.yalantis:ucrop:2.2.11")
     implementation("androidx.appcompat:appcompat:1.7.1")
 
@@ -81,13 +81,15 @@ dependencies {
     implementation("io.github.jan-tennert.supabase:auth-kt:3.0.1")
     implementation("io.github.jan-tennert.supabase:storage-kt:3.0.1")
 
-    // Ktor
-    implementation("io.ktor:ktor-client-android:3.0.0")
+    // Ktor Engine for Supabase
+    implementation("io.ktor:ktor-client-android:3.0.1")
 
-    // Add Kotlinx Serialization JSON library
+    // Kotlinx Serialization JSON
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.6.3")
-    // Coil
+
+    // Coil & Video Frame Support
     implementation(libs.coil.compose)
+    implementation("io.coil-kt:coil-video:2.6.0")
 
     // Activity & Compose UI
     implementation(libs.activity.compose)
@@ -96,7 +98,7 @@ dependencies {
     implementation(libs.ui.tooling.preview)
     implementation(libs.material3)
     implementation(libs.material.icons.extended)
-    
+
     debugImplementation(libs.ui.tooling)
     debugImplementation(libs.ui.test.manifest)
 
@@ -112,7 +114,6 @@ dependencies {
     implementation(libs.retrofit.kotlinx.serialization)
     implementation(libs.okhttp)
     implementation(libs.okhttp.logging)
-    implementation(libs.kotlinx.serialization.json)
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
@@ -120,6 +121,10 @@ dependencies {
     // On-device inference: YOLO + SAM 2.1
     implementation(libs.onnxruntime.android)
     implementation(libs.opencv)
+
+    // Media3 ExoPlayer dependencies for video playback
+    implementation("androidx.media3:media3-exoplayer:1.2.1")
+    implementation("androidx.media3:media3-ui:1.2.1")
 
     // Test
     testImplementation(libs.junit)

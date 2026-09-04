@@ -23,6 +23,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -34,16 +35,86 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
+import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.editor.AiChatDrawer
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 
-// Filter button
+// Helper to determine if a URL string points to a video
+fun isVideoUrl(url: String?): Boolean {
+    if (url.isNullOrBlank()) return false
+    val lowercase = url.lowercase()
+    return lowercase.contains(".mp4") ||
+            lowercase.contains(".mov") ||
+            lowercase.contains(".mkv") ||
+            lowercase.contains(".webm") ||
+            lowercase.contains("video")
+}
+
+// Reusable component that automatically switches between Image (Coil) and Video (ExoPlayer)
+@Composable
+fun PostMediaView(
+    mediaUrl: String,
+    modifier: Modifier = Modifier
+        .fillMaxWidth()
+        .height(300.dp)
+        .clip(RoundedCornerShape(12.dp))
+) {
+    val context = LocalContext.current
+
+    if (isVideoUrl(mediaUrl)) {
+        // Render video using AndroidX Media3 ExoPlayer
+        val exoPlayer = remember(mediaUrl) {
+            ExoPlayer.Builder(context).build().apply {
+                setMediaItem(MediaItem.fromUri(mediaUrl))
+                prepare()
+                playWhenReady = false // Set to true if auto-play is desired
+            }
+        }
+
+        // Release player resources when component leaves screen
+        DisposableEffect(exoPlayer) {
+            onDispose {
+                exoPlayer.release()
+            }
+        }
+
+        Box(
+            modifier = modifier.background(Color.Black),
+            contentAlignment = Alignment.Center
+        ) {
+            AndroidView(
+                factory = { ctx ->
+                    PlayerView(ctx).apply {
+                        player = exoPlayer
+                        useController = true // Show video playback controls
+                    }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+        }
+    } else {
+        // Render standard image
+        AsyncImage(
+            model = mediaUrl,
+            contentDescription = null,
+            modifier = modifier,
+            contentScale = ContentScale.Crop
+        )
+    }
+}
+
+// Filter button component
 @Composable
 fun FilterChip(
     label: String,
@@ -69,7 +140,7 @@ fun FilterChip(
     }
 }
 
-// Home page
+// Main Home Screen Composable
 @Composable
 fun HomeScreen(
     refreshKey: Int = 0,
@@ -77,19 +148,17 @@ fun HomeScreen(
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
     onAcceptChallenge: ((Post) -> Unit)? = null
 ) {
-    // Selected filter
+    // Selected filter state
     var selectedFilter by remember { mutableStateOf(initialFilter) }
-    androidx.compose.runtime.LaunchedEffect(initialFilter) {
+    LaunchedEffect(initialFilter) {
         if (initialFilter != selectedFilter) selectedFilter = initialFilter
     }
 
-    // Posts from Supabase
+    // Posts fetched from Supabase / Backend
     var posts by remember { mutableStateOf<List<Post>>(emptyList()) }
 
-    // Loading state
+    // Loading and error states
     var isLoading by remember { mutableStateOf(true) }
-
-    // Error message
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val repository = remember { PostRepository() }
@@ -105,7 +174,7 @@ fun HomeScreen(
     var showAiChat by remember { mutableStateOf(false) }
     val backgroundColor = MaterialTheme.colorScheme.background
 
-    // Load posts whenever selectedFilter changes
+    // Fetch posts whenever selectedFilter or refreshKey changes
     LaunchedEffect(selectedFilter, refreshKey) {
         isLoading = true
         errorMessage = null
@@ -120,7 +189,8 @@ fun HomeScreen(
     }
 
     val filterScrollState = rememberScrollState()
-    // Main content
+
+    // Main screen container
     Box(modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier
@@ -129,7 +199,7 @@ fun HomeScreen(
             contentPadding = PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Header and filters
+            // Header bar and filter options
             item {
                 Column {
                     Box(
@@ -137,7 +207,7 @@ fun HomeScreen(
                             .fillMaxWidth()
                             .height(80.dp)
                     ) {
-                        // App title
+                        // App logo / title
                         Text(
                             text = "AltThread",
                             fontSize = 40.sp,
@@ -146,7 +216,7 @@ fun HomeScreen(
                             modifier = Modifier.align(Alignment.Center)
                         )
 
-                        // AI button - same style as Profile setting button
+                        // AI Assistant button
                         Box(
                             modifier = Modifier
                                 .size(40.dp)
@@ -166,6 +236,7 @@ fun HomeScreen(
                         }
                     }
 
+                    // Horizontal scrolling categories
                     Row(
                         modifier = Modifier
                             .height(40.dp)
@@ -203,7 +274,7 @@ fun HomeScreen(
                 }
             }
 
-            // Loading
+            // Display loading indicator
             if (isLoading) {
                 item {
                     Box(
@@ -216,7 +287,7 @@ fun HomeScreen(
                     }
                 }
             }
-            // Error
+            // Display error state
             else if (errorMessage != null) {
                 item {
                     Box(
@@ -232,7 +303,7 @@ fun HomeScreen(
                     }
                 }
             }
-            // No posts
+            // Display empty state
             else if (posts.isEmpty()) {
                 item {
                     Box(
@@ -248,7 +319,7 @@ fun HomeScreen(
                     }
                 }
             }
-            // Display posts
+            // Render posts list
             else {
                 items(
                     items = posts,
@@ -262,6 +333,8 @@ fun HomeScreen(
                 }
             }
         }
+
+        // Drawer overlay for AI chat
         AiChatDrawer(visible = showAiChat, onDismiss = { showAiChat = false })
     }
 }

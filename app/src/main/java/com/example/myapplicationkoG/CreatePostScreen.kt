@@ -1,10 +1,11 @@
 package com.example.myapplicationkoG
 
 import android.app.Activity
+import android.content.Context
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -23,7 +24,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -44,6 +44,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,16 +54,87 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.FileProvider
+import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
+import androidx.media3.common.util.UnstableApi
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.yalantis.ucrop.UCrop
 import kotlinx.coroutines.launch
 import java.io.File
+
+/**
+ * Custom local ExoPlayer Video Player composable dedicated to CreatePostScreen preview.
+ * Renamed to CreatePostVideoPlayer to prevent function declaration conflicts with other files.
+ */
+@OptIn(UnstableApi::class)
+@Composable
+fun CreatePostVideoPlayer(
+    videoUrl: String,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+
+    // Initialize ExoPlayer instance for video rendering
+    val exoPlayer = remember(videoUrl) {
+        ExoPlayer.Builder(context).build().apply {
+            val mediaItem = MediaItem.fromUri(Uri.parse(videoUrl))
+            setMediaItem(mediaItem)
+            repeatMode = Player.REPEAT_MODE_ONE // Loop video endlessly
+            prepare()
+            playWhenReady = true // Auto-start video playback
+        }
+    }
+
+    // Release player resources when component leaves composition
+    DisposableEffect(videoUrl) {
+        onDispose {
+            exoPlayer.stop()
+            exoPlayer.release()
+        }
+    }
+
+    // Embed Android Native PlayerView in Jetpack Compose
+    AndroidView(
+        factory = { ctx ->
+            PlayerView(ctx).apply {
+                player = exoPlayer
+                useController = false // Hide playback controls for clean preview UI
+                resizeMode = AspectRatioFrameLayout.RESIZE_MODE_ZOOM // Fill container smoothly without black bars
+            }
+        },
+        update = { playerView ->
+            // Re-bind player if Compose reuses the view instance
+            if (playerView.player != exoPlayer) {
+                playerView.player = exoPlayer
+            }
+        },
+        modifier = modifier.fillMaxSize()
+    )
+}
+
+/**
+ * Helper utility to determine whether a given URI represents a video file.
+ */
+private fun isVideoUri(context: Context, uri: Uri): Boolean {
+    val mimeType = context.contentResolver.getType(uri)
+    if (mimeType != null && mimeType.startsWith("video", ignoreCase = true)) {
+        return true
+    }
+    val uriString = uri.toString().lowercase()
+    return uriString.contains(".mp4") || uriString.contains(".mov") || uriString.contains("video")
+}
 
 @Composable
 fun CreatePostScreen(
@@ -82,15 +154,15 @@ fun CreatePostScreen(
     var selectedCategory by remember { mutableStateOf(categories.first()) }
     var isCategoryMenuOpen by remember { mutableStateOf(false) }
 
-    // 1. Added State for Clothing Title (e.g., Long Sleeve, Pants)
     var clothingTitle by remember { mutableStateOf("") }
     var bio by remember { mutableStateOf("") }
 
-    // Supports up to 9 image URIs
-    val imageUris = remember { mutableStateListOf<Uri>() }
+    // Supports up to 9 image URIs or 1 video URI
+    val mediaUris = remember { mutableStateListOf<Uri>() }
+    var isVideoSelected by remember { mutableStateOf(false) }
+
     var pendingCameraUri by remember { mutableStateOf<Uri?>(null) }
 
-    // Toggle post classification (Post vs Challenge)
     var isChallenge by remember { mutableStateOf(false) }
     var isPublishing by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
@@ -102,8 +174,8 @@ fun CreatePostScreen(
         if (result.resultCode == Activity.RESULT_OK) {
             val croppedUri = result.data?.let { UCrop.getOutput(it) }
             if (croppedUri != null) {
-                if (imageUris.size < 9) {
-                    imageUris.add(croppedUri)
+                if (!isVideoSelected && mediaUris.size < 9) {
+                    mediaUris.add(croppedUri)
                 }
                 errorMessage = null
             }
@@ -113,15 +185,42 @@ fun CreatePostScreen(
         }
     }
 
-    // Gallery Picker supporting up to 9 photos
+    // Gallery Launcher using OpenMultipleDocuments contract to pick images and videos
     val galleryLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
+        contract = ActivityResultContracts.OpenMultipleDocuments()
     ) { uris ->
         if (uris.isNotEmpty()) {
-            val availableSpace = 9 - imageUris.size
-            val urisToAdd = uris.take(availableSpace)
-            imageUris.addAll(urisToAdd)
-            errorMessage = null
+            val firstUri = uris.first()
+
+            // Request persistent URI permission to allow ExoPlayer reading local media securely
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    firstUri,
+                    android.content.Intent.FLAG_GRANT_READ_URI_PERMISSION
+                )
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+
+            val containsVideo = isVideoUri(context, firstUri)
+
+            if (containsVideo) {
+                // Video mode: Restrict to 1 video only
+                mediaUris.clear()
+                mediaUris.add(firstUri)
+                isVideoSelected = true
+                errorMessage = null
+            } else {
+                // Image mode: Allow up to 9 images
+                if (isVideoSelected) {
+                    mediaUris.clear()
+                    isVideoSelected = false
+                }
+                val availableSpace = 9 - mediaUris.size
+                val urisToAdd = uris.filter { !isVideoUri(context, it) }.take(availableSpace)
+                mediaUris.addAll(urisToAdd)
+                errorMessage = null
+            }
         }
     }
 
@@ -130,8 +229,12 @@ fun CreatePostScreen(
         contract = ActivityResultContracts.TakePicture()
     ) { photoWasSaved ->
         if (photoWasSaved && pendingCameraUri != null) {
-            if (imageUris.size < 9) {
-                imageUris.add(pendingCameraUri!!)
+            if (isVideoSelected) {
+                mediaUris.clear()
+                isVideoSelected = false
+            }
+            if (mediaUris.size < 9) {
+                mediaUris.add(pendingCameraUri!!)
             }
             errorMessage = null
         }
@@ -139,7 +242,11 @@ fun CreatePostScreen(
     }
 
     fun openCamera() {
-        if (imageUris.size >= 9) {
+        if (isVideoSelected) {
+            errorMessage = "Please remove the video before adding photos."
+            return
+        }
+        if (mediaUris.size >= 9) {
             errorMessage = "You can only select up to 9 photos."
             return
         }
@@ -157,11 +264,11 @@ fun CreatePostScreen(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .imePadding() // Keyboard overlap fix
+            .imePadding()
             .verticalScroll(rememberScrollState())
             .padding(16.dp)
     ) {
-        // Top Bar Header
+        // Top Navigation Header
         Row(verticalAlignment = Alignment.CenterVertically) {
             IconButton(onClick = onBack) {
                 Icon(
@@ -215,19 +322,19 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Selected Media Gallery Display (1 to 9 photos)
+        // Selected Media Gallery Display (1 to 9 photos or 1 Video)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(260.dp)
+                .height(280.dp)
                 .clip(RoundedCornerShape(16.dp))
                 .background(MaterialTheme.colorScheme.surfaceVariant)
                 .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(16.dp)),
             contentAlignment = Alignment.Center
         ) {
-            if (imageUris.isEmpty()) {
+            if (mediaUris.isEmpty()) {
                 Text(
-                    text = "Select up to 9 photos for your post",
+                    text = "Select up to 9 photos or 1 video for your post",
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
@@ -238,32 +345,65 @@ fun CreatePostScreen(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    itemsIndexed(imageUris) { index, uri ->
+                    itemsIndexed(mediaUris) { index, uri ->
+                        val isVideo = isVideoUri(context, uri)
+
                         Box(
                             modifier = Modifier
-                                .size(240.dp)
+                                .width(if (isVideoSelected) 260.dp else 240.dp)
+                                .height(260.dp)
                                 .clip(RoundedCornerShape(12.dp))
+                                .background(Color.Black)
                         ) {
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = "Photo ${index + 1}",
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
-                            // Remove photo button
+                            if (isVideo) {
+                                CreatePostVideoPlayer(videoUrl = uri.toString())
+                            } else {
+                                AsyncImage(
+                                    model = uri,
+                                    contentDescription = "Photo ${index + 1}",
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
+
+                            // Video Tag Badge
+                            if (isVideo) {
+                                Box(
+                                    modifier = Modifier
+                                        .align(Alignment.BottomStart)
+                                        .padding(8.dp)
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color.Black.copy(alpha = 0.7f))
+                                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                                ) {
+                                    Text(
+                                        text = "VIDEO",
+                                        color = Color.White,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            // Remove Media Action Button
                             Box(
                                 modifier = Modifier
                                     .align(Alignment.TopEnd)
                                     .padding(8.dp)
                                     .size(28.dp)
                                     .clip(RoundedCornerShape(8.dp))
-                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
-                                    .clickable { imageUris.removeAt(index) },
+                                    .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.8f))
+                                    .clickable {
+                                        mediaUris.removeAt(index)
+                                        if (mediaUris.isEmpty()) {
+                                            isVideoSelected = false
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Remove photo",
+                                    contentDescription = "Remove media",
                                     tint = MaterialTheme.colorScheme.onSurface,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -276,7 +416,7 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(12.dp))
 
-        // Image Selection Action Buttons
+        // Image & Video Selection Trigger Buttons
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -289,19 +429,17 @@ fun CreatePostScreen(
             )
             UploadChoiceButton(
                 modifier = Modifier.weight(1f),
-                label = "Gallery (${imageUris.size}/9)",
+                label = if (isVideoSelected) "Video Selected" else "Gallery (${mediaUris.size}/9)",
                 icon = Icons.Default.PhotoLibrary,
                 onClick = {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
+                    galleryLauncher.launch(arrayOf("image/*", "video/*"))
                 }
             )
         }
 
         Spacer(Modifier.height(16.dp))
 
-        // 2. Clothing Type / Title Input Field
+        // Title Input Field
         OutlinedTextField(
             value = clothingTitle,
             onValueChange = { clothingTitle = it },
@@ -313,7 +451,7 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // 3. Caption / Bio Input Field
+        // Bio / Caption Input Field
         OutlinedTextField(
             value = bio,
             onValueChange = { bio = it },
@@ -324,7 +462,7 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Post Classification Toggle
+        // Post Classification Toggle Selection
         Text(
             text = "Publish as",
             fontWeight = FontWeight.Bold,
@@ -354,12 +492,12 @@ fun CreatePostScreen(
 
         Spacer(Modifier.height(16.dp))
 
-        // Publish Action Button
+        // Submit Post Action Button
         Button(
             enabled = !isPublishing,
             onClick = {
                 when {
-                    imageUris.isEmpty() -> errorMessage = "Please choose at least one photo."
+                    mediaUris.isEmpty() -> errorMessage = "Please choose at least one photo or video."
                     clothingTitle.isBlank() -> errorMessage = "Please enter a clothing type (title)."
                     else -> scope.launch {
                         isPublishing = true
@@ -367,10 +505,9 @@ fun CreatePostScreen(
                         try {
                             val finalPostType = if (isChallenge) "Challenge" else "Post"
 
-                            // 4. Pass clothingTitle as 'title' parameter to createPost
                             repository.createPost(
                                 context = context,
-                                imageUris = imageUris,
+                                imageUris = mediaUris,
                                 title = clothingTitle,
                                 category = selectedCategory,
                                 bio = bio,
@@ -405,7 +542,7 @@ fun CreatePostScreen(
 private fun UploadChoiceButton(
     modifier: Modifier = Modifier,
     label: String,
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
+    icon: ImageVector,
     onClick: () -> Unit
 ) {
     Button(onClick = onClick, modifier = modifier) {

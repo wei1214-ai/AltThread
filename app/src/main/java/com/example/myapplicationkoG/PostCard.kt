@@ -1,6 +1,8 @@
 package com.example.myapplicationkoG
 
-import android.content.Intent
+import android.content.Context
+import android.net.Uri
+import androidx.annotation.OptIn
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -32,7 +34,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
-import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.FavoriteBorder
@@ -51,6 +52,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -71,8 +73,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.media3.common.MediaItem
+import androidx.media3.exoplayer.ExoPlayer
+import androidx.media3.ui.PlayerView
 import coil.compose.AsyncImage
 import com.example.myapplicationkoG.ui.ProfileRepository
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
@@ -106,6 +112,27 @@ private fun formatPostTime(createdAt: String): String {
     }.getOrElse {
         createdAt
     }
+}
+
+private fun isVideoMedia(context: Context, url: String, isPostVideoFlag: Boolean): Boolean {
+    if (isPostVideoFlag) return true
+
+    val lower = url.lowercase()
+    if (lower.endsWith(".mp4") || lower.endsWith(".mov") || lower.endsWith(".webm") || lower.contains("/video/")) {
+        return true
+    }
+
+    if (url.startsWith("content://")) {
+        try {
+            val mimeType = context.contentResolver.getType(Uri.parse(url))
+            if (mimeType != null && mimeType.startsWith("video", ignoreCase = true)) {
+                return true
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    return false
 }
 
 @OptIn(ExperimentalFoundationApi::class)
@@ -195,7 +222,7 @@ fun PostCard(
     ) {
         Column(modifier = Modifier.padding(12.dp)) {
 
-            // 1. User Header & Fixed 3-Dot Button
+            // Header Section
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.fillMaxWidth()
@@ -219,101 +246,48 @@ fun PostCard(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        text = post.username,
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 16.sp,
-                        color = textColorForTheme(MidnightBlue)
-                    )
-                    val postedTime = formatPostTime(post.createdAt)
-
-                    if (postedTime.isNotBlank()) {
+                    Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Posted $postedTime",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = post.username,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            color = textColorForTheme(MidnightBlue)
                         )
+                        val postedTime = formatPostTime(post.createdAt)
+
+                        if (postedTime.isNotBlank()) {
+                            Text(
+                                text = "Posted $postedTime",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(com.example.myapplicationkoG.ui.theme.Cyan)
-                        .padding(horizontal = 10.dp, vertical = 4.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = post.clothingCategory,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MidnightBlue
-                    )
-                }
-            }
-
-                // 3-dot menu button for post owner
-                if (currentUserId == post.userId) {
+                // Enlarged Category / Trend Box
+                if (post.clothingCategory.isNotBlank()) {
                     Box(
-                        modifier = Modifier.padding(start = 4.dp),
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(com.example.myapplicationkoG.ui.theme.Cyan)
+                            .padding(horizontal = 18.dp, vertical = 9.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(
-                            onClick = { isMenuExpanded = true },
-                            modifier = Modifier.size(32.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "More options",
-                                tint = textColorForTheme(MidnightBlue),
-                                modifier = Modifier.size(20.dp)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = isMenuExpanded,
-                            onDismissRequest = { isMenuExpanded = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Delete Post", color = Color.Red, fontWeight = FontWeight.SemiBold) },
-                                leadingIcon = {
-                                    Icon(
-                                        imageVector = Icons.Outlined.Delete,
-                                        contentDescription = "Delete",
-                                        tint = Color.Red,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                },
-                                onClick = {
-                                    isMenuExpanded = false
-                                    showDeleteDialog = true
-                                }
-                            )
-                        }
+                        Text(
+                            text = post.clothingCategory,
+                            fontSize = 15.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = MidnightBlue
+                        )
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 1b. Title & Description
-            val isValidTitle = remember(post.clothingTitle, post.clothingCategory) {
-                post.clothingTitle.isNotBlank() &&
-                        !post.clothingTitle.equals("For You", ignoreCase = true) &&
-                        !post.clothingTitle.equals(post.clothingCategory, ignoreCase = true)
-            }
-            if (isValidTitle) {
-                Text(
-                    text = post.clothingTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = textColorForTheme(MidnightBlue),
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-            }
-            if (post.caption.isNotBlank() && !post.caption.equals(post.clothingTitle, ignoreCase = true)) {
+            // Description / Caption Only (No bold title)
+            if (post.caption.isNotBlank()) {
                 Text(
                     text = post.caption,
                     fontSize = 13.sp,
@@ -337,7 +311,7 @@ fun PostCard(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // 2. Post Media
+            // Media Pager Box
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -351,12 +325,16 @@ fun PostCard(
                         state = pagerState,
                         modifier = Modifier.fillMaxSize()
                     ) { page ->
+                        val currentMedia = imagesList[page]
+                        val isVideo = isVideoMedia(context, currentMedia, post.isVideo)
+
                         Box(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .pointerInput(isLiked) {
                                     detectTapGestures(
                                         onTap = {
+                                            // Allow both image and video to open in full screen
                                             fullScreenInitialPage = page
                                             showFullScreenViewer = true
                                         },
@@ -377,12 +355,16 @@ fun PostCard(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            AsyncImage(
-                                model = imagesList[page],
-                                contentDescription = post.clothingTitle,
-                                modifier = Modifier.fillMaxSize(),
-                                contentScale = ContentScale.Crop
-                            )
+                            if (isVideo) {
+                                VideoPlayer(videoUrl = currentMedia)
+                            } else {
+                                AsyncImage(
+                                    model = currentMedia,
+                                    contentDescription = post.clothingTitle,
+                                    modifier = Modifier.fillMaxSize(),
+                                    contentScale = ContentScale.Crop
+                                )
+                            }
                         }
                     }
 
@@ -416,9 +398,7 @@ fun PostCard(
                                 fontWeight = FontWeight.Bold
                             )
                         }
-                    }
 
-                    if (imagesList.size > 1) {
                         Row(
                             modifier = Modifier
                                 .align(Alignment.BottomCenter)
@@ -441,86 +421,97 @@ fun PostCard(
 
             Spacer(modifier = Modifier.height(10.dp))
 
-            // 3. Action Buttons
+            // Action Buttons Row (Contains Like, Comment, Favorite, and 3-Dots on far right)
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                IconButton(onClick = { handleLikeToggle() }) {
-                    Icon(
-                        imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
-                        contentDescription = "Like",
-                        tint = if (isLiked) Color.Red else MidnightBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    IconButton(onClick = { handleLikeToggle() }) {
+                        Icon(
+                            imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
+                            contentDescription = "Like",
+                            tint = if (isLiked) Color.Red else MidnightBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = {
+                            showCommentsDialog = true
+                            scope.launch {
+                                isLoadingComments = true
+                                commentsList = repository.getComments(post.id)
+                                isLoadingComments = false
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Outlined.ModeComment,
+                            contentDescription = "Comment",
+                            tint = MidnightBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
+
+                    IconButton(onClick = {
+                        val targetSaved = !isSaved
+                        isSaved = targetSaved
+
+                        scope.launch {
+                            repository.toggleFavourite(post.id, targetSaved)
+                        }
+                    }) {
+                        Icon(
+                            imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
+                            contentDescription = "Favorite",
+                            tint = MidnightBlue,
+                            modifier = Modifier.size(24.dp)
+                        )
+                    }
                 }
 
-                IconButton(
-                    onClick = {
-                        showCommentsDialog = true
-                        scope.launch {
-                            isLoadingComments = true
-                            commentsList = repository.getComments(post.id)
-                            isLoadingComments = false
+                // More Options (3 dots) moved here on the rightmost side
+                if (currentUserId == post.userId) {
+                    Box {
+                        IconButton(
+                            onClick = { isMenuExpanded = true },
+                            modifier = Modifier.size(32.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More options",
+                                tint = textColorForTheme(MidnightBlue),
+                                modifier = Modifier.size(22.dp)
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = isMenuExpanded,
+                            onDismissRequest = { isMenuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Delete Post", color = Color.Red, fontWeight = FontWeight.SemiBold) },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Outlined.Delete,
+                                        contentDescription = "Delete",
+                                        tint = Color.Red,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                },
+                                onClick = {
+                                    isMenuExpanded = false
+                                    showDeleteDialog = true
+                                }
+                            )
                         }
                     }
-                ) {
-                    Icon(
-                        imageVector = Icons.Outlined.ModeComment,
-                        contentDescription = "Comment",
-                        tint = MidnightBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                IconButton(onClick = {
-                    val targetSaved = !isSaved
-                    isSaved = targetSaved
-
-                    scope.launch {
-                        repository.toggleFavourite(post.id, targetSaved)
-                    }
-                }) {
-                    Icon(
-                        imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
-                        contentDescription = "Favorite",
-                        tint = MidnightBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                IconButton(onClick = {
-                    val currentDisplayImage = imagesList.getOrNull(pagerState.currentPage) ?: post.mediaUrl
-                    val formattedShareText = """
-                        ✨ Look at this amazing outfit on AltThread!
-                        
-                        👕 Clothing Type: ${post.clothingTitle}
-                        🏷️ Category: ${post.clothingCategory}
-                        👤 Posted by: @${post.username}
-                        
-                        🖼️ Image:
-                        $currentDisplayImage
-                    """.trimIndent()
-
-                    val sendIntent = Intent().apply {
-                        action = Intent.ACTION_SEND
-                        putExtra(Intent.EXTRA_TEXT, formattedShareText)
-                        type = "text/plain"
-                    }
-                    context.startActivity(Intent.createChooser(sendIntent, "Share outfit via..."))
-                }) {
-                    Icon(
-                        imageVector = Icons.Default.Share,
-                        contentDescription = "Share",
-                        tint = MidnightBlue,
-                        modifier = Modifier.size(24.dp)
-                    )
                 }
             }
 
-            // 4. Likes Counter
+            // Likes Counter
             Text(
                 text = "$likeCount likes",
                 fontSize = 13.sp,
@@ -533,7 +524,7 @@ fun PostCard(
         }
     }
 
-    // Deletion Alert Dialog
+    // Delete Modal
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { if (!isDeleting) showDeleteDialog = false },
@@ -572,7 +563,7 @@ fun PostCard(
         )
     }
 
-    // Fullscreen Image Viewer Modal
+    // Fullscreen Viewer (Supports Pinch-to-Zoom on both Images and Videos)
     if (showFullScreenViewer && imagesList.isNotEmpty()) {
         Dialog(
             onDismissRequest = { showFullScreenViewer = false },
@@ -592,6 +583,9 @@ fun PostCard(
                     state = fullPagerState,
                     modifier = Modifier.fillMaxSize()
                 ) { page ->
+                    val currentMedia = imagesList[page]
+                    val isVideo = isVideoMedia(context, currentMedia, post.isVideo)
+
                     var scale by remember { mutableFloatStateOf(1f) }
                     var offset by remember { mutableStateOf(Offset.Zero) }
 
@@ -615,19 +609,28 @@ fun PostCard(
                             },
                         contentAlignment = Alignment.Center
                     ) {
-                        AsyncImage(
-                            model = imagesList[page],
-                            contentDescription = "Full Screen Photo",
+                        Box(
                             modifier = Modifier
-                                .fillMaxWidth()
+                                .fillMaxSize()
                                 .graphicsLayer(
                                     scaleX = scale,
                                     scaleY = scale,
                                     translationX = offset.x,
                                     translationY = offset.y
                                 ),
-                            contentScale = ContentScale.Fit
-                        )
+                            contentAlignment = Alignment.Center
+                        ) {
+                            if (isVideo) {
+                                VideoPlayer(videoUrl = currentMedia)
+                            } else {
+                                AsyncImage(
+                                    model = currentMedia,
+                                    contentDescription = "Full Screen Photo",
+                                    modifier = Modifier.fillMaxWidth(),
+                                    contentScale = ContentScale.Fit
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -660,7 +663,7 @@ fun PostCard(
         }
     }
 
-    // Comments Dialog
+    // Comments Modal
     if (showCommentsDialog) {
         Dialog(onDismissRequest = { showCommentsDialog = false }) {
             Box(

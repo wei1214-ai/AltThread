@@ -141,7 +141,7 @@ fun ResetPasswordScreen(onPasswordUpdated: () -> Unit) {
                         val newPassword = password
 
                         supabase.auth.updateUser {
-                            password = newPassword
+                            this.password = newPassword
                         }
 
                         isError = false

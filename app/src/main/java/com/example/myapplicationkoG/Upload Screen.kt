@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -45,7 +44,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -61,12 +59,14 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.core.content.ContextCompat
 import androidx.core.content.FileProvider
 import coil.compose.AsyncImage
+import coil.request.ImageRequest
 import com.example.myapplicationkoG.di.ServiceLocator
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
@@ -115,13 +115,13 @@ fun UploadScreen(
     // Post states
     var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var showPublishDialog by remember { mutableStateOf(false) }
-    var clothingTitleInput by remember { mutableStateOf("") }
     var captionInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Streetwear") }
     var isUploading by remember { mutableStateOf(false) }
     val categoriesList = listOf("Trend", "Vintage", "Streetwear")
 
-    // Challenge states - two garment images with processing
+    // Challenge states
+    var challengeTitleInput by remember { mutableStateOf("") }
     var frontOrigUri by remember { mutableStateOf<Uri?>(null) }
     var backOrigUri by remember { mutableStateOf<Uri?>(null) }
     var frontCutoutPath by remember { mutableStateOf<String?>(null) }
@@ -142,23 +142,47 @@ fun UploadScreen(
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 
+    // 判读 URI 是否为视频
+    fun isVideoUri(uri: Uri): Boolean {
+        val type = context.contentResolver.getType(uri)
+        return type?.startsWith("video/") == true || uri.toString().contains(".mp4")
+    }
+
+    // 相册选择器：处理 1 个视频 或 最多 9 张图片的判断逻辑
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
-            if (selectedUris.size + uris.size > 9) {
-                Toast.makeText(context, "Max 9 images", Toast.LENGTH_SHORT).show()
-                selectedUris = (selectedUris + uris).take(9)
+            val containsVideo = uris.any { isVideoUri(it) }
+            if (containsVideo) {
+                // 如果包含视频，只取第 1 个视频，并提示视频只能上传 1 个
+                val videoUri = uris.first { isVideoUri(it) }
+                selectedUris = listOf(videoUri)
+                Toast.makeText(context, "Selected 1 video", Toast.LENGTH_SHORT).show()
             } else {
-                selectedUris = selectedUris + uris
+                // 如果全都是图片，判断是否超出 9 张
+                if (selectedUris.any { isVideoUri(it) }) {
+                    // 如果之前选的是视频，直接覆盖为新选的图片
+                    selectedUris = uris.take(9)
+                } else if (selectedUris.size + uris.size > 9) {
+                    Toast.makeText(context, "Max 9 photos allowed", Toast.LENGTH_SHORT).show()
+                    selectedUris = (selectedUris + uris).take(9)
+                } else {
+                    selectedUris = selectedUris + uris
+                }
             }
         }
     }
 
     val takePostPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
-        if (success) postCameraUri?.let {
-            if (selectedUris.size < 9) selectedUris = selectedUris + it
-            else Toast.makeText(context, "Max 9 images", Toast.LENGTH_SHORT).show()
+        if (success) postCameraUri?.let { uri ->
+            if (selectedUris.any { isVideoUri(it) }) {
+                selectedUris = listOf(uri)
+            } else if (selectedUris.size < 9) {
+                selectedUris = selectedUris + uri
+            } else {
+                Toast.makeText(context, "Max 9 photos allowed", Toast.LENGTH_SHORT).show()
+            }
         }
     }
 
@@ -245,7 +269,6 @@ fun UploadScreen(
         }
     }
 
-    // Challenge pickers - single image
     val pickFrontLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             frontOrigUri = it
@@ -266,6 +289,7 @@ fun UploadScreen(
             }
         }
     }
+
     val pickBackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let {
             backOrigUri = it
@@ -309,7 +333,6 @@ fun UploadScreen(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
-            // Top radio tabs - Post / Challenge (like AuthScreen Login/Register)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -341,7 +364,6 @@ fun UploadScreen(
                 Text("Share your outfit with the community", fontSize = 13.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Category - only available when Post selected
                 var expanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = expanded,
@@ -382,32 +404,21 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                OutlinedTextField(
-                    value = clothingTitleInput,
-                    onValueChange = { clothingTitleInput = it },
-                    label = { Text("Clothing Type") },
-                    placeholder = { Text("Long Sleeve") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isUploading,
-                    shape = RoundedCornerShape(12.dp),
-                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
-                )
-                Spacer(modifier = Modifier.height(12.dp))
+                // Bio / Description 输入框（已移除 Clothing Type）
                 OutlinedTextField(
                     value = captionInput,
                     onValueChange = { captionInput = it },
                     label = { Text("Description / Bio") },
                     placeholder = { Text("pink color cartoon clothes") },
-                    modifier = Modifier.fillMaxWidth().height(100.dp),
-                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth().height(120.dp),
+                    maxLines = 5,
                     enabled = !isUploading,
                     shape = RoundedCornerShape(12.dp),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Image picker area
+                // 图片/视频 Picker Box
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -424,14 +435,22 @@ fun UploadScreen(
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Text("Tap the buttons below to add images (up to 9)", color = Color.Gray, fontSize = 13.sp)
+                                Spacer(modifier = Modifier.height(8.dp))
+                                // 修改后的文案：强调 1 个视频或最多 9 张图片
+                                Text(
+                                    "Tap the buttons below to add photos/videos\n(1 video or up to 9 photos)",
+                                    color = Color.Gray,
+                                    fontSize = 13.sp,
+                                    textAlign = TextAlign.Center,
+                                    lineHeight = 18.sp
+                                )
                             }
                         }
                     } else {
                         Column(modifier = Modifier.fillMaxSize()) {
+                            val isVideoSelected = selectedUris.any { isVideoUri(it) }
                             Text(
-                                "${selectedUris.size}/9 selected",
+                                if (isVideoSelected) "1 Video selected" else "${selectedUris.size}/9 Photos selected",
                                 color = MidnightBlue,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 12.sp
@@ -443,7 +462,10 @@ fun UploadScreen(
                             ) {
                                 items(selectedUris) { uri ->
                                     AsyncImage(
-                                        model = uri,
+                                        model = ImageRequest.Builder(context)
+                                            .data(uri)
+                                            .crossfade(true)
+                                            .build(),
                                         contentDescription = null,
                                         modifier = Modifier.size(84.dp).clip(RoundedCornerShape(10.dp)),
                                         contentScale = ContentScale.Crop
@@ -457,13 +479,25 @@ fun UploadScreen(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Box(
-                            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Cyan)
+                                .clickable {
+                                    galleryLauncher.launch(
+                                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageAndVideo)
+                                    )
+                                },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = "Gallery", tint = MidnightBlue, modifier = Modifier.size(18.dp))
                         }
                         Box(
-                            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { launchCamera("post") },
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(Cyan)
+                                .clickable { launchCamera("post") },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
@@ -473,24 +507,21 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val postReady = selectedUris.isNotEmpty() && clothingTitleInput.isNotBlank()
+                val postReady = selectedUris.isNotEmpty()
                 Button(
                     onClick = {
                         if (selectedUris.isEmpty()) {
-                            Toast.makeText(context, "Please select at least one image", Toast.LENGTH_SHORT).show()
-                            return@Button
-                        }
-                        if (clothingTitleInput.isBlank()) {
-                            Toast.makeText(context, "Please enter clothing type", Toast.LENGTH_SHORT).show()
+                            Toast.makeText(context, "Please select at least one photo or video", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
                         isUploading = true
                         scope.launch {
                             try {
+                                val titleText = if (captionInput.isNotBlank()) captionInput.take(20) else selectedCategory
                                 val success = repository.createPost(
                                     context = context,
                                     imageUris = selectedUris,
-                                    title = clothingTitleInput,
+                                    title = titleText,
                                     category = selectedCategory,
                                     bio = captionInput
                                 )
@@ -523,7 +554,6 @@ fun UploadScreen(
                 Text("Upload front and back garment photos. Each will be processed to isolate the garment.", fontSize = 13.sp, color = Color.Gray)
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // Front challenge box
                 ChallengePickerBox(
                     label = "FRONT",
                     origUri = frontOrigUri,
@@ -555,8 +585,8 @@ fun UploadScreen(
                 Spacer(modifier = Modifier.height(16.dp))
 
                 OutlinedTextField(
-                    value = clothingTitleInput,
-                    onValueChange = { clothingTitleInput = it },
+                    value = challengeTitleInput,
+                    onValueChange = { challengeTitleInput = it },
                     label = { Text("Challenge Title") },
                     placeholder = { Text("My upcycle look") },
                     modifier = Modifier.fillMaxWidth(),
@@ -578,7 +608,7 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(24.dp))
 
-                val challengeReady = frontCutoutPath != null && backCutoutPath != null && clothingTitleInput.isNotBlank() && !isProcessingFront && !isProcessingBack
+                val challengeReady = frontCutoutPath != null && backCutoutPath != null && challengeTitleInput.isNotBlank() && !isProcessingFront && !isProcessingBack
 
                 Button(
                     onClick = {
@@ -586,7 +616,7 @@ fun UploadScreen(
                             Toast.makeText(context, "Please upload and process both front and back images", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
-                        if (clothingTitleInput.isBlank()) {
+                        if (challengeTitleInput.isBlank()) {
                             Toast.makeText(context, "Please enter title", Toast.LENGTH_SHORT).show()
                             return@Button
                         }
@@ -597,7 +627,7 @@ fun UploadScreen(
                                 val success = repository.createPost(
                                     context = context,
                                     imageUris = uris,
-                                    title = clothingTitleInput,
+                                    title = challengeTitleInput,
                                     category = "Challenge",
                                     bio = captionInput,
                                     isChallenge = true
@@ -629,7 +659,6 @@ fun UploadScreen(
         }
     }
 
-    // Publish dialog kept for backward compatibility - not used in new flow
     if (showPublishDialog) {
         Dialog(onDismissRequest = { if (!isUploading) showPublishDialog = false }) {
             Box(
@@ -704,7 +733,6 @@ private fun ChallengePickerBox(
                 }
             }
         }
-        // album + camera buttons bottom-right
         Row(
             modifier = Modifier.align(Alignment.BottomEnd),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -723,10 +751,6 @@ private fun ChallengePickerBox(
             }
         }
     }
-    if (error != null && cutoutPath == null && !isProcessing) {
-        Spacer(modifier = Modifier.height(4.dp))
-        // error already shown inside box, no extra needed
-    }
 }
 
 private suspend fun processChallengeImage(context: android.content.Context, uri: Uri): File = withContext(Dispatchers.IO) {
@@ -744,8 +768,6 @@ private suspend fun processChallengeImage(context: android.content.Context, uri:
             }
         }
         if (!out.exists() || out.length() == 0L) error("Failed to process image - no garment detected")
-        // Validate that cutout actually contains non-transparent pixels (garment detected)
-        // If fails, pipeline would have thrown; but double-check via file size
         out
     } finally {
         runCatching { imported.delete() }
