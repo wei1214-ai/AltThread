@@ -24,3 +24,23 @@ object DesignSession {
         return p
     }
 }
+
+object ChallengeSession {
+    @Volatile var title: String? = null
+    @Volatile var description: String? = null
+
+    fun stage(title: String, description: String) {
+        this.title = title
+        this.description = description
+    }
+
+    fun consume(): Pair<String?, String?> {
+        val t = title
+        val d = description
+        title = null
+        description = null
+        return t to d
+    }
+
+    fun peek(): Pair<String?, String?> = title to description
+}

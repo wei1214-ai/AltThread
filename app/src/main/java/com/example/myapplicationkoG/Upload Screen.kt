@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -120,7 +119,7 @@ fun UploadScreen(
     var captionInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Streetwear") }
     var isUploading by remember { mutableStateOf(false) }
-    val categoriesList = listOf("Trend", "Vintage", "Streetwear", "Minimalist", "Casual")
+    val categoriesList = listOf("Trend", "Vintage", "Streetwear")
 
     // Challenge states - two garment images with processing
     var frontOrigUri by remember { mutableStateOf<Uri?>(null) }
@@ -418,17 +417,38 @@ fun UploadScreen(
                         .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
                         .padding(12.dp)
                 ) {
-                    Box(
-                        modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
+                    if (selectedUris.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text("Tap the buttons below to add images (up to 9)", color = Color.Gray, fontSize = 13.sp)
+                            }
+                        }
+                    } else {
+                        Column(modifier = Modifier.fillMaxSize()) {
+                            Text(
+                                "${selectedUris.size}/9 selected",
+                                color = MidnightBlue,
+                                fontWeight = FontWeight.SemiBold,
+                                fontSize = 12.sp
+                            )
                             Spacer(modifier = Modifier.height(6.dp))
-                            Text("Tap to select images (up to 9)", color = Color.Gray, fontSize = 13.sp)
-                            if (selectedUris.isNotEmpty()) {
-                                Spacer(modifier = Modifier.height(4.dp))
-                                Text("${selectedUris.size} images selected", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                            LazyRow(
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                modifier = Modifier.padding(bottom = 44.dp)
+                            ) {
+                                items(selectedUris) { uri ->
+                                    AsyncImage(
+                                        model = uri,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(84.dp).clip(RoundedCornerShape(10.dp)),
+                                        contentScale = ContentScale.Crop
+                                    )
+                                }
                             }
                         }
                     }
@@ -447,20 +467,6 @@ fun UploadScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
-                        }
-                    }
-                }
-
-                if (selectedUris.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(12.dp))
-                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        items(selectedUris) { uri ->
-                            AsyncImage(
-                                model = uri,
-                                contentDescription = null,
-                                modifier = Modifier.size(70.dp).clip(RoundedCornerShape(10.dp)),
-                                contentScale = ContentScale.Crop
-                            )
                         }
                     }
                 }
@@ -527,6 +533,10 @@ fun UploadScreen(
                     onAlbum = { pickFrontLauncher.launch("image/*") },
                     onCamera = { launchCamera("front") }
                 )
+                if (!frontError.isNullOrBlank() && frontCutoutPath == null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(frontError!!, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
                 Spacer(modifier = Modifier.height(12.dp))
                 ChallengePickerBox(
                     label = "BACK",
@@ -537,6 +547,10 @@ fun UploadScreen(
                     onAlbum = { pickBackLauncher.launch("image/*") },
                     onCamera = { launchCamera("back") }
                 )
+                if (!backError.isNullOrBlank() && backCutoutPath == null) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Text(backError!!, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
@@ -640,7 +654,7 @@ private fun ChallengePickerBox(
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(180.dp)
+            .height(200.dp)
             .clip(RoundedCornerShape(16.dp))
             .background(if (cutoutPath != null) Cyan.copy(alpha = 0.12f) else Color.White)
             .border(1.5.dp, if (cutoutPath != null) MidnightBlue else Color(0xFFCCCCCC), RoundedCornerShape(16.dp))

@@ -219,29 +219,39 @@ fun PostCard(
 
                     Spacer(modifier = Modifier.width(10.dp))
 
-                    Column {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = post.username,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 16.sp,
+                        color = textColorForTheme(MidnightBlue)
+                    )
+                    val postedTime = formatPostTime(post.createdAt)
+
+                    if (postedTime.isNotBlank()) {
                         Text(
-                            text = post.username,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 16.sp,
-                            color = textColorForTheme(MidnightBlue)
-                        )
-                        Text(
-                            text = post.clothingCategory,
-                            fontSize = 12.sp,
+                            text = "Posted $postedTime",
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        val postedTime = formatPostTime(post.createdAt)
-
-                        if (postedTime.isNotBlank()) {
-                            Text(
-                                text = "Posted $postedTime",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
                     }
                 }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(com.example.myapplicationkoG.ui.theme.Cyan)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = post.clothingCategory,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MidnightBlue
+                    )
+                }
+            }
 
                 // 3-dot menu button for post owner
                 if (currentUserId == post.userId) {

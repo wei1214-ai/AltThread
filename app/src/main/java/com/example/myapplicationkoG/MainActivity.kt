@@ -283,6 +283,7 @@ fun AltThreadApp(
                                 val frontFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawFront, "challenge_front") }
                                 val backFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawBack, "challenge_back") }
                                 if (frontFile.length() == 0L || backFile.length() == 0L) error("Downloaded file is empty")
+                                com.example.myapplicationkoG.ui.editor.ChallengeSession.stage(post.clothingTitle, post.caption)
                                 garmentInputVm.clearAll()
                                 garmentInputVm.loadDesignPaths(frontFile, backFile)
                                 navController.navigate(Screen.Editor.route)
@@ -299,6 +300,8 @@ fun AltThreadApp(
             composable(Screen.Studio.route) {
                 StudioScreen(
                     onStartDesign = {
+                        com.example.myapplicationkoG.ui.editor.ChallengeSession.title = null
+                        com.example.myapplicationkoG.ui.editor.ChallengeSession.description = null
                         garmentInputVm.clearAll()
                         navController.navigate(Screen.GarmentInput.route)
                     },

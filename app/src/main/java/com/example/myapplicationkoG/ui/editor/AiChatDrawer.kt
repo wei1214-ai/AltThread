@@ -131,7 +131,7 @@ fun AiChatDrawer(
                         onClick = onDismiss,
                         modifier = Modifier
                             .size(36.dp)
-                            .clip(CircleShape)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(Color.White.copy(alpha = 0.15f))
                     ) {
                         Icon(
@@ -260,7 +260,7 @@ fun AiChatDrawer(
                     Box(
                         modifier = Modifier
                             .size(44.dp)
-                            .clip(CircleShape)
+                            .clip(RoundedCornerShape(12.dp))
                             .background(if (inputText.isNotBlank() && !isLoading) MidnightBlue else Color(0xFFE0E0E0))
                             .clickable(enabled = inputText.isNotBlank() && !isLoading) {
                                 val text = inputText.trim()

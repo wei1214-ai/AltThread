@@ -274,7 +274,7 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .size(28.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(8.dp))
                                 .background(White)
                         ) {
                             Icon(

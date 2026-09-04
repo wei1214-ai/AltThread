@@ -256,7 +256,7 @@ fun CreatePostScreen(
                                     .align(Alignment.TopEnd)
                                     .padding(8.dp)
                                     .size(28.dp)
-                                    .clip(CircleShape)
+                                    .clip(RoundedCornerShape(8.dp))
                                     .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.7f))
                                     .clickable { imageUris.removeAt(index) },
                                 contentAlignment = Alignment.Center

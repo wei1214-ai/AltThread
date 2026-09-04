@@ -193,6 +193,8 @@ fun EditorPlaceHolder(
         redoStack = emptyList()
         dyeActive = false
         selectedTool = null
+        ChallengeSession.title = null
+        ChallengeSession.description = null
         Toast.makeText(context, "Design cleared", Toast.LENGTH_SHORT).show()
     }
 
@@ -303,7 +305,7 @@ fun EditorPlaceHolder(
                             Box(
                                 modifier = Modifier
                                     .size(56.dp)
-                                    .clip(CircleShape)
+                                    .clip(RoundedCornerShape(16.dp))
                                     .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
                                     .clickable {
                                         selectedTool = if (isSelected) null else idx
@@ -336,6 +338,31 @@ fun EditorPlaceHolder(
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            val challengeTitle = remember { ChallengeSession.peek().first }
+            val challengeDesc = remember { ChallengeSession.peek().second }
+            if (!challengeTitle.isNullOrBlank() || !challengeDesc.isNullOrBlank()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Cyan.copy(alpha = 0.18f))
+                        .border(1.dp, Cyan, RoundedCornerShape(16.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                ) {
+                    Text("Challenge Brief", color = MidnightBlue, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
+                    if (!challengeTitle.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text(challengeTitle, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                    if (!challengeDesc.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text(challengeDesc, color = Color(0xFF333333), fontSize = 12.sp, lineHeight = 16.sp)
+                    }
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text("Design according to the brief above", color = Color.Gray, fontSize = 10.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
+                }
+                Spacer(modifier = Modifier.height(10.dp))
+            }
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -350,7 +377,7 @@ fun EditorPlaceHolder(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                                 .clickable { undo() },
                             contentAlignment = Alignment.Center
@@ -365,7 +392,7 @@ fun EditorPlaceHolder(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                                 .clickable { redo() },
                             contentAlignment = Alignment.Center
@@ -380,7 +407,7 @@ fun EditorPlaceHolder(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                                 .clickable { clearDesign() },
                             contentAlignment = Alignment.Center
@@ -392,6 +419,15 @@ fun EditorPlaceHolder(
                                 modifier = Modifier.size(20.dp)
                             )
                         }
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(Cyan)
+                            .padding(horizontal = 14.dp, vertical = 6.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(currentSide.name, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         Box(
@@ -412,7 +448,7 @@ fun EditorPlaceHolder(
                         Box(
                             modifier = Modifier
                                 .size(36.dp)
-                                .clip(CircleShape)
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                                 .clickable { saveCurrent() },
                             contentAlignment = Alignment.Center
@@ -547,23 +583,17 @@ fun EditorPlaceHolder(
                         } else {
                             Text("No image", color = Color(0xFF999999))
                         }
-                        Box(
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 12.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Cyan)
-                                .padding(horizontal = 14.dp, vertical = 6.dp)
-                        ) {
-                            Text(currentSide.name, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                        }
+
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
+                  Spacer(modifier = Modifier.height(10.dp))
+                  Row(
+                      modifier = Modifier
+                          .fillMaxWidth()
+                          .padding(horizontal = 32.dp),
+                      horizontalArrangement = Arrangement.Center
+                  ) {
                     if (currentSide == GarmentSideId.FRONT && state.backCutoutPath != null) {
                         Box(
                             modifier = Modifier
