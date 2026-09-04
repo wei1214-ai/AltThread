@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -254,7 +255,7 @@ private fun PickerBox(
                 }
             } else {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, modifier = Modifier.size(28.dp), tint = Color(0xFF1B1B1B))
+                    Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, modifier = Modifier.size(28.dp), tint = Color(0xFF1B1B1B))
                     Spacer(Modifier.height(6.dp))
                     Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = Color(0xFF1B1B1B))
                 }

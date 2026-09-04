@@ -117,20 +117,21 @@ private fun applyDye(bmp: Bitmap, dye: Color, strength: Float) {
 }
 
 /**
- * Renders what the design actually looks like (dye + patches) for list thumbnails.
+ * Renders what the design actually looks like (dye + patches) for one side.
  */
-suspend fun renderDesignThumb(
+private fun renderDesignBitmap(
     context: Context,
     row: DesignRow,
-    frontFile: File
-): File = withContext(Dispatchers.Default) {
-    var bmp = BitmapFactory.decodeFile(frontFile.absolutePath)
+    srcFile: File,
+    side: String
+): Bitmap {
+    var bmp = BitmapFactory.decodeFile(srcFile.absolutePath)
         ?: error("Cannot decode design image")
     bmp = bmp.copy(Bitmap.Config.ARGB_8888, true)
-    row.state.dye["FRONT"]?.let { dye ->
+    row.state.dye[side]?.let { dye ->
         applyDye(bmp, Color(dye.color), dye.strength)
     }
-    val buttons = row.state.buttons["FRONT"].orEmpty()
+    val buttons = row.state.buttons[side].orEmpty()
     if (buttons.isNotEmpty()) {
         val texMap = buttons.map { it.style }.distinct().associateWith { style ->
             val raw = BitmapFactory.decodeResource(context.resources, styleRes(style))
@@ -158,8 +159,53 @@ suspend fun renderDesignThumb(
             canvas.drawBitmap(tex, m, paint)
         }
     }
-    val out = File(File(context.filesDir, "designs_cache/${row.id}").apply { mkdirs() }, "thumb.png")
+    return bmp
+}
+
+private fun writeDesignPng(context: Context, row: DesignRow, name: String, bmp: Bitmap): File {
+    val out = File(File(context.filesDir, "designs_cache/${row.id}").apply { mkdirs() }, name)
     out.outputStream().use { o -> bmp.compress(Bitmap.CompressFormat.PNG, 90, o) }
+    return out
+}
+
+/**
+ * Renders what the design actually looks like (dye + patches) for list thumbnails.
+ */
+suspend fun renderDesignThumb(
+    context: Context,
+    row: DesignRow,
+    frontFile: File
+): File = withContext(Dispatchers.Default) {
+    val bmp = renderDesignBitmap(context, row, frontFile, "FRONT")
+    val out = writeDesignPng(context, row, "thumb.png", bmp)
     runCatching { if (!bmp.isRecycled) bmp.recycle() }
     out
+}
+
+/**
+ * Renders the finished (dyed + patched) image of one side for sharing as a post image.
+ */
+suspend fun renderDesignShareImage(
+    context: Context,
+    row: DesignRow,
+    srcFile: File,
+    side: String
+): File = withContext(Dispatchers.Default) {
+    val bmp = renderDesignBitmap(context, row, srcFile, side)
+    val out = writeDesignPng(context, row, "share_${side.lowercase()}.png", bmp)
+    runCatching { if (!bmp.isRecycled) bmp.recycle() }
+    out
+}
+
+/**
+ * Renders both finished sides (front first, then back) of a design for sharing.
+ */
+suspend fun renderDesignShareImages(
+    context: Context,
+    repo: DesignRepository,
+    row: DesignRow
+): Pair<File, File> {
+    val (front, back) = repo.ensureLocalFiles(context, row)
+    return renderDesignShareImage(context, row, front, "FRONT") to
+        renderDesignShareImage(context, row, back, "BACK")
 }

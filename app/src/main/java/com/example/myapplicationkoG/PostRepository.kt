@@ -13,6 +13,7 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import java.io.File
 import java.util.UUID
 
 /**
@@ -267,7 +268,22 @@ class PostRepository {
     }
 
     /**
+     * Uploads an already rendered local file (used for design front/back images).
+     */
+    private suspend fun uploadSingleFile(
+        file: File,
+        userId: String
+    ): String = withContext(Dispatchers.IO) {
+        val fileExtension = file.extension.takeIf { it.isNotBlank() } ?: "png"
+        val mediaPath = "$userId/${UUID.randomUUID()}.$fileExtension"
+        val bucket = supabase.storage.from("cloth")
+        bucket.upload(mediaPath, file.readBytes())
+        bucket.publicUrl(mediaPath)
+    }
+
+    /**
      * Uploads multiple selected media items concurrently and creates a new post entry in Supabase.
+     * Files passed in [mediaFiles] are uploaded first so they become the leading images of the post.
      */
     suspend fun createPost(
         context: Context,
@@ -278,10 +294,11 @@ class PostRepository {
         postType: String = "Post",
         isChallenge: Boolean = false,
         designId: String? = null,
-        challengePostId: String? = null
+        challengePostId: String? = null,
+        mediaFiles: List<File> = emptyList()
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            if (imageUris.isEmpty()) {
+            if (imageUris.isEmpty() && mediaFiles.isEmpty()) {
                 error("Please select at least one image or video.")
             }
 
@@ -289,12 +306,17 @@ class PostRepository {
                 ?: error("Please log in before posting.")
             val profile = ProfileRepository().getMyProfile()
 
+            // Rendered design images come first so they stay the main photos of the post
+            val fileUrls = mediaFiles.map { file ->
+                async { uploadSingleFile(file, user.id) }
+            }.awaitAll()
+
             // Concurrently upload selected media items and detect if video exists
             val uploadResults = imageUris.map { uri ->
                 async { uploadSingleMedia(context, uri, user.id) }
             }.awaitAll()
 
-            val uploadedPublicUrls = uploadResults.map { it.first }
+            val uploadedPublicUrls = fileUrls + uploadResults.map { it.first }
             val hasVideo = uploadResults.any { it.second }
 
             val primaryMediaUrl = uploadedPublicUrls.firstOrNull() ?: ""
@@ -464,6 +486,21 @@ class PostRepository {
             }
         } catch (e: Exception) {
             e.printStackTrace()
+        }
+    }
+
+    /**
+     * Fetches a single post by id (used to show the challenge a design responds to).
+     */
+    suspend fun getPostById(postId: String): Post? = withContext(Dispatchers.IO) {
+        if (postId.isBlank()) return@withContext null
+        try {
+            supabase.from("posts").select {
+                filter { eq("id", postId) }
+            }.decodeList<Post>().firstOrNull()
+        } catch (e: Exception) {
+            e.printStackTrace()
+            null
         }
     }
 

@@ -22,9 +22,11 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -46,6 +48,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -135,6 +138,50 @@ fun UploadScreen(
     var frontCameraUri by remember { mutableStateOf<Uri?>(null) }
     var backCameraUri by remember { mutableStateOf<Uri?>(null) }
     var pendingCameraSide by remember { mutableStateOf<String?>(null) }
+
+    // Design share states
+    val designRepository = remember { DesignRepository() }
+    var designRows by remember { mutableStateOf<List<DesignRow>?>(null) }
+    var selectedDesign by remember { mutableStateOf<DesignRow?>(null) }
+    var designFrontFile by remember { mutableStateOf<File?>(null) }
+    var designBackFile by remember { mutableStateOf<File?>(null) }
+    var isRenderingDesign by remember { mutableStateOf(false) }
+    var designCaptionInput by remember { mutableStateOf("") }
+    var designExtraUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var showDesignPicker by remember { mutableStateOf(false) }
+
+    fun loadMyDesigns() {
+        scope.launch {
+            designRows = try {
+                designRepository.listMyDesigns()
+            } catch (_: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    LaunchedEffect(Unit) { loadMyDesigns() }
+
+    fun onDesignPicked(row: DesignRow) {
+        showDesignPicker = false
+        selectedDesign = row
+        designFrontFile = null
+        designBackFile = null
+        designExtraUris = emptyList()
+        isRenderingDesign = true
+        scope.launch {
+            try {
+                val (front, back) = renderDesignShareImages(context, designRepository, row)
+                designFrontFile = front
+                designBackFile = back
+            } catch (e: Exception) {
+                selectedDesign = null
+                Toast.makeText(context, "Could not render design: ${e.message}", Toast.LENGTH_SHORT).show()
+            } finally {
+                isRenderingDesign = false
+            }
+        }
+    }
 
     fun createCameraUri(): Uri {
         val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.jpg")
@@ -228,6 +275,32 @@ fun UploadScreen(
         }
     }
 
+    val takeDesignPicture = rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { success ->
+        if (success) postCameraUri?.let { uri ->
+            if (designExtraUris.size >= 7) {
+                Toast.makeText(context, "Max 7 extra photos allowed", Toast.LENGTH_SHORT).show()
+            } else {
+                designExtraUris = designExtraUris + uri
+            }
+        }
+    }
+
+    val designGalleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 7)
+    ) { uris ->
+        if (uris.isEmpty()) return@rememberLauncherForActivityResult
+        val photos = uris.filter { !isVideoUri(it) }
+        val room = 7 - designExtraUris.size
+        if (room <= 0) {
+            Toast.makeText(context, "Max 7 extra photos allowed", Toast.LENGTH_SHORT).show()
+            return@rememberLauncherForActivityResult
+        }
+        designExtraUris = (designExtraUris + photos).take(7)
+        if (photos.size > room) {
+            Toast.makeText(context, "Max 7 extra photos allowed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     val requestCameraPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         if (granted) {
             when (pendingCameraSide) {
@@ -246,6 +319,11 @@ fun UploadScreen(
                     backCameraUri = uri
                     takeBackPicture.launch(uri)
                 }
+                "design" -> {
+                    val uri = createCameraUri()
+                    postCameraUri = uri
+                    takeDesignPicture.launch(uri)
+                }
             }
         } else {
             Toast.makeText(context, "Camera permission denied", Toast.LENGTH_SHORT).show()
@@ -262,6 +340,7 @@ fun UploadScreen(
                 "post" -> { postCameraUri = uri; takePostPicture.launch(uri) }
                 "front" -> { frontCameraUri = uri; takeFrontPicture.launch(uri) }
                 "back" -> { backCameraUri = uri; takeBackPicture.launch(uri) }
+                "design" -> { postCameraUri = uri; takeDesignPicture.launch(uri) }
             }
         } else {
             pendingCameraSide = side
@@ -311,6 +390,19 @@ fun UploadScreen(
         }
     }
 
+    if (showDesignPicker) {
+        ContinueDesignsScreen(
+            pickMode = true,
+            onOpenDesign = { row -> onDesignPicked(row) },
+            onPickDesign = { row -> onDesignPicked(row) },
+            onBack = {
+                showDesignPicker = false
+                loadMyDesigns()
+            }
+        )
+        return
+    }
+
     Scaffold(
         containerColor = Color.White,
         topBar = {
@@ -319,7 +411,7 @@ fun UploadScreen(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
                 navigationIcon = {
                     IconButton(onClick = onClose) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MidnightBlue)
+                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
                     }
                 }
             )
@@ -440,7 +532,7 @@ fun UploadScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
+                                Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
                                 Spacer(modifier = Modifier.height(8.dp))
                                 // 修改后的文案：强�?1 个视频或最�?9 张图�?
                                 Text(
@@ -553,7 +645,7 @@ fun UploadScreen(
                     else Text("Post", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
 
-            } else {
+            } else if (selectedTab == "Challenge") {
                 // CHALLENGE MODE ------------------------------------------------
                 Text("Join Challenge", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -659,6 +751,231 @@ fun UploadScreen(
                     if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
                     else Text("Post Challenge", fontWeight = FontWeight.Bold, fontSize = 16.sp)
                 }
+            } else {
+                // DESIGN MODE ------------------------------------------------
+                Text("Share Design", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Pick a saved design. Its finished front and back become the main photos of your post.", fontSize = 13.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                val hasDesigns = !designRows.isNullOrEmpty()
+                Button(
+                    onClick = { showDesignPicker = true },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Cyan,
+                        contentColor = MidnightBlue,
+                        disabledContainerColor = Color(0xFFE0E0E0),
+                        disabledContentColor = Color.Gray
+                    ),
+                    enabled = hasDesigns
+                ) {
+                    Text("Choose from My Designs", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+                if (!hasDesigns) {
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Text(
+                        text = if (designRows == null) "Loading your designs..." else "Please save a design first",
+                        color = if (designRows == null) Color.Gray else Color.Red,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                val pickedDesign = selectedDesign
+                if (pickedDesign != null) {
+                    Spacer(modifier = Modifier.height(20.dp))
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        DesignSidePreview(label = "FRONT", file = designFrontFile, modifier = Modifier.weight(1f))
+                        DesignSidePreview(label = "BACK", file = designBackFile, modifier = Modifier.weight(1f))
+                    }
+                    if (isRenderingDesign) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Rendering your design...", fontSize = 12.sp, color = Color.Gray)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = pickedDesign.name.ifBlank { "Untitled design" },
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp,
+                        color = MidnightBlue
+                    )
+                    val linkedChallenge = pickedDesign.state.challengePostId
+                    if (!linkedChallenge.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(20.dp))
+                                .background(Cyan)
+                                .padding(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Text("�?In↳ In response to a Challenge", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    Text("Extra photos (optional) - ${designExtraUris.size}/7", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = MidnightBlue)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(if (designExtraUris.isEmpty()) 120.dp else 150.dp)
+                            .clip(RoundedCornerShape(16.dp))
+                            .background(Color(0xFFF8F8F8))
+                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                            .padding(12.dp)
+                    ) {
+                        if (designExtraUris.isEmpty()) {
+                            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                                Text("Add 0-7 more photos (9 total max)", color = Color.Gray, fontSize = 13.sp, textAlign = TextAlign.Center)
+                            }
+                        } else {
+                            Column(modifier = Modifier.fillMaxSize()) {
+                                Text("${designExtraUris.size}/7 extra", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                                Spacer(modifier = Modifier.height(6.dp))
+                                LazyRow(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    modifier = Modifier.padding(bottom = 44.dp)
+                                ) {
+                                    items(designExtraUris) { uri ->
+                                        Box {
+                                            AsyncImage(
+                                                model = ImageRequest.Builder(context).data(uri).crossfade(true).build(),
+                                                contentDescription = null,
+                                                modifier = Modifier.size(84.dp).clip(RoundedCornerShape(10.dp)),
+                                                contentScale = ContentScale.Crop
+                                            )
+                                            Box(
+                                                modifier = Modifier
+                                                    .align(Alignment.TopEnd)
+                                                    .size(20.dp)
+                                                    .clip(CircleShape)
+                                                    .background(Color.Black.copy(alpha = 0.6f))
+                                                    .clickable { designExtraUris = designExtraUris - uri },
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                Text("x", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Row(
+                            modifier = Modifier.align(Alignment.BottomEnd),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Cyan)
+                                    .clickable {
+                                        designGalleryLauncher.launch(
+                                            PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                        )
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = "Gallery", tint = MidnightBlue, modifier = Modifier.size(18.dp))
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .background(Cyan)
+                                    .clickable { launchCamera("design") },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(16.dp))
+                    OutlinedTextField(
+                        value = designCaptionInput,
+                        onValueChange = { designCaptionInput = it },
+                        label = { Text("Description") },
+                        placeholder = { Text("Tell us about your design...") },
+                        modifier = Modifier.fillMaxWidth().height(120.dp),
+                        maxLines = 5,
+                        enabled = !isUploading,
+                        shape = RoundedCornerShape(12.dp),
+                        colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                    )
+
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    val designReady = designFrontFile != null && designBackFile != null &&
+                        designCaptionInput.isNotBlank() && !isUploading && !isRenderingDesign
+
+                    Button(
+                        onClick = {
+                            val row = selectedDesign ?: return@Button
+                            val front = designFrontFile
+                            val back = designBackFile
+                            if (front == null || back == null) {
+                                Toast.makeText(context, "Design is still rendering", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            if (designCaptionInput.isBlank()) {
+                                Toast.makeText(context, "Please enter a description", Toast.LENGTH_SHORT).show()
+                                return@Button
+                            }
+                            isUploading = true
+                            scope.launch {
+                                try {
+                                    val success = repository.createPost(
+                                        context = context,
+                                        imageUris = designExtraUris,
+                                        mediaFiles = listOf(front, back),
+                                        title = row.name.ifBlank { "Untitled design" },
+                                        category = "Design",
+                                        bio = designCaptionInput,
+                                        postType = "Design",
+                                        designId = row.id,
+                                        challengePostId = row.state.challengePostId?.takeIf { it.isNotBlank() }
+                                    )
+                                    if (success) {
+                                        Toast.makeText(context, "Design posted!", Toast.LENGTH_SHORT).show()
+                                        onClose()
+                                    } else {
+                                        Toast.makeText(context, "Failed to post design", Toast.LENGTH_SHORT).show()
+                                    }
+                                } catch (e: Exception) {
+                                    Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                                } finally {
+                                    isUploading = false
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth().height(52.dp),
+                        shape = RoundedCornerShape(25.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Cyan,
+                            contentColor = MidnightBlue,
+                            disabledContainerColor = Color(0xFFE0E0E0),
+                            disabledContentColor = Color.Gray
+                        ),
+                        enabled = designReady
+                    ) {
+                        if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                        else Text("Post Design", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    }
+                }
+            }
+
             Spacer(modifier = Modifier.height(32.dp))
         }
     }
@@ -670,6 +987,44 @@ fun UploadScreen(
             ) {
                 Text("Legacy dialog", color = Color.Gray)
             }
+        }
+    }
+}
+
+@Composable
+private fun DesignSidePreview(
+    label: String,
+    file: File?,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .height(160.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(Color(0xFFF0F0F0))
+            .border(1.5.dp, MidnightBlue, RoundedCornerShape(16.dp))
+    ) {
+        if (file != null && file.exists()) {
+            AsyncImage(
+                model = file,
+                contentDescription = label,
+                modifier = Modifier.fillMaxSize(),
+                contentScale = ContentScale.Crop
+            )
+        } else {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                Text(label, color = Color.Gray, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+            }
+        }
+        Box(
+            modifier = Modifier
+                .align(Alignment.TopStart)
+                .padding(6.dp)
+                .clip(RoundedCornerShape(8.dp))
+                .background(Color.White.copy(alpha = 0.85f))
+                .padding(horizontal = 8.dp, vertical = 3.dp)
+        ) {
+            Text(label, fontSize = 10.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
         }
     }
 }
@@ -728,7 +1083,7 @@ private fun ChallengePickerBox(
                 }
                 else -> {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color(0xFF1B1B1B), modifier = Modifier.size(26.dp))
+                        Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = Color(0xFF1B1B1B), modifier = Modifier.size(26.dp))
                         Spacer(modifier = Modifier.height(6.dp))
                         Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF1B1B1B))
                         Spacer(modifier = Modifier.height(4.dp))

@@ -180,7 +180,7 @@ fun AiChatDrawer(
                                 .background(Color.White.copy(alpha = 0.15f))
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                painter = painterResource(id = R.drawable.close),
                                 contentDescription = "Close",
                                 tint = Color.White,
                                 modifier = Modifier.size(20.dp)

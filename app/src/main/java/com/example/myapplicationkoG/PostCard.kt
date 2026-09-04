@@ -137,6 +137,62 @@ private fun isVideoMedia(context: Context, url: String, isPostVideoFlag: Boolean
     return false
 }
 
+@Composable
+private fun ChallengeSourceCard(
+    source: Post?,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val thumb = source?.allMediaUrls?.firstOrNull().orEmpty()
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .clickable(enabled = source != null && enabled, onClick = onClick)
+            .padding(8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (thumb.isNotBlank()) {
+            AsyncImage(
+                model = thumb,
+                contentDescription = null,
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(8.dp)),
+                contentScale = ContentScale.Crop
+            )
+            Spacer(modifier = Modifier.width(10.dp))
+        }
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = if (source != null) "�?In↳ In response to @${source.username}'s Challenge" else "�?In↳ In response to a Challenge",
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = textColorForTheme(MidnightBlue),
+                maxLines = 2
+            )
+            if (source != null && source.caption.isNotBlank()) {
+                Text(
+                    text = source.caption,
+                    fontSize = 11.sp,
+                    color = Color.Gray,
+                    maxLines = 1
+                )
+            }
+        }
+        if (source != null && enabled) {
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "View",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                color = textColorForTheme(MidnightBlue)
+            )
+        }
+    }
+}
+
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PostCard(
@@ -145,7 +201,8 @@ fun PostCard(
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
     onAcceptChallenge: ((Post) -> Unit)? = null,
     onLikeStateChanged: ((postId: String, isLiked: Boolean, likeCount: Int) -> Unit)? = null,
-    onDeletePost: ((Post) -> Unit)? = null
+    onDeletePost: ((Post) -> Unit)? = null,
+    onOpenChallengeSource: ((Post) -> Unit)? = null
 ) {
     val repository = remember { PostRepository() }
     val profileRepository = remember { ProfileRepository() }
@@ -191,6 +248,12 @@ fun PostCard(
     var isSaved by remember { mutableStateOf(post.isFavoritedByCurrentUser) }
 
     val doubleTapHeartScale = remember { Animatable(0f) }
+
+    var challengeSource by remember { mutableStateOf<Post?>(null) }
+    LaunchedEffect(post.challengePostId) {
+        val sourceId = post.challengePostId
+        challengeSource = if (sourceId.isNullOrBlank()) null else repository.getPostById(sourceId)
+    }
 
     var showCommentsDialog by remember { mutableStateOf(false) }
     var commentsList by remember { mutableStateOf<List<PostComment>>(emptyList()) }
@@ -302,6 +365,14 @@ fun PostCard(
                     fontSize = 13.sp,
                     color = textColorForTheme(Color.DarkGray),
                     modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            if (!post.challengePostId.isNullOrBlank()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                ChallengeSourceCard(
+                    source = challengeSource,
+                    enabled = onOpenChallengeSource != null,
+                    onClick = { challengeSource?.let { onOpenChallengeSource?.invoke(it) } }
                 )
             }
             val isChallengePost = post.postType.equals("Challenge", ignoreCase = true)
@@ -650,7 +721,7 @@ fun PostCard(
                         .padding(24.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Default.Close,
+                        painter = painterResource(id = R.drawable.close),
                         contentDescription = "Close",
                         tint = Color.White,
                         modifier = Modifier.size(28.dp)

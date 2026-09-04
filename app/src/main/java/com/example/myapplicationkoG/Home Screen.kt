@@ -146,7 +146,8 @@ fun HomeScreen(
     refreshKey: Int = 0,
     initialFilter: String = "For You",
     onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
-    onAcceptChallenge: ((Post) -> Unit)? = null
+    onAcceptChallenge: ((Post) -> Unit)? = null,
+    onOpenChallengeSource: ((Post) -> Unit)? = null
 ) {
     // Selected filter state
     var selectedFilter by remember { mutableStateOf(initialFilter) }
@@ -328,7 +329,8 @@ fun HomeScreen(
                     PostCard(
                         post = post,
                         onUserClick = onUserClick,
-                        onAcceptChallenge = onAcceptChallenge
+                        onAcceptChallenge = onAcceptChallenge,
+                        onOpenChallengeSource = onOpenChallengeSource
                     )
                 }
             }

@@ -347,7 +347,7 @@ fun EditorPlaceHolder(
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MidnightBlue)
+                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
                     }
                 }
             )
@@ -411,8 +411,9 @@ fun EditorPlaceHolder(
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
-            val challengeTitle = remember { ChallengeSession.peek().first }
-            val challengeDesc = remember { ChallengeSession.peek().second }
+            val challengeBrief = remember { ChallengeSession.peekPair() }
+            val challengeTitle = challengeBrief.first
+            val challengeDesc = challengeBrief.second
             if (!challengeTitle.isNullOrBlank() || !challengeDesc.isNullOrBlank()) {
                 Column(
                     modifier = Modifier
@@ -1091,7 +1092,10 @@ fun EditorPlaceHolder(
                                         frontFile = frontFile,
                                         backFile = backFile,
                                         dye = dyeSaved,
-                                        buttons = btnSaved
+                                        buttons = btnSaved,
+                                        challengePostId = com.example.myapplicationkoG.ui.editor.ChallengeSession.postId
+                                            ?.takeIf { it.isNotBlank() }
+                                            ?: viewModel.openDesignChallengePostId
                                     )
                                     viewModel.openDesignName = updated.name
                                     Toast.makeText(context, "Design updated!", Toast.LENGTH_SHORT).show()

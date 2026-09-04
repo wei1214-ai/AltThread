@@ -21,6 +21,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -58,7 +59,9 @@ import kotlinx.coroutines.launch
 @Composable
 fun ContinueDesignsScreen(
     onOpenDesign: (DesignRow) -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    pickMode: Boolean = false,
+    onPickDesign: ((DesignRow) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val repo = remember { DesignRepository() }
@@ -114,11 +117,17 @@ fun ContinueDesignsScreen(
         containerColor = Color.White,
         topBar = {
             CenterAlignedTopAppBar(
-                title = { Text("My Designs", fontWeight = FontWeight.Bold, color = MidnightBlue) },
+                title = {
+                    Text(
+                        if (pickMode) "Choose a Design" else "My Designs",
+                        fontWeight = FontWeight.Bold,
+                        color = MidnightBlue
+                    )
+                },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MidnightBlue)
+                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
                     }
                 }
             )
@@ -165,7 +174,7 @@ fun ContinueDesignsScreen(
                         Text(text = "No saved designs yet", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Text(
-                            text = "Start a design and hit Save\nto see it here",
+                            text = if (pickMode) "Save a design first,\nthen come back to share it" else "Start a design and hit Save\nto see it here",
                             color = Color.Gray,
                             fontSize = 13.sp,
                             lineHeight = 18.sp
@@ -186,8 +195,11 @@ fun ContinueDesignsScreen(
                             DesignBlock(
                                 row = row,
                                 thumbFile = thumbs[row.id],
-                                onClick = { onOpenDesign(row) },
-                                onLongPress = { deleteTarget = row }
+                                pickMode = pickMode,
+                                onClick = {
+                                    if (pickMode) onPickDesign?.invoke(row) else onOpenDesign(row)
+                                },
+                                onLongPress = { if (!pickMode) deleteTarget = row }
                             )
                         }
                     }
@@ -202,6 +214,7 @@ fun ContinueDesignsScreen(
 private fun DesignBlock(
     row: DesignRow,
     thumbFile: java.io.File?,
+    pickMode: Boolean = false,
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
@@ -214,7 +227,7 @@ private fun DesignBlock(
             .height(230.dp)
             .combinedClickable(
                 onClick = onClick,
-                onLongClick = onLongPress
+                onLongClick = if (pickMode) null else onLongPress
             )
     ) {
         Column(
@@ -234,21 +247,23 @@ private fun DesignBlock(
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()
                 )
-                Box(
-                    modifier = Modifier
-                        .align(Alignment.TopEnd)
-                        .padding(6.dp)
-                        .size(30.dp)
-                        .clip(RoundedCornerShape(9.dp))
-                        .background(Color.White)
-                        .clickable { onLongPress() },
-                    contentAlignment = Alignment.Center
-                ) {
-                    androidx.compose.foundation.Image(
-                        painter = androidx.compose.ui.res.painterResource(id = com.example.myapplicationkoG.R.drawable.deletedesign),
-                        contentDescription = "Delete design",
-                        modifier = Modifier.size(16.dp)
-                    )
+                if (!pickMode) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(6.dp)
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(9.dp))
+                            .background(Color.White)
+                            .clickable { onLongPress() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = androidx.compose.ui.res.painterResource(id = com.example.myapplicationkoG.R.drawable.deletedesign),
+                            contentDescription = "Delete design",
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
             Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)) {

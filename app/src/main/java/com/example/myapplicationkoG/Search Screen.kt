@@ -153,7 +153,7 @@ fun SearchScreen() {
                     if (keyword.isNotEmpty()) {
                         IconButton(onClick = { keyword = "" }) {
                             Icon(
-                                imageVector = Icons.Default.Close,
+                                painter = painterResource(id = R.drawable.close),
                                 contentDescription = "Clear",
                                 tint = Color.Gray
                             )

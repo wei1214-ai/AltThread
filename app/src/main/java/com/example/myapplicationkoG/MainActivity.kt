@@ -80,6 +80,7 @@ class MainActivity : ComponentActivity() {
                     onDismissSharedPost = { sharedPostIdState.value = null },
                     passwordRecoveryRequested = passwordRecoveryState.value,
                     onDismissPasswordRecovery = { passwordRecoveryState.value = false },
+                    onOpenChallengeSource = { sourcePost -> sharedPostIdState.value = sourcePost.id },
                     themeMode = themeMode,
                     onThemeModeChanged = { newThemeMode ->
                         savedThemeMode = newThemeMode.name
@@ -128,6 +129,7 @@ fun AltThreadApp(
     onDismissSharedPost: () -> Unit = {},
     passwordRecoveryRequested: Boolean = false,
     onDismissPasswordRecovery: () -> Unit = {},
+    onOpenChallengeSource: ((Post) -> Unit)? = null,
     themeMode: ThemeMode,
     onThemeModeChanged: (ThemeMode) -> Unit
 ) {
@@ -176,8 +178,7 @@ fun AltThreadApp(
         if (!sharedPostId.isNullOrEmpty()) {
             isLoadingSharedPost = true
             try {
-                val allPosts = postRepository.getPosts()
-                sharedPost = allPosts.find { it.id == sharedPostId }
+                sharedPost = postRepository.getPostById(sharedPostId)
             } catch (e: Exception) {
                 e.printStackTrace()
             } finally {
@@ -204,7 +205,8 @@ fun AltThreadApp(
                         onUserClick = {userId, username, avatarUrl ->
                             onDismissSharedPost()
                             navigateToUserProfile(userId, username, avatarUrl)
-                        }
+                        },
+                        onOpenChallengeSource = onOpenChallengeSource
                     )
                 } else {
                     onDismissSharedPost()
@@ -283,7 +285,7 @@ fun AltThreadApp(
                                 val frontFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawFront, "challenge_front") }
                                 val backFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawBack, "challenge_back") }
                                 if (frontFile.length() == 0L || backFile.length() == 0L) error("Downloaded file is empty")
-                                com.example.myapplicationkoG.ui.editor.ChallengeSession.stage(post.clothingTitle, post.caption)
+                                com.example.myapplicationkoG.ui.editor.ChallengeSession.stage(post.id, post.clothingTitle, post.caption)
                                 garmentInputVm.clearAll()
                                 garmentInputVm.loadDesignPaths(frontFile, backFile)
                                 navController.navigate(Screen.Editor.route)
@@ -293,7 +295,8 @@ fun AltThreadApp(
                                 android.widget.Toast.makeText(ctx, "Failed to load challenge: $msg", android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
-                    }
+                    },
+                    onOpenChallengeSource = onOpenChallengeSource
                 )
             }
             composable(Screen.Search.route) { SearchScreen() }
@@ -412,7 +415,14 @@ fun AltThreadApp(
                         val repo = DesignRepository()
                         MainScope().launch {
                             val (front, back) = repo.ensureLocalFiles(ctx, row)
-                            garmentInputVm.loadDesignPaths(front, back)
+                            com.example.myapplicationkoG.ui.editor.ChallengeSession.postId = null
+                            garmentInputVm.openSavedDesign(
+                                id = row.id,
+                                name = row.name,
+                                front = front,
+                                back = back,
+                                challengePostId = row.state.challengePostId
+                            )
                             DesignSession.stage(
                                 dye = row.state.dye.mapKeys {
                                     com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)

@@ -41,10 +41,18 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 
     var openDesignId: String? = null
     var openDesignName: String = ""
+    var openDesignChallengePostId: String? = null
 
-    fun openSavedDesign(id: String, name: String, front: File, back: File) {
+    fun openSavedDesign(
+        id: String,
+        name: String,
+        front: File,
+        back: File,
+        challengePostId: String? = null
+    ) {
         openDesignId = id
         openDesignName = name
+        openDesignChallengePostId = challengePostId
         loadDesignPaths(front, back)
     }
 
@@ -69,6 +77,7 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         _state.value = GarmentInputUiState()
         openDesignId = null
         openDesignName = ""
+        openDesignChallengePostId = null
     }
 
     fun onPickedImage(side: GarmentSideId, uri: Uri) {
