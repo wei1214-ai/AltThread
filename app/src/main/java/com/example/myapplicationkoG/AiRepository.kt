@@ -72,7 +72,7 @@ class AiRepository {
         }
         messages.add(OrMessage("user", userMessage))
 
-        // 仅打包 messages 提交给 Edge Function，Model 和 API Key 由服务端托管
+        // Only send messages to Edge Function, Model and API Key are managed server-side
         val req = SupabaseFunctionRequest(messages = messages)
         val bodyStr = json.encodeToString(SupabaseFunctionRequest.serializer(), req)
 

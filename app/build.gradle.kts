@@ -45,7 +45,7 @@ android {
     }
 
     compileOptions {
-        // 💡 保持与 jvmToolchain(20) 严格一致
+        // Keep consistent with jvmToolchain(20)
         sourceCompatibility = JavaVersion.VERSION_20
         targetCompatibility = JavaVersion.VERSION_20
     }
