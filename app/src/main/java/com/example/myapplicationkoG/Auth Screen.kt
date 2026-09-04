@@ -387,7 +387,7 @@ fun AuthScreen(
                     ) {
                         Text(
                             text = "Forgot password?",
-                            color = MidnightBlue,
+                            color = textColorForTheme(MidnightBlue),
                             fontWeight = FontWeight.Bold,
                             fontSize = 14.sp
                         )
