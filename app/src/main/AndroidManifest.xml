@@ -45,7 +45,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data
                     android:scheme="altthread"
-                    android:host="reset-password" />
+                    android:host="login" />
             </intent-filter>
 
         </activity>

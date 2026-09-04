@@ -81,7 +81,7 @@ fun FollowListScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = MidnightBlue
+                    tint = textColorForTheme(MidnightBlue)
                 )
             }
 
@@ -89,7 +89,7 @@ fun FollowListScreen(
                 text = if (showFollowers) "Followers" else "Following",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MidnightBlue
+                color = textColorForTheme(MidnightBlue)
             )
         }
 
@@ -111,7 +111,7 @@ fun FollowListScreen(
                     } else {
                         "Not following anyone yet."
                     },
-                    color = Color.Gray
+                    color = textColorForTheme(Color.Gray)
                 )
             }
         } else {
@@ -146,12 +146,12 @@ fun FollowListScreen(
                             Text(
                                 text = user.username ?: "User",
                                 fontWeight = FontWeight.Bold,
-                                color = MidnightBlue
+                                color = textColorForTheme(MidnightBlue)
                             )
 
                             Text(
                                 text = "@${user.username ?: "user"}",
-                                color = Color.Gray,
+                                color = textColorForTheme(Color.Gray),
                                 fontSize = 13.sp
                             )
                         }

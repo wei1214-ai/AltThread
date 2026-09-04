@@ -42,7 +42,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
     PasswordPage(title = "Forgot password?") {
         Text(
             text = "Enter your email and we will send a verification link.",
-            color = Color.DarkGray,
+            color = textColorForTheme(Color.DarkGray),
             fontSize = 14.sp
         )
         Spacer(Modifier.height(16.dp))
@@ -65,7 +65,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
                 try {
                     supabase.auth.resetPasswordForEmail(
                         email = email.trim(),
-                        redirectUrl = "altthread://reset-password"
+                        redirectUrl = "altthread://login/reset-password"
                         )
                     isError = false
                     message = "Verification email sent. Open its link to choose a new password."
@@ -84,7 +84,7 @@ fun ForgotPasswordScreen(onBack: () -> Unit) {
         Spacer(Modifier.height(24.dp))
         Text(
             text = "Back to login",
-            color = MidnightBlue,
+            color = textColorForTheme(MidnightBlue),
             fontWeight = FontWeight.Bold,
             modifier = Modifier.clickable { onBack() }
         )
@@ -101,7 +101,11 @@ fun ResetPasswordScreen(onPasswordUpdated: () -> Unit) {
     val scope = rememberCoroutineScope()
 
     PasswordPage(title = "Create a new password") {
-        Text("Your email has been verified. Choose a new password.", color = Color.DarkGray, fontSize = 14.sp)
+        Text(
+            "Your email has been verified. Choose a new password.",
+            color = textColorForTheme(Color.DarkGray),
+            fontSize = 14.sp
+        )
         Spacer(Modifier.height(16.dp))
         OutlinedTextField(
             value = password,
@@ -169,7 +173,12 @@ private fun PasswordPage(title: String, content: @Composable () -> Unit) {
             .padding(24.dp),
         verticalArrangement = Arrangement.Center
     ) {
-        Text(title, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 26.sp)
+        Text(
+            title,
+            color = textColorForTheme(MidnightBlue),
+            fontWeight = FontWeight.Bold,
+            fontSize = 26.sp
+        )
         Spacer(Modifier.height(20.dp))
         content()
     }

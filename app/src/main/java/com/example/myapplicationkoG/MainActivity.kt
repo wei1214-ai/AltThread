@@ -90,12 +90,13 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun extractPostIdFromIntent(intent: Intent?) {
-        val data: Uri? = intent?.data
-        if (data != null && data.scheme == "altthread" && data.host == "post") {
-            val postId = data.lastPathSegment
-            if (!postId.isNullOrEmpty()) {
-                sharedPostIdState.value = postId
-            }
+        val data = intent?.data
+        if (
+            data?.scheme == "altthread" &&
+            data.host == "login" &&
+            data.path == "/reset-password"
+        ) {
+            passwordRecoveryState.value = true
         }
     }
 

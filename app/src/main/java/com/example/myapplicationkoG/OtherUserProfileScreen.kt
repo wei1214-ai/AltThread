@@ -100,7 +100,7 @@ fun OtherUserProfileScreen(
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowBack,
                     contentDescription = "Back",
-                    tint = MidnightBlue
+                    tint = textColorForTheme(MidnightBlue)
                 )
             }
 
@@ -110,7 +110,7 @@ fun OtherUserProfileScreen(
                 text = username,
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = MidnightBlue
+                color = textColorForTheme(MidnightBlue)
             )
         }
 
@@ -137,7 +137,7 @@ fun OtherUserProfileScreen(
                 text = "@$username",
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
-                color = MidnightBlue
+                color = textColorForTheme(MidnightBlue)
             )
 
             Spacer(modifier = Modifier.height(12.dp))
@@ -178,9 +178,9 @@ fun OtherUserProfileScreen(
                         text = "${userPosts.size}",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
-                    Text("Posts", fontSize = 12.sp, color = Color.Gray)
+                    Text("Posts", fontSize = 12.sp, color = textColorForTheme(Color.Gray))
                 }
 
                 Column(
@@ -193,9 +193,9 @@ fun OtherUserProfileScreen(
                         text = "$followerCount",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
-                    Text("Followers", fontSize = 12.sp, color = Color.Gray)
+                    Text("Followers", fontSize = 12.sp, color = textColorForTheme(Color.Gray))
                 }
 
                 Column(
@@ -208,9 +208,9 @@ fun OtherUserProfileScreen(
                         text = "$followingCount",
                         fontWeight = FontWeight.Bold,
                         fontSize = 16.sp,
-                        color = MidnightBlue
+                        color = textColorForTheme(MidnightBlue)
                     )
-                    Text("Following", fontSize = 12.sp, color = Color.Gray)
+                    Text("Following", fontSize = 12.sp, color = textColorForTheme(Color.Gray))
                 }
             }
         }
@@ -227,7 +227,7 @@ fun OtherUserProfileScreen(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "No posts yet.", color = Color.Gray)
+                Text(text = "No posts yet.", color = textColorForTheme(Color.Gray))
             }
         } else {
             LazyColumn(
