@@ -337,13 +337,13 @@ class PostRepository {
     }
 
     /**
-     * Dynamically toggles like status for the authenticated user and updates post like counter.
+     * Toggles the current user's row in post_likes. A Supabase trigger keeps the persisted
+     * posts.like_count value synchronized with that table.
      */
     suspend fun toggleLike(postId: String): Int = withContext(Dispatchers.IO) {
         try {
             val userId = getCurrentUserId() ?: return@withContext -1
 
-            // 1. Check if authenticated user already liked the post
             val userLiked = supabase.from("post_likes").select {
                 filter {
                     eq("post_id", postId)
@@ -351,7 +351,6 @@ class PostRepository {
                 }
             }.decodeList<SimplePostIdRow>().isNotEmpty()
 
-            // 2. Insert or remove like record
             if (userLiked) {
                 supabase.from("post_likes").delete {
                     filter {
@@ -372,20 +371,10 @@ class PostRepository {
                 )
             }
 
-            // 3. Query total updated count
-            val allLikes = supabase.from("post_likes").select {
-                filter { eq("post_id", postId) }
-            }.decodeList<SimplePostIdRow>()
-            val newLikeCount = allLikes.size
-
-            // 4. Update total count on the target post record
-            supabase.from("posts").update(
-                mapOf("like_count" to newLikeCount)
-            ) {
+            // The database trigger has already updated this value by the time this query runs.
+            supabase.from("posts").select {
                 filter { eq("id", postId) }
-            }
-
-            newLikeCount
+            }.decodeSingle<Post>().likeCount
         } catch (e: Exception) {
             e.printStackTrace()
             -1
