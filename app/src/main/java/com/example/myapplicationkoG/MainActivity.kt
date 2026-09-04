@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
     private fun extractPasswordRecoveryFromIntent(intent: Intent?) {
         val data = intent?.data
         val isRecoveryLink = data?.getQueryParameter("type") == "recovery" ||
-                data?.fragment?.contains("type=recovery") == true
+            data?.fragment?.contains("type=recovery") == true
 
         if (
             data?.scheme == "altthread" &&
@@ -137,6 +137,7 @@ fun AltThreadApp(
 
     var sharedPost by remember { mutableStateOf<Post?>(null) }
     var postsRefreshKey by remember { mutableIntStateOf(0) }
+    var homeChallengeFilter by remember { mutableStateOf("For You") }
     var isLoadingSharedPost by remember { mutableStateOf(false) }
     val postRepository = remember { PostRepository() }
 
@@ -253,23 +254,39 @@ fun AltThreadApp(
                 )
             }
             composable(Screen.Upload.route) {
-                CreatePostScreen(
-                    onPostPublished = {
+                UploadScreen(
+                    onClose = {
                         postsRefreshKey++
-
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo(Screen.Upload.route) { inclusive = true }
-                            launchSingleTop = true
-                        }
-                    },
-                    onBack = { navController.popBackStack() }
+                        navController.popBackStack()
+                    }
                 )
             }
             composable(Screen.Home.route) {
                 HomeScreen(
                     refreshKey = postsRefreshKey,
+                    initialFilter = homeChallengeFilter,
                     onUserClick = { userId,username,avatarUrl ->
                         navigateToUserProfile(userId, username, avatarUrl)
+                    },
+                    onAcceptChallenge = { post ->
+                        val ctx = navController.context
+                        MainScope().launch {
+                            try {
+                                val urls = post.mediaUrls.ifEmpty { listOf(post.mediaUrl) }
+                                val frontUrl = urls.getOrNull(0) ?: run {
+                                    android.widget.Toast.makeText(ctx, "No garment image", android.widget.Toast.LENGTH_SHORT).show()
+                                    return@launch
+                                }
+                                val backUrl = urls.getOrNull(1) ?: frontUrl
+                                val frontFile = downloadUrlToFile(ctx, frontUrl, "challenge_front")
+                                val backFile = downloadUrlToFile(ctx, backUrl, "challenge_back")
+                                garmentInputVm.clearAll()
+                                garmentInputVm.loadDesignPaths(frontFile, backFile)
+                                navController.navigate(Screen.GarmentInput.route)
+                            } catch (e: Exception) {
+                                android.widget.Toast.makeText(ctx, "Failed to load challenge: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                            }
+                        }
                     }
                 )
             }
@@ -279,6 +296,13 @@ fun AltThreadApp(
                     onStartDesign = {
                         garmentInputVm.clearAll()
                         navController.navigate(Screen.GarmentInput.route)
+                    },
+                    onAcceptChallenge = {
+                        homeChallengeFilter = "Challenge"
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.Studio.route) { inclusive = false }
+                            launchSingleTop = true
+                        }
                     },
                     onContinueDesign = {
                         navController.navigate(Screen.ContinueDesigns.route)
@@ -418,5 +442,17 @@ fun AltThreadApp(
                 )
             }
         }
+    }
+}
+
+private suspend fun downloadUrlToFile(context: android.content.Context, url: String, prefix: String): java.io.File {
+    return with(kotlinx.coroutines.Dispatchers.IO) {
+        val bytes = okhttp3.OkHttpClient().newCall(okhttp3.Request.Builder().url(url).build()).execute().use { resp ->
+            if (!resp.isSuccessful) error("Download failed: ${resp.code}")
+            resp.body?.bytes() ?: error("Empty body")
+        }
+        val out = java.io.File(context.cacheDir, "${prefix}_${System.currentTimeMillis()}.jpg").apply { parentFile?.mkdirs() }
+        out.writeBytes(bytes)
+        out
     }
 }
