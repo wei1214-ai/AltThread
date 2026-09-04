@@ -182,7 +182,7 @@ fun ProfileScreen(
     }
 
     LaunchedEffect(selectedTabIndex) {
-        if (selectedTabIndex == 2) {
+        if (selectedTabIndex == 1) {
             isSavedLoading = true
             errorMessage = ""
             try {
@@ -199,7 +199,7 @@ fun ProfileScreen(
     selectedPostForDetail?.let { selectedPost ->
         Dialog(onDismissRequest = {
             selectedPostForDetail = null
-            if (selectedTabIndex == 2) {
+            if (selectedTabIndex == 1) {
                 scope.launch { savedPosts = postRepository.getFavouritePosts() }
             }
         }) {
@@ -275,7 +275,7 @@ fun ProfileScreen(
                                 .align(Alignment.BottomEnd)
                                 .size(28.dp)
                                 .clip(RoundedCornerShape(8.dp))
-                                .background(White)
+                                .background(Cyan)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Edit,
@@ -382,58 +382,6 @@ fun ProfileScreen(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(120.dp)
-                        .clip(RoundedCornerShape(25.dp))
-                ) {
-                    Image(
-                        painter = painterResource(id = R.drawable.wardrobe),
-                        contentDescription = "Wardrobe",
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .alpha(0.7f)
-                            .clickable { }
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .background(
-                                brush = Brush.verticalGradient(
-                                    colors = listOf(
-                                        Color.Transparent,
-                                        Color.Transparent,
-                                        MidnightBlue.copy(alpha = 1.0f)
-                                    )
-                                )
-                            )
-                    )
-                    Column(
-                        modifier = Modifier
-                            .align(Alignment.BottomStart)
-                            .padding(all = 16.dp)
-                    ) {
-                        Text(
-                            text = "Digital Wardrobe",
-                            fontSize = 20.sp,
-                            fontWeight = FontWeight.ExtraBold,
-                            color = textColorForTheme(Cyan)
-                        )
-                    }
-                    Icon(
-                        painter = painterResource(id = R.drawable.rightarrow),
-                        contentDescription = null,
-                        tint = White,
-                        modifier = Modifier
-                            .size(60.dp)
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 16.dp)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(16.dp))
-
                 CustomTabBar(
                     selectedTabIndex = selectedTabIndex,
                     onTabSelected = { index -> selectedTabIndex = index }
@@ -512,17 +460,6 @@ fun ProfileScreen(
             }
 
             1 -> {
-                items(15) {
-                    Box(
-                        modifier = Modifier
-                            .aspectRatio(1f)
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(MaterialTheme.colorScheme.surfaceVariant)
-                    )
-                }
-            }
-
-            2 -> {
                 if (isSavedLoading) {
                     item(span = { GridItemSpan(maxLineSpan) }) {
                         Box(

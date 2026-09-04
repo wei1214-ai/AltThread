@@ -60,6 +60,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -180,15 +181,12 @@ fun PostCard(
     var showFullScreenViewer by remember { mutableStateOf(false) }
     var fullScreenInitialPage by remember { mutableIntStateOf(0) }
 
-    var isLiked by remember { mutableStateOf(post.isLikedByCurrentUser) }
-    var likeCount by remember { mutableIntStateOf(post.likeCount) }
+    // LazyColumn disposes cards that leave the viewport.  Keep interaction state
+    // saveable and scoped to the post ID so it is restored when this card is
+    // composed again after scrolling back to it.
+    var isLiked by rememberSaveable(post.id) { mutableStateOf(post.isLikedByCurrentUser) }
+    var likeCount by rememberSaveable(post.id) { mutableIntStateOf(post.likeCount) }
     var isSaved by remember { mutableStateOf(post.isFavoritedByCurrentUser) }
-
-    LaunchedEffect(post) {
-        isLiked = post.isLikedByCurrentUser
-        likeCount = post.likeCount
-        isSaved = post.isFavoritedByCurrentUser
-    }
 
     val doubleTapHeartScale = remember { Animatable(0f) }
 
