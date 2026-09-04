@@ -1,9 +1,8 @@
 package com.example.myapplicationkoG.ui.editor
 
+import android.graphics.drawable.ColorDrawable
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
@@ -46,7 +45,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -75,220 +78,222 @@ fun AiChatDrawer(
             listState.animateScrollToItem(messages.size - 1)
         }
     }
-
-    Box(modifier = modifier.fillMaxSize()) {
-        // Scrim
-        AnimatedVisibility(
-            visible = visible,
-            enter = fadeIn(tween(200)),
-            exit = fadeOut(tween(200))
-        ) {
+    if (!visible) return
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        (LocalView.current.parent as? DialogWindowProvider)?.window?.let { w ->
+            w.setDimAmount(0f)
+            w.setBackgroundDrawable(ColorDrawable(android.graphics.Color.TRANSPARENT))
+        }
+        Box(modifier = modifier.fillMaxSize()) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(Color.Black.copy(alpha = 0.35f))
                     .clickable { onDismiss() }
             )
-        }
 
-        // Drawer
-        AnimatedVisibility(
-            visible = visible,
-            modifier = Modifier.align(Alignment.CenterEnd),
-            enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(280)),
-            exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(280))
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxHeight()
-                    .width(320.dp)
-                    .clip(RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
-                    .background(Color.White)
+            // Drawer rides the keyboard: dialog window resizes for IME
+            AnimatedVisibility(
+                visible = true,
+                modifier = Modifier.align(Alignment.TopEnd),
+                enter = slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(280)),
+                exit = slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(280))
             ) {
-                // Header
-                Row(
+                Column(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .background(MidnightBlue)
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
+                        .fillMaxHeight()
+                        .width(320.dp)
+                        .clip(RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
+                        .background(Color.White)
                 ) {
-                    Column {
-                        Text(
-                            text = "AI Stylist",
-                            color = Color.White,
-                            fontWeight = FontWeight.ExtraBold,
-                            fontSize = 18.sp
-                        )
-                        Text(
-                            text = "Powered by AI",
-                            color = Cyan,
-                            fontSize = 11.sp
-                        )
-                    }
-                    IconButton(
-                        onClick = onDismiss,
+                    // Header
+                    Row(
                         modifier = Modifier
-                            .size(36.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Color.White.copy(alpha = 0.15f))
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Close,
-                            contentDescription = "Close",
-                            tint = Color.White,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
-                // Messages
-                if (messages.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
                             .fillMaxWidth()
-                            .padding(24.dp),
-                        contentAlignment = Alignment.Center
+                            .background(MidnightBlue)
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Box(
-                                modifier = Modifier
-                                    .size(64.dp)
-                                    .clip(CircleShape)
-                                    .background(Cyan),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = com.example.myapplicationkoG.R.drawable.ai),
-                                    contentDescription = "AI",
-                                    tint = MidnightBlue,
-                                    modifier = Modifier.size(36.dp)
+                        Column {
+                            Text(
+                                text = "AI Stylist",
+                                color = Color.White,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 18.sp
+                            )
+                            Text(
+                                text = "Powered by AI",
+                                color = Cyan,
+                                fontSize = 11.sp
+                            )
+                        }
+                        IconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.15f))
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Close",
+                                tint = Color.White,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
+                    // Messages
+                    if (messages.isEmpty()) {
+                        Box(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(64.dp)
+                                        .clip(CircleShape)
+                                        .background(Cyan),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = com.example.myapplicationkoG.R.drawable.ai),
+                                        contentDescription = "AI",
+                                        tint = MidnightBlue,
+                                        modifier = Modifier.size(36.dp)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text(
+                                    text = "Hi! I'm your AI Stylist",
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 15.sp,
+                                    color = MidnightBlue
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                                Text(
+                                    text = "Ask me about colors, fabrics, or design ideas!",
+                                    fontSize = 13.sp,
+                                    color = Color.Gray,
+                                    lineHeight = 18.sp
                                 )
                             }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Text(
-                                text = "Hi! I'm your AI Stylist",
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 15.sp,
-                                color = MidnightBlue
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text(
-                                text = "Ask me about colors, fabrics, or design ideas!",
-                                fontSize = 13.sp,
-                                color = Color.Gray,
-                                lineHeight = 18.sp
-                            )
                         }
-                    }
-                } else {
-                    LazyColumn(
-                        state = listState,
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(10.dp)
-                    ) {
-                        items(messages) { msg ->
-                            ChatBubble(msg)
-                        }
-                        if (isLoading) {
-                            item {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.Start
-                                ) {
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
-                                            .background(Color(0xFFF0F0F0))
-                                            .padding(horizontal = 14.dp, vertical = 10.dp)
+                    } else {
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            items(messages) { msg ->
+                                ChatBubble(msg)
+                            }
+                            if (isLoading) {
+                                item {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.Start
                                     ) {
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
+                                                .background(Color(0xFFF0F0F0))
+                                                .padding(horizontal = 14.dp, vertical = 10.dp)
                                         ) {
-                                            CircularProgressIndicator(
-                                                modifier = Modifier.size(14.dp),
-                                                color = MidnightBlue,
-                                                strokeWidth = 2.dp
-                                            )
-                                            Text("Thinking...", fontSize = 13.sp, color = Color.Gray)
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                CircularProgressIndicator(
+                                                    modifier = Modifier.size(14.dp),
+                                                    color = MidnightBlue,
+                                                    strokeWidth = 2.dp
+                                                )
+                                                Text("Thinking...", fontSize = 13.sp, color = Color.Gray)
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
 
-                if (errorText != null) {
-                    Text(
-                        text = errorText!!,
-                        color = Color(0xFFD32F2F),
-                        fontSize = 11.sp,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
-                    )
-                }
-
-                // Input
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color.White)
-                        .padding(horizontal = 10.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    OutlinedTextField(
-                        value = inputText,
-                        onValueChange = { inputText = it },
-                        placeholder = { Text("Ask about your design...", fontSize = 13.sp, color = Color.Gray) },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(24.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MidnightBlue,
-                            unfocusedBorderColor = Color(0xFFE0E0E0),
-                            focusedContainerColor = Color(0xFFF8F8F8),
-                            unfocusedContainerColor = Color(0xFFF8F8F8)
-                        ),
-                        maxLines = 3
-                    )
-                    Box(
-                        modifier = Modifier
-                            .size(44.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (inputText.isNotBlank() && !isLoading) MidnightBlue else Color(0xFFE0E0E0))
-                            .clickable(enabled = inputText.isNotBlank() && !isLoading) {
-                                val text = inputText.trim()
-                                if (text.isEmpty()) return@clickable
-                                inputText = ""
-                                errorText = null
-                                messages = messages + ChatMessage("user", text, true)
-                                isLoading = true
-                                scope.launch {
-                                    try {
-                                        val history = messages.dropLast(1)
-                                        val reply = repo.sendMessage(text, history)
-                                        messages = messages + ChatMessage("model", reply, false)
-                                    } catch (e: Exception) {
-                                        errorText = e.message ?: "Failed to get response"
-                                    } finally {
-                                        isLoading = false
-                                    }
-                                }
-                            },
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Send,
-                            contentDescription = "Send",
-                            tint = if (inputText.isNotBlank() && !isLoading) Color.White else Color.Gray,
-                            modifier = Modifier.size(20.dp)
+                    if (errorText != null) {
+                        Text(
+                            text = errorText!!,
+                            color = Color(0xFFD32F2F),
+                            fontSize = 11.sp,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                         )
+                    }
+
+                    // Input
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .background(Color.White)
+                            .padding(horizontal = 10.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        OutlinedTextField(
+                            value = inputText,
+                            onValueChange = { inputText = it },
+                            placeholder = { Text("Ask about your design...", fontSize = 13.sp, color = Color.Gray) },
+                            modifier = Modifier.weight(1f),
+                            shape = RoundedCornerShape(24.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = MidnightBlue,
+                                unfocusedBorderColor = Color(0xFFE0E0E0),
+                                focusedContainerColor = Color(0xFFF8F8F8),
+                                unfocusedContainerColor = Color(0xFFF8F8F8)
+                            ),
+                            maxLines = 3
+                        )
+                        Box(
+                            modifier = Modifier
+                                .size(44.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (inputText.isNotBlank() && !isLoading) MidnightBlue else Color(0xFFE0E0E0))
+                                .clickable(enabled = inputText.isNotBlank() && !isLoading) {
+                                    val text = inputText.trim()
+                                    if (text.isEmpty()) return@clickable
+                                    inputText = ""
+                                    errorText = null
+                                    messages = messages + ChatMessage("user", text, true)
+                                    isLoading = true
+                                    scope.launch {
+                                        try {
+                                            val history = messages.dropLast(1)
+                                            val reply = repo.sendMessage(text, history)
+                                            messages = messages + ChatMessage("model", reply, false)
+                                        } catch (e: Exception) {
+                                            errorText = e.message ?: "Failed to get response"
+                                        } finally {
+                                            isLoading = false
+                                        }
+                                    }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Send,
+                                contentDescription = "Send",
+                                tint = if (inputText.isNotBlank() && !isLoading) Color.White else Color.Gray,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     }
                 }
             }

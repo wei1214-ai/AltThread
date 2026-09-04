@@ -122,7 +122,7 @@ fun StudioScreen(
                 )
                 StudioCard(
                     imageRes = R.drawable.studiobutton3,
-                    title = "Continue Previous Design",
+                    title = "Previous Design Space",
                     onClick = onContinueDesign
                 )
             }

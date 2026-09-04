@@ -109,7 +109,7 @@ class MainActivity : ComponentActivity() {
     private fun extractPasswordRecoveryFromIntent(intent: Intent?) {
         val data = intent?.data
         val isRecoveryLink = data?.getQueryParameter("type") == "recovery" ||
-            data?.fragment?.contains("type=recovery") == true
+                data?.fragment?.contains("type=recovery") == true
 
         if (
             data?.scheme == "altthread" &&
@@ -422,12 +422,10 @@ fun AltThreadApp(
                                 buttons = row.state.buttons.mapKeys {
                                     com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)
                                 }.mapValues { (_, list) ->
-                                    list.map { PlacedButton(pos = Offset(it.x, it.y), scale = it.scale, color = androidx.compose.ui.graphics.Color(it.color)) }
+                                    list.map { PlacedButton(pos = Offset(it.x, it.y), scale = it.scale, color = androidx.compose.ui.graphics.Color(it.color), style = it.style, rotation = it.rotation) }
                                 }
                             )
-                            navController.navigate(Screen.Editor.route) {
-                                popUpTo(Screen.ContinueDesigns.route) { inclusive = true }
-                            }
+                            navController.navigate(Screen.Editor.route)
                         }
                     },
                     onBack = { navController.popBackStack() }

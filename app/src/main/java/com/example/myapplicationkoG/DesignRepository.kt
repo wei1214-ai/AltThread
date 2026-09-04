@@ -21,7 +21,9 @@ data class SavedButton(
     val x: Float,
     val y: Float,
     val scale: Float,
-    val color: Int
+    val color: Int,
+    val style: Int = 0,
+    val rotation: Float = 0f
 )
 
 @Serializable
