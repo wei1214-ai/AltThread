@@ -110,7 +110,7 @@ fun UploadScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { PostRepository() }
 
-    var isPostMode by remember { mutableStateOf(true) }
+    var selectedTab by remember { mutableStateOf("Post") } // Post, Challenge, Design
 
     // Post states
     var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
@@ -142,25 +142,25 @@ fun UploadScreen(
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
 
-    // 判读 URI 是否为视频
+    // 判读 URI 是否为视�?
     fun isVideoUri(uri: Uri): Boolean {
         val type = context.contentResolver.getType(uri)
         return type?.startsWith("video/") == true || uri.toString().contains(".mp4")
     }
 
-    // 相册选择器：处理 1 个视频 或 最多 9 张图片的判断逻辑
+    // 相册选择器：处理 1 个视�?�?最�?9 张图片的判断逻辑
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
             val containsVideo = uris.any { isVideoUri(it) }
             if (containsVideo) {
-                // 如果包含视频，只取第 1 个视频，并提示视频只能上传 1 个
+                // 如果包含视频，只取第 1 个视频，并提示视频只能上�?1 �?
                 val videoUri = uris.first { isVideoUri(it) }
                 selectedUris = listOf(videoUri)
                 Toast.makeText(context, "Selected 1 video", Toast.LENGTH_SHORT).show()
             } else {
-                // 如果全都是图片，判断是否超出 9 张
+                // 如果全都是图片，判断是否超出 9 �?
                 if (selectedUris.any { isVideoUri(it) }) {
                     // 如果之前选的是视频，直接覆盖为新选的图片
                     selectedUris = uris.take(9)
@@ -343,21 +343,27 @@ fun UploadScreen(
             ) {
                 UploadTabItem(
                     text = "Post",
-                    isSelected = isPostMode,
-                    onClick = { isPostMode = true },
+                    isSelected = selectedTab == "Post",
+                    onClick = { selectedTab = "Post" },
                     modifier = Modifier.weight(1f)
                 )
                 UploadTabItem(
                     text = "Challenge",
-                    isSelected = !isPostMode,
-                    onClick = { isPostMode = false },
+                    isSelected = selectedTab == "Challenge",
+                    onClick = { selectedTab = "Challenge" },
+                    modifier = Modifier.weight(1f)
+                )
+                UploadTabItem(
+                    text = "Design",
+                    isSelected = selectedTab == "Design",
+                    onClick = { selectedTab = "Design" },
                     modifier = Modifier.weight(1f)
                 )
             }
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            if (isPostMode) {
+            if (selectedTab == "Post") {
                 // POST MODE ------------------------------------------------
                 Text("Create Post", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
                 Spacer(modifier = Modifier.height(4.dp))
@@ -367,7 +373,7 @@ fun UploadScreen(
                 var expanded by remember { mutableStateOf(false) }
                 ExposedDropdownMenuBox(
                     expanded = expanded,
-                    onExpandedChange = { if (isPostMode && !isUploading) expanded = !expanded }
+                    onExpandedChange = { if (selectedTab == "Post" && !isUploading) expanded = !expanded }
                 ) {
                     OutlinedTextField(
                         value = selectedCategory,
@@ -376,7 +382,7 @@ fun UploadScreen(
                         label = { Text("Category") },
                         trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
                         modifier = Modifier.fillMaxWidth().menuAnchor(),
-                        enabled = isPostMode && !isUploading,
+                        enabled = selectedTab == "Post" && !isUploading,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = MidnightBlue,
                             unfocusedBorderColor = Color(0xFFE0E0E0)
@@ -391,12 +397,12 @@ fun UploadScreen(
                             DropdownMenuItem(
                                 text = { Text(category) },
                                 onClick = {
-                                    if (isPostMode) {
+                                    if (selectedTab == "Post") {
                                         selectedCategory = category
                                         expanded = false
                                     }
                                 },
-                                enabled = isPostMode
+                                enabled = selectedTab == "Post"
                             )
                         }
                     }
@@ -404,7 +410,7 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Bio / Description 输入框（已移除 Clothing Type）
+                // Bio / Description 输入框（已移�?Clothing Type�?
                 OutlinedTextField(
                     value = captionInput,
                     onValueChange = { captionInput = it },
@@ -436,7 +442,7 @@ fun UploadScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
                                 Spacer(modifier = Modifier.height(8.dp))
-                                // 修改后的文案：强调 1 个视频或最多 9 张图片
+                                // 修改后的文案：强�?1 个视频或最�?9 张图�?
                                 Text(
                                     "Tap the buttons below to add photos/videos\n(1 video or up to 9 photos)",
                                     color = Color.Gray,
@@ -707,7 +713,7 @@ private fun ChallengePickerBox(
                             Spacer(modifier = Modifier.height(4.dp))
                             AsyncImage(model = origUri, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFEEEEEE)), contentScale = ContentScale.Crop)
                         }
-                        Text("→", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                        Text(">", color = MidnightBlue, fontWeight = FontWeight.Bold)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             Text("Cutout", fontSize = 10.sp, color = MidnightBlue, fontWeight = FontWeight.Bold)
                             Spacer(modifier = Modifier.height(4.dp))
