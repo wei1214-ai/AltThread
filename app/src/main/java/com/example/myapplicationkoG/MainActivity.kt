@@ -272,19 +272,24 @@ fun AltThreadApp(
                         val ctx = navController.context
                         MainScope().launch {
                             try {
-                                val urls = post.mediaUrls.ifEmpty { listOf(post.mediaUrl) }
-                                val frontUrl = urls.getOrNull(0) ?: run {
+                                val urls = post.allMediaUrls.ifEmpty { listOf(post.mediaUrl) }
+                                val rawFront = urls.getOrNull(0)?.trim().orEmpty()
+                                if (rawFront.isBlank()) {
                                     android.widget.Toast.makeText(ctx, "No garment image", android.widget.Toast.LENGTH_SHORT).show()
                                     return@launch
                                 }
-                                val backUrl = urls.getOrNull(1) ?: frontUrl
-                                val frontFile = downloadUrlToFile(ctx, frontUrl, "challenge_front")
-                                val backFile = downloadUrlToFile(ctx, backUrl, "challenge_back")
+                                val rawBack = urls.getOrNull(1)?.trim().orEmpty().ifBlank { rawFront }
+                                android.widget.Toast.makeText(ctx, "Loading challenge...", android.widget.Toast.LENGTH_SHORT).show()
+                                val frontFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawFront, "challenge_front") }
+                                val backFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawBack, "challenge_back") }
+                                if (frontFile.length() == 0L || backFile.length() == 0L) error("Downloaded file is empty")
                                 garmentInputVm.clearAll()
                                 garmentInputVm.loadDesignPaths(frontFile, backFile)
-                                navController.navigate(Screen.GarmentInput.route)
+                                navController.navigate(Screen.Editor.route)
                             } catch (e: Exception) {
-                                android.widget.Toast.makeText(ctx, "Failed to load challenge: ${e.message}", android.widget.Toast.LENGTH_SHORT).show()
+                                e.printStackTrace()
+                                val msg = e.message?.takeIf { it.isNotBlank() } ?: e.toString()
+                                android.widget.Toast.makeText(ctx, "Failed to load challenge: $msg", android.widget.Toast.LENGTH_LONG).show()
                             }
                         }
                     }

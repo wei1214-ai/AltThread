@@ -252,17 +252,16 @@ fun PostCard(
             }
             val isChallengePost = post.postType.equals("Challenge", ignoreCase = true)
             if (isChallengePost && onAcceptChallenge != null) {
-                Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(6.dp))
                 Box(
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(25.dp))
+                        .clip(RoundedCornerShape(20.dp))
                         .background(com.example.myapplicationkoG.ui.theme.Cyan)
                         .clickable { onAcceptChallenge(post) }
-                        .padding(vertical = 10.dp),
+                        .padding(horizontal = 18.dp, vertical = 7.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Accept Challenge", fontWeight = FontWeight.Bold, color = MidnightBlue, fontSize = 14.sp)
+                    Text("Accept Challenge", fontWeight = FontWeight.Bold, color = MidnightBlue, fontSize = 12.sp)
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))

@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
@@ -39,6 +40,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.myapplicationkoG.ui.editor.AiChatDrawer
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 
@@ -101,6 +103,7 @@ fun HomeScreen(
         "Streetwear"
     )
 
+    var showAiChat by remember { mutableStateOf(false) }
     val backgroundColor = MaterialTheme.colorScheme.background
 
     // Load posts whenever selectedFilter changes
@@ -117,11 +120,13 @@ fun HomeScreen(
         }
     }
 
+    val filterScrollState = rememberScrollState()
     // Main content
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(backgroundColor),
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(backgroundColor),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
@@ -142,40 +147,43 @@ fun HomeScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
 
-                    // Notification button
+                    // AI button (same drawer as Design Space)
                     Box(
                         modifier = Modifier
                             .size(40.dp)
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(Cyan)
-                            .align(Alignment.CenterEnd),
+                            .clip(CircleShape)
+                            .background(MidnightBlue)
+                            .align(Alignment.CenterEnd)
+                            .clickable { showAiChat = true },
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = { /* TODO: Open notifications */ }) {
-                            Icon(
-                                painter = painterResource(id = R.drawable.notice),
-                                contentDescription = "Notice",
-                                tint = MidnightBlue,
-                                modifier = Modifier.size(30.dp)
-                            )
-                        }
+                        Text("✦", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                     }
                 }
-
-                // Filter row (带主题自适应边缘渐变)
+                
                 Row(
                     modifier = Modifier
                         .height(40.dp)
                         .drawWithContent {
                             drawContent()
-                            drawRect(
-                                brush = Brush.horizontalGradient(
-                                    0.85f to Color.Transparent,
-                                    1.0f to backgroundColor
+                            if (filterScrollState.canScrollBackward) {
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        0.0f to backgroundColor,
+                                        0.15f to Color.Transparent
+                                    )
                                 )
-                            )
+                            }
+                            if (filterScrollState.canScrollForward) {
+                                drawRect(
+                                    brush = Brush.horizontalGradient(
+                                        0.85f to Color.Transparent,
+                                        1.0f to backgroundColor
+                                    )
+                                )
+                            }
                         }
-                        .horizontalScroll(rememberScrollState()),
+                        .horizontalScroll(filterScrollState),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
@@ -248,6 +256,8 @@ fun HomeScreen(
                 )
             }
         }
+        }
+        AiChatDrawer(visible = showAiChat, onDismiss = { showAiChat = false })
     }
 }
 
