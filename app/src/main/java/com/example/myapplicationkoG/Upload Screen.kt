@@ -1,5 +1,6 @@
 package com.example.myapplicationkoG
 
+import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -17,7 +18,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -27,8 +27,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.AddPhotoAlternate
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -36,10 +40,12 @@ import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,14 +60,43 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
+import com.example.myapplicationkoG.di.ServiceLocator
+import com.example.myapplicationkoG.ui.theme.Cyan
+import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import java.io.File
+import java.util.UUID
+
+@Composable
+private fun UploadTabItem(
+    text: String,
+    isSelected: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(25.dp))
+            .background(if (isSelected) Cyan else Color.Transparent)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = text,
+            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
+            color = if (isSelected) MidnightBlue else Color.Gray,
+            fontSize = 14.sp
+        )
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,301 +107,516 @@ fun UploadScreen(
     val scope = rememberCoroutineScope()
     val repository = remember { PostRepository() }
 
-    // Selected images state
-    var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
+    var isPostMode by remember { mutableStateOf(true) }
 
-    // Publish Dialog input states
+    // Post states
+    var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
     var showPublishDialog by remember { mutableStateOf(false) }
-    var clothingTitleInput by remember { mutableStateOf("") } // Item Type (e.g. "Long Sleeve")
-    var captionInput by remember { mutableStateOf("") }       // Bio / Description
+    var clothingTitleInput by remember { mutableStateOf("") }
+    var captionInput by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("Streetwear") }
     var isUploading by remember { mutableStateOf(false) }
-
     val categoriesList = listOf("Trend", "Vintage", "Streetwear", "Minimalist", "Casual")
 
-    // Gallery Launcher for up to 9 images from camera or gallery
+    // Challenge states - two garment images with processing
+    var frontOrigUri by remember { mutableStateOf<Uri?>(null) }
+    var backOrigUri by remember { mutableStateOf<Uri?>(null) }
+    var frontCutoutPath by remember { mutableStateOf<String?>(null) }
+    var backCutoutPath by remember { mutableStateOf<String?>(null) }
+    var frontError by remember { mutableStateOf<String?>(null) }
+    var backError by remember { mutableStateOf<String?>(null) }
+    var isProcessingFront by remember { mutableStateOf(false) }
+    var isProcessingBack by remember { mutableStateOf(false) }
+
     val galleryLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.PickMultipleVisualMedia(maxItems = 9)
     ) { uris ->
         if (uris.isNotEmpty()) {
             selectedUris = uris
-            showPublishDialog = true // Trigger details dialog once images are selected
         }
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(Color.Black)
-            .imePadding() // Avoid keyboard obstruction
-    ) {
-        // Top Action Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(80.dp)
-                .padding(all = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            ActionIcon(iconResId = R.drawable.close, contentDescription = "Close") { onClose() }
-            ActionIcon(iconResId = R.drawable.flash_off, contentDescription = "Flash") { }
-            ActionIcon(iconResId = R.drawable.setting, contentDescription = "Settings") { }
+    // Challenge pickers - single image
+    val pickFrontLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            frontOrigUri = it
+            frontError = null
+            frontCutoutPath = null
+            isProcessingFront = true
+            scope.launch {
+                try {
+                    val cutout = processChallengeImage(context, it)
+                    frontCutoutPath = cutout.absolutePath
+                    frontError = null
+                } catch (e: Exception) {
+                    frontError = e.message ?: "Could not detect garment"
+                    frontCutoutPath = null
+                } finally {
+                    isProcessingFront = false
+                }
+            }
         }
+    }
+    val pickBackLauncher = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
+        uri?.let {
+            backOrigUri = it
+            backError = null
+            backCutoutPath = null
+            isProcessingBack = true
+            scope.launch {
+                try {
+                    val cutout = processChallengeImage(context, it)
+                    backCutoutPath = cutout.absolutePath
+                    backError = null
+                } catch (e: Exception) {
+                    backError = e.message ?: "Could not detect garment"
+                    backCutoutPath = null
+                } finally {
+                    isProcessingBack = false
+                }
+            }
+        }
+    }
 
-        // Camera Preview Placeholder
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .background(Color.White)
-        ) {
-            Text(
-                text = "Camera Preview Area",
-                color = Color.Black,
-                modifier = Modifier.align(Alignment.Center)
+    Scaffold(
+        containerColor = Color.White,
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = { Text("Upload", fontWeight = FontWeight.ExtraBold, color = MidnightBlue, fontSize = 22.sp) },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
+                navigationIcon = {
+                    IconButton(onClick = onClose) {
+                        Icon(Icons.Default.ArrowBack, contentDescription = "Back", tint = MidnightBlue)
+                    }
+                }
             )
         }
-
-        // Shutter & Controls Dock
-        Box(
+    ) { padding ->
+        Column(
             modifier = Modifier
-                .fillMaxWidth()
-                .height(140.dp)
-                .padding(all = 16.dp)
+                .fillMaxSize()
+                .padding(padding)
+                .background(Color.White)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp, vertical = 16.dp)
         ) {
+            // Top radio tabs - Post / Challenge (like AuthScreen Login/Register)
             Row(
-                modifier = Modifier.align(Alignment.CenterStart),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                ActionIcon(iconResId = R.drawable.gallery, contentDescription = "Gallery") {
-                    galleryLauncher.launch(
-                        PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                    )
-                }
-                ActionIcon(iconResId = R.drawable.wardrobebutton, contentDescription = "Tag Clothes") { }
-            }
-
-            // Capture / Action Button
-            Box(
                 modifier = Modifier
-                    .align(Alignment.Center)
-                    .size(80.dp)
-                    .clip(CircleShape)
-                    .background(Color.White.copy(alpha = 0.2f))
-                    .border(width = 4.dp, Color.White, CircleShape)
-                    .clickable {
-                        // 如果之前选了图但关闭了弹窗，点击快门可重新唤起输入弹窗
-                        if (selectedUris.isNotEmpty()) {
-                            showPublishDialog = true
-                        } else {
-                            galleryLauncher.launch(
-                                PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
-                            )
-                        }
-                    },
-                contentAlignment = Alignment.Center
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(25.dp))
+                    .background(LightGray)
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(60.dp)
-                        .clip(CircleShape)
-                        .background(Color.White)
+                UploadTabItem(
+                    text = "Post",
+                    isSelected = isPostMode,
+                    onClick = { isPostMode = true },
+                    modifier = Modifier.weight(1f)
+                )
+                UploadTabItem(
+                    text = "Challenge",
+                    isSelected = !isPostMode,
+                    onClick = { isPostMode = false },
+                    modifier = Modifier.weight(1f)
                 )
             }
 
-            ActionIcon(
-                modifier = Modifier.align(Alignment.CenterEnd),
-                iconResId = R.drawable.flip_camera,
-                contentDescription = "Flip Camera"
-            ) { }
-        }
-    }
+            Spacer(modifier = Modifier.height(20.dp))
 
-    // Publish Details Input Dialog
-    if (showPublishDialog) {
-        Dialog(onDismissRequest = {
-            if (!isUploading) {
-                showPublishDialog = false
-            }
-        }) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(MaterialTheme.colorScheme.surface)
-                    .padding(20.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally
+            if (isPostMode) {
+                // POST MODE ------------------------------------------------
+                Text("Create Post", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Share your outfit with the community", fontSize = 13.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Category - only available when Post selected
+                var expanded by remember { mutableStateOf(false) }
+                ExposedDropdownMenuBox(
+                    expanded = expanded,
+                    onExpandedChange = { if (isPostMode && !isUploading) expanded = !expanded }
                 ) {
-                    Text(
-                        text = "New Post Details",
-                        fontSize = 20.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MidnightBlue
-                    )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // ⚡ 图片预览区域 (展现选中的多张图片)
-                    if (selectedUris.isNotEmpty()) {
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(70.dp)
-                                .padding(vertical = 4.dp)
-                        ) {
-                            items(selectedUris) { uri ->
-                                AsyncImage(
-                                    model = uri,
-                                    contentDescription = "Selected Image",
-                                    modifier = Modifier
-                                        .size(60.dp)
-                                        .clip(RoundedCornerShape(8.dp)),
-                                    contentScale = ContentScale.Crop
-                                )
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(12.dp))
-                    }
-
-                    // 1. Clothing Title Input (Item Type)
                     OutlinedTextField(
-                        value = clothingTitleInput,
-                        onValueChange = { clothingTitleInput = it },
-                        label = { Text("Clothing Type (e.g. Long Sleeve, Pants)") },
-                        placeholder = { Text("Long Sleeve") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        enabled = !isUploading
+                        value = selectedCategory,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Category") },
+                        trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
+                        modifier = Modifier.fillMaxWidth().menuAnchor(),
+                        enabled = isPostMode && !isUploading,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MidnightBlue,
+                            unfocusedBorderColor = Color(0xFFE0E0E0)
+                        ),
+                        shape = RoundedCornerShape(12.dp)
                     )
-
-                    Spacer(modifier = Modifier.height(12.dp))
-
-                    // 2. Category Dropdown Selector
-                    var expanded by remember { mutableStateOf(false) }
-                    ExposedDropdownMenuBox(
+                    ExposedDropdownMenu(
                         expanded = expanded,
-                        onExpandedChange = { if (!isUploading) expanded = !expanded }
+                        onDismissRequest = { expanded = false }
                     ) {
-                        OutlinedTextField(
-                            value = selectedCategory,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Category") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = expanded) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor(),
-                            enabled = !isUploading
-                        )
-                        ExposedDropdownMenu(
-                            expanded = expanded,
-                            onDismissRequest = { expanded = false }
-                        ) {
-                            categoriesList.forEach { category ->
-                                DropdownMenuItem(
-                                    text = { Text(category) },
-                                    onClick = {
+                        categoriesList.forEach { category ->
+                            DropdownMenuItem(
+                                text = { Text(category) },
+                                onClick = {
+                                    if (isPostMode) {
                                         selectedCategory = category
                                         expanded = false
                                     }
-                                )
-                            }
+                                },
+                                enabled = isPostMode
+                            )
                         }
                     }
+                }
 
-                    Spacer(modifier = Modifier.height(12.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
-                    // 3. Caption / Bio Input Field
-                    OutlinedTextField(
-                        value = captionInput,
-                        onValueChange = { captionInput = it },
-                        label = { Text("Description / Bio") },
-                        placeholder = { Text("pink color cartoon clothes") },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(100.dp),
-                        maxLines = 4,
-                        enabled = !isUploading
-                    )
+                OutlinedTextField(
+                    value = clothingTitleInput,
+                    onValueChange = { clothingTitleInput = it },
+                    label = { Text("Clothing Type") },
+                    placeholder = { Text("Long Sleeve") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    enabled = !isUploading,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = captionInput,
+                    onValueChange = { captionInput = it },
+                    label = { Text("Description / Bio") },
+                    placeholder = { Text("pink color cartoon clothes") },
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    maxLines = 4,
+                    enabled = !isUploading,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
 
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    // Action Buttons (Cancel / Post)
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.End,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        TextButton(
-                            onClick = {
-                                showPublishDialog = false
-                                selectedUris = emptyList() // 清理选图状态
-                            },
-                            enabled = !isUploading
-                        ) {
-                            Text("Cancel", color = Color.Gray)
+                // Image picker area
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(Color(0xFFF8F8F8))
+                        .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(16.dp))
+                        .clickable {
+                            galleryLauncher.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         }
+                        .padding(16.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(28.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Tap to select images (up to 9)", color = Color.Gray, fontSize = 13.sp)
+                        if (selectedUris.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text("${selectedUris.size} images selected", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
+                        }
+                    }
+                }
 
-                        Spacer(modifier = Modifier.width(8.dp))
+                if (selectedUris.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(12.dp))
+                    LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        items(selectedUris) { uri ->
+                            AsyncImage(
+                                model = uri,
+                                contentDescription = null,
+                                modifier = Modifier.size(70.dp).clip(RoundedCornerShape(10.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        }
+                    }
+                }
 
-                        Button(
-                            onClick = {
-                                if (clothingTitleInput.isBlank()) {
-                                    Toast.makeText(context, "Please enter clothing type", Toast.LENGTH_SHORT).show()
-                                    return@Button
-                                }
+                Spacer(modifier = Modifier.height(24.dp))
 
-                                isUploading = true
-                                scope.launch {
-                                    try {
-                                        val success = repository.createPost(
-                                            context = context,
-                                            imageUris = selectedUris,
-                                            title = clothingTitleInput,
-                                            category = selectedCategory,
-                                            bio = captionInput
-                                        )
-
-                                        if (success) {
-                                            Toast.makeText(context, "Post created successfully!", Toast.LENGTH_SHORT).show()
-                                            showPublishDialog = false
-                                            onClose()
-                                        } else {
-                                            Toast.makeText(context, "Failed to create post.", Toast.LENGTH_SHORT).show()
-                                        }
-                                    } catch (e: Exception) {
-                                        Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
-                                    } finally {
-                                        isUploading = false
-                                    }
-                                }
-                            },
-                            colors = ButtonDefaults.buttonColors(containerColor = MidnightBlue),
-                            enabled = !isUploading
-                        ) {
-                            if (isUploading) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(20.dp),
-                                    color = Color.White,
-                                    strokeWidth = 2.dp
+                Button(
+                    onClick = {
+                        if (selectedUris.isEmpty()) {
+                            Toast.makeText(context, "Please select at least one image", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (clothingTitleInput.isBlank()) {
+                            Toast.makeText(context, "Please enter clothing type", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        isUploading = true
+                        scope.launch {
+                            try {
+                                val success = repository.createPost(
+                                    context = context,
+                                    imageUris = selectedUris,
+                                    title = clothingTitleInput,
+                                    category = selectedCategory,
+                                    bio = captionInput
                                 )
-                            } else {
-                                Text("Post", color = Color.White)
+                                if (success) {
+                                    Toast.makeText(context, "Post created!", Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                } else {
+                                    Toast.makeText(context, "Failed to create post", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isUploading = false
                             }
                         }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue),
+                    enabled = !isUploading
+                ) {
+                    if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                    else Text("Post", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+
+            } else {
+                // CHALLENGE MODE ------------------------------------------------
+                Text("Join Challenge", fontSize = 20.sp, fontWeight = FontWeight.ExtraBold, color = MidnightBlue)
+                Spacer(modifier = Modifier.height(4.dp))
+                Text("Upload front and back garment photos. Each will be processed to isolate the garment.", fontSize = 13.sp, color = Color.Gray)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // Front challenge box
+                ChallengePickerBox(
+                    label = "FRONT",
+                    origUri = frontOrigUri,
+                    cutoutPath = frontCutoutPath,
+                    isProcessing = isProcessingFront,
+                    error = frontError,
+                    onPick = { pickFrontLauncher.launch("image/*") }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                ChallengePickerBox(
+                    label = "BACK",
+                    origUri = backOrigUri,
+                    cutoutPath = backCutoutPath,
+                    isProcessing = isProcessingBack,
+                    error = backError,
+                    onPick = { pickBackLauncher.launch("image/*") }
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                OutlinedTextField(
+                    value = clothingTitleInput,
+                    onValueChange = { clothingTitleInput = it },
+                    label = { Text("Challenge Title") },
+                    placeholder = { Text("My upcycle look") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = captionInput,
+                    onValueChange = { captionInput = it },
+                    label = { Text("Description") },
+                    placeholder = { Text("Tell us your story...") },
+                    modifier = Modifier.fillMaxWidth().height(100.dp),
+                    maxLines = 4,
+                    shape = RoundedCornerShape(12.dp),
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = MidnightBlue)
+                )
+
+                Spacer(modifier = Modifier.height(24.dp))
+
+                val challengeReady = frontCutoutPath != null && backCutoutPath != null && !isProcessingFront && !isProcessingBack
+
+                Button(
+                    onClick = {
+                        if (!challengeReady) {
+                            Toast.makeText(context, "Please upload and process both front and back images", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        if (clothingTitleInput.isBlank()) {
+                            Toast.makeText(context, "Please enter title", Toast.LENGTH_SHORT).show()
+                            return@Button
+                        }
+                        isUploading = true
+                        scope.launch {
+                            try {
+                                val uris = listOf(Uri.fromFile(File(frontCutoutPath!!)), Uri.fromFile(File(backCutoutPath!!)))
+                                val success = repository.createPost(
+                                    context = context,
+                                    imageUris = uris,
+                                    title = clothingTitleInput,
+                                    category = "Challenge",
+                                    bio = captionInput,
+                                    isChallenge = true
+                                )
+                                if (success) {
+                                    Toast.makeText(context, "Challenge posted!", Toast.LENGTH_SHORT).show()
+                                    onClose()
+                                } else {
+                                    Toast.makeText(context, "Failed to post challenge", Toast.LENGTH_SHORT).show()
+                                }
+                            } catch (e: Exception) {
+                                Toast.makeText(context, "Error: ${e.message}", Toast.LENGTH_SHORT).show()
+                            } finally {
+                                isUploading = false
+                            }
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth().height(52.dp),
+                    shape = RoundedCornerShape(25.dp),
+                    colors = ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue),
+                    enabled = !isUploading && challengeReady
+                ) {
+                    if (isUploading) CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                    else Text("Post Challenge", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    // Publish dialog kept for backward compatibility - not used in new flow
+    if (showPublishDialog) {
+        Dialog(onDismissRequest = { if (!isUploading) showPublishDialog = false }) {
+            Box(
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(Color.White).padding(20.dp)
+            ) {
+                Text("Legacy dialog", color = Color.Gray)
+            }
+        }
+    }
+}
+
+@Composable
+private fun ChallengePickerBox(
+    label: String,
+    origUri: Uri?,
+    cutoutPath: String?,
+    isProcessing: Boolean,
+    error: String?,
+    onPick: () -> Unit
+) {
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(180.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(if (cutoutPath != null) Cyan.copy(alpha = 0.12f) else Color.White)
+            .border(1.5.dp, if (cutoutPath != null) MidnightBlue else Color(0xFFCCCCCC), RoundedCornerShape(16.dp))
+            .clickable { if (!isProcessing) onPick() }
+            .padding(12.dp)
+    ) {
+        Text(label, fontWeight = FontWeight.Bold, fontSize = 11.sp, color = MidnightBlue, modifier = Modifier.align(Alignment.TopStart))
+        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            when {
+                isProcessing -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        CircularProgressIndicator(modifier = Modifier.size(24.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Processing $label image...", fontSize = 12.sp, color = Color.Gray)
+                    }
+                }
+                cutoutPath != null -> {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Original", fontSize = 10.sp, color = Color.Gray)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            AsyncImage(model = origUri, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFFEEEEEE)), contentScale = ContentScale.Crop)
+                        }
+                        Text("→", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text("Cutout", fontSize = 10.sp, color = MidnightBlue, fontWeight = FontWeight.Bold)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            AsyncImage(model = cutoutPath, contentDescription = null, modifier = Modifier.size(80.dp).clip(RoundedCornerShape(10.dp)).background(Color.White).border(1.dp, MidnightBlue, RoundedCornerShape(10.dp)), contentScale = ContentScale.Crop)
+                        }
+                    }
+                }
+                origUri != null && error != null -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(error, color = Color.Red, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Tap to retry", color = Color.Gray, fontSize = 11.sp)
+                    }
+                }
+                else -> {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.AddPhotoAlternate, contentDescription = null, tint = Color(0xFF1B1B1B), modifier = Modifier.size(26.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text("Select $label photo", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = Color(0xFF1B1B1B))
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Text("Garment will be isolated", fontSize = 11.sp, color = Color.Gray)
                     }
                 }
             }
         }
+        // small album button bottom-right
+        Box(
+            modifier = Modifier.align(Alignment.BottomEnd).size(36.dp).clip(RoundedCornerShape(10.dp)).background(Cyan).clickable { if (!isProcessing) onPick() },
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(painter = painterResource(id = R.drawable.addfromalbum), contentDescription = null, tint = MidnightBlue, modifier = Modifier.size(18.dp))
+        }
     }
+    if (error != null && cutoutPath == null && !isProcessing) {
+        Spacer(modifier = Modifier.height(4.dp))
+        // error already shown inside box, no extra needed
+    }
+}
+
+private suspend fun processChallengeImage(context: android.content.Context, uri: Uri): File = withContext(Dispatchers.IO) {
+    val inference = ServiceLocator.inferencePipeline(context)
+    val cacheDir = File(context.filesDir, "garment_assets").apply { mkdirs() }
+    val imported = copyToCache(context, uri, cacheDir) ?: error("Could not import image")
+    try {
+        val out = File(cacheDir, "cutout2_${sha256(imported)}.png")
+        if (!(out.exists() && out.length() > 0L)) {
+            val result = inference.run(imported)
+            try {
+                savePng(result.cutout, out)
+            } finally {
+                runCatching { if (!result.cutout.isRecycled) result.cutout.recycle() }
+            }
+        }
+        if (!out.exists() || out.length() == 0L) error("Failed to process image - no garment detected")
+        // Validate that cutout actually contains non-transparent pixels (garment detected)
+        // If fails, pipeline would have thrown; but double-check via file size
+        out
+    } finally {
+        runCatching { imported.delete() }
+    }
+}
+
+private fun copyToCache(context: android.content.Context, uri: Uri, cacheDir: File): File? {
+    val target = File(cacheDir, "in_upload_${UUID.randomUUID()}.jpg")
+    return try {
+        context.contentResolver.openInputStream(uri)?.use { input -> target.outputStream().use { input.copyTo(it) } }
+        if (target.length() > 0L) target else null
+    } catch (_: Exception) { null }
+}
+
+private fun savePng(bitmap: Bitmap, file: File) {
+    file.outputStream().use { out -> bitmap.compress(Bitmap.CompressFormat.PNG, 100, out) }
+}
+
+private fun sha256(file: File): String {
+    val digest = java.security.MessageDigest.getInstance("SHA-256")
+    file.inputStream().use { ins ->
+        val buf = ByteArray(8192)
+        while (true) {
+            val n = ins.read(buf)
+            if (n <= 0) break
+            digest.update(buf, 0, n)
+        }
+    }
+    return digest.digest().joinToString("") { "%02x".format(it) }
 }
 
 @Composable
@@ -374,25 +624,16 @@ fun ActionIcon(
     modifier: Modifier = Modifier,
     @DrawableRes iconResId: Int,
     contentDescription: String,
-    size: Dp = 30.dp,
+    size: androidx.compose.ui.unit.Dp = 30.dp,
     tint: Color = Color.White,
     onClick: () -> Unit
 ) {
-    IconButton(
-        onClick = onClick,
-        modifier = modifier
-    ) {
-        Icon(
+    androidx.compose.material3.IconButton(onClick = onClick, modifier = modifier) {
+        androidx.compose.material3.Icon(
             painter = painterResource(id = iconResId),
             contentDescription = contentDescription,
             tint = tint,
             modifier = Modifier.size(size)
         )
     }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun UScreenPreview() {
-    UploadScreen()
 }

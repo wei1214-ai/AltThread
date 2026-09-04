@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -41,7 +42,7 @@ fun ColumnScope.StudioCard(
         colors = CardDefaults.cardColors(containerColor = White),
         modifier = modifier
             .fillMaxWidth()
-            .weight(1f)
+            .height(170.dp)
     ) {
         Column(
             modifier = Modifier
@@ -76,6 +77,7 @@ fun ColumnScope.StudioCard(
 @Composable
 fun StudioScreen(
     onStartDesign: () -> Unit = {},
+    onAcceptChallenge: () -> Unit = {},
     onContinueDesign: () -> Unit = {}
 ) {
     Box(
@@ -102,12 +104,11 @@ fun StudioScreen(
             )
             Column(
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxSize()
                     .padding(horizontal = 40.dp)
-                    .padding(bottom = 40.dp)
-                    .weight(1f),
+                    .padding(top = 8.dp, bottom = 24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(40.dp, Alignment.CenterVertically)
+                verticalArrangement = Arrangement.spacedBy(20.dp)
             ) {
                 StudioCard(
                     imageRes = R.drawable.studiobutton1,
@@ -116,7 +117,8 @@ fun StudioScreen(
                 )
                 StudioCard(
                     imageRes = R.drawable.studiobutton2,
-                    title = "Accept Community Challenge"
+                    title = "Accept Community Challenge",
+                    onClick = onAcceptChallenge
                 )
                 StudioCard(
                     imageRes = R.drawable.studiobutton3,

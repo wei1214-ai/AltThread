@@ -72,10 +72,15 @@ fun FilterChip(
 @Composable
 fun HomeScreen(
     refreshKey: Int = 0,
-    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
+    initialFilter: String = "For You",
+    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
+    onAcceptChallenge: ((Post) -> Unit)? = null
 ) {
     // Selected filter
-    var selectedFilter by remember { mutableStateOf("For You") }
+    var selectedFilter by remember { mutableStateOf(initialFilter) }
+    androidx.compose.runtime.LaunchedEffect(initialFilter) {
+        if (initialFilter != selectedFilter) selectedFilter = initialFilter
+    }
 
     // Posts from Supabase
     var posts by remember { mutableStateOf<List<Post>>(emptyList()) }
@@ -238,7 +243,8 @@ fun HomeScreen(
             ) { post ->
                 PostCard(
                     post = post,
-                    onUserClick = onUserClick
+                    onUserClick = onUserClick,
+                    onAcceptChallenge = onAcceptChallenge
                 )
             }
         }

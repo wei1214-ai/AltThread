@@ -3,6 +3,7 @@ package com.example.myapplicationkoG
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -210,15 +211,35 @@ private fun DesignBlock(
                 .fillMaxSize()
                 .padding(start = 10.dp, top = 10.dp, end = 10.dp, bottom = 0.dp)
         ) {
-            AsyncImage(
-                model = row.frontUrl,
-                contentDescription = row.name,
-                contentScale = ContentScale.Crop,
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .weight(1f)
                     .clip(RoundedCornerShape(16.dp))
-            )
+            ) {
+                AsyncImage(
+                    model = row.frontUrl,
+                    contentDescription = row.name,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier.fillMaxSize()
+                )
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .size(30.dp)
+                        .clip(RoundedCornerShape(9.dp))
+                        .background(Color.White)
+                        .clickable { onLongPress() },
+                    contentAlignment = Alignment.Center
+                ) {
+                    androidx.compose.foundation.Image(
+                        painter = androidx.compose.ui.res.painterResource(id = com.example.myapplicationkoG.R.drawable.deletedesign),
+                        contentDescription = "Delete design",
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
             Column(modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)) {
                 Text(
                     text = row.name.ifBlank { "Untitled" },

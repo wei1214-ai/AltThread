@@ -107,7 +107,8 @@ private fun formatPostTime(createdAt: String): String {
 fun PostCard(
     post: Post,
     modifier: Modifier = Modifier,
-    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null
+    onUserClick: ((userId: String, username: String, avatarUrl: String) -> Unit)? = null,
+    onAcceptChallenge: ((Post) -> Unit)? = null
 ) {
     val repository = remember { PostRepository() }
     val scope = rememberCoroutineScope()
@@ -224,6 +225,47 @@ fun PostCard(
             }
 
             Spacer(modifier = Modifier.height(10.dp))
+
+            // 1b. Description moved above image
+            val isValidTitle = remember(post.clothingTitle, post.clothingCategory) {
+                post.clothingTitle.isNotBlank() &&
+                        !post.clothingTitle.equals("For You", ignoreCase = true) &&
+                        !post.clothingTitle.equals(post.clothingCategory, ignoreCase = true)
+            }
+            if (isValidTitle) {
+                Text(
+                    text = post.clothingTitle,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 15.sp,
+                    color = textColorForTheme(MidnightBlue),
+                    modifier = Modifier.padding(horizontal = 4.dp)
+                )
+                Spacer(modifier = Modifier.height(2.dp))
+            }
+            if (post.caption.isNotBlank() && !post.caption.equals(post.clothingTitle, ignoreCase = true)) {
+                Text(
+                    text = post.caption,
+                    fontSize = 13.sp,
+                    color = textColorForTheme(Color.DarkGray),
+                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            val isChallengePost = post.postType.equals("Challenge", ignoreCase = true)
+            if (isChallengePost && onAcceptChallenge != null) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(25.dp))
+                        .background(com.example.myapplicationkoG.ui.theme.Cyan)
+                        .clickable { onAcceptChallenge(post) }
+                        .padding(vertical = 10.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Accept Challenge", fontWeight = FontWeight.Bold, color = MidnightBlue, fontSize = 14.sp)
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
 
             // 2. Post Media Container (Fix horizontal swipe + Single tap for Full Screen Viewer)
             Box(
@@ -425,34 +467,6 @@ fun PostCard(
             )
 
             Spacer(modifier = Modifier.height(4.dp))
-
-            // 5. Clothing Type / Title Display
-            val isValidTitle = remember(post.clothingTitle, post.clothingCategory) {
-                post.clothingTitle.isNotBlank() &&
-                        !post.clothingTitle.equals("For You", ignoreCase = true) &&
-                        !post.clothingTitle.equals(post.clothingCategory, ignoreCase = true)
-            }
-
-            if (isValidTitle) {
-                Text(
-                    text = post.clothingTitle,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 15.sp,
-                    color = textColorForTheme(MidnightBlue),
-                    modifier = Modifier.padding(horizontal = 4.dp)
-                )
-                Spacer(modifier = Modifier.height(2.dp))
-            }
-
-            // 6. Detailed Bio / Caption Display
-            if (post.caption.isNotBlank() && !post.caption.equals(post.clothingTitle, ignoreCase = true)) {
-                Text(
-                    text = post.caption,
-                    fontSize = 13.sp,
-                    color = textColorForTheme(Color.DarkGray),
-                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 2.dp)
-                )
-            }
         }
     }
 

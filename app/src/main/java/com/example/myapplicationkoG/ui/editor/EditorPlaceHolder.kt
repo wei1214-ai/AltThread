@@ -185,6 +185,16 @@ fun EditorPlaceHolder(
         redoStack = redoStack.dropLast(1)
         applySnapshot(next)
     }
+    fun clearDesign() {
+        dyeMap = emptyMap()
+        buttonMap = emptyMap()
+        dyedImage = null
+        undoStack = emptyList()
+        redoStack = emptyList()
+        dyeActive = false
+        selectedTool = null
+        Toast.makeText(context, "Design cleared", Toast.LENGTH_SHORT).show()
+    }
 
     // Leaving dye mode commits one step; entering restores committed values
     LaunchedEffect(selectedTool) {
@@ -365,6 +375,21 @@ fun EditorPlaceHolder(
                                 contentDescription = "Redo",
                                 tint = MidnightBlue,
                                 modifier = Modifier.size(18.dp)
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(Cyan)
+                                .clickable { clearDesign() },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                painter = painterResource(id = R.drawable.removedesign),
+                                contentDescription = "Remove design",
+                                tint = MidnightBlue,
+                                modifier = Modifier.size(20.dp)
                             )
                         }
                     }
