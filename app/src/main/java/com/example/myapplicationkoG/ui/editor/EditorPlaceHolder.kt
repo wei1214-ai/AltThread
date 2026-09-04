@@ -5,8 +5,6 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
-import androidx.compose.foundation.gestures.rememberTransformableState
-import androidx.compose.foundation.gestures.transformable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -45,11 +43,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
@@ -102,12 +102,8 @@ fun EditorPlaceHolder(
     }
 
     // Zoom state for garment
-    var scale by remember { mutableFloatStateOf(1.35f) }
+    var scale by remember { mutableFloatStateOf(1.4f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
-    val transformState = rememberTransformableState { zoomChange, offsetChange, _ ->
-        scale = (scale * zoomChange).coerceIn(0.8f, 4f)
-        offset += offsetChange
-    }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
@@ -115,8 +111,12 @@ fun EditorPlaceHolder(
     var saveName by remember { mutableStateOf("") }
     var isSaving by remember { mutableStateOf(false) }
     var showAiChat by remember { mutableStateOf(false) }
+    var showVton by remember { mutableStateOf(false) }
+    var vtonFile by remember { mutableStateOf<java.io.File?>(null) }
+    var vtonPreparing by remember { mutableStateOf(false) }
 
     fun saveCurrent() {
+        saveName = viewModel.openDesignName
         saveDialogVisible = true
     }
 
@@ -217,6 +217,43 @@ fun EditorPlaceHolder(
         buttonStyle = s
         buttonScale = buttonScale.coerceIn(minScaleFor(s), maxScaleFor(s))
         updateSelectedButton { it.copy(style = s) }
+    }
+
+    suspend fun buildCompositeGarment(): java.io.File? = withContext(Dispatchers.Default) {
+        val path = state.frontCutoutPath ?: return@withContext null
+        val dye = dyeMap[GarmentSideId.FRONT]
+        var bmp = runCatching {
+            if (dye != null) makeDyedBitmap(path, dye.color, dye.strength)
+            else android.graphics.BitmapFactory.decodeFile(path)
+        }.getOrNull() ?: return@withContext null
+        bmp = bmp.copy(android.graphics.Bitmap.Config.ARGB_8888, true)
+        val list = buttonMap[GarmentSideId.FRONT].orEmpty()
+        if (list.isNotEmpty()) {
+            val canvas = android.graphics.Canvas(bmp)
+            val paint = android.graphics.Paint(
+                android.graphics.Paint.ANTI_ALIAS_FLAG or android.graphics.Paint.FILTER_BITMAP_FLAG
+            )
+            val base = 0.05f * minOf(bmp.width, bmp.height)
+            list.forEach { btn ->
+                val tex = (buttonImgs[btn.style] ?: buttonImgs[0])?.asAndroidBitmap() ?: return@forEach
+                val (cw, ch) = buttonContent[btn.style] ?: buttonContent[0]
+                ?: (tex.width.toFloat() to tex.height.toFloat())
+                val target = (base * btn.scale).coerceIn(
+                    base * minScaleFor(btn.style), base * maxScaleFor(btn.style)
+                )
+                val s = target / maxOf(cw.coerceAtLeast(1f), ch.coerceAtLeast(1f))
+                val m = android.graphics.Matrix()
+                m.postTranslate(-tex.width / 2f, -tex.height / 2f)
+                m.postScale(s, s)
+                m.postRotate(btn.rotation)
+                m.postTranslate(btn.pos.x * bmp.width, btn.pos.y * bmp.height)
+                canvas.drawBitmap(tex, m, paint)
+            }
+        }
+        val out = java.io.File(context.cacheDir, "vton_garment_${System.currentTimeMillis()}.png")
+        out.outputStream().use { o -> bmp.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, o) }
+        runCatching { if (!bmp.isRecycled) bmp.recycle() }
+        out
     }
     fun clearDesign() {
         pushHistory()
@@ -488,6 +525,37 @@ fun EditorPlaceHolder(
                                     modifier = Modifier.size(18.dp)
                                 )
                             }
+                            Box(
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(Cyan)
+                                    .clickable(enabled = !vtonPreparing) {
+                                        if (state.frontCutoutPath == null) {
+                                            Toast.makeText(context, "No garment to try on", Toast.LENGTH_SHORT).show()
+                                            return@clickable
+                                        }
+                                        vtonPreparing = true
+                                        scope.launch {
+                                            vtonFile = runCatching { buildCompositeGarment() }.getOrNull()
+                                            vtonPreparing = false
+                                            if (vtonFile != null) showVton = true
+                                            else Toast.makeText(context, "Failed to prepare garment", Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (vtonPreparing) {
+                                    CircularProgressIndicator(modifier = Modifier.size(18.dp), color = MidnightBlue, strokeWidth = 2.dp)
+                                } else {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.wardrobebutton),
+                                        contentDescription = "Try On",
+                                        tint = MidnightBlue,
+                                        modifier = Modifier.size(20.dp)
+                                    )
+                                }
+                            }
                         }
                     }
                     Box(
@@ -525,7 +593,6 @@ fun EditorPlaceHolder(
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .transformable(state = transformState)
                                     .graphicsLayer(
                                         scaleX = scale,
                                         scaleY = scale,
@@ -537,13 +604,17 @@ fun EditorPlaceHolder(
                                     Image(
                                         bitmap = dyedImage!!,
                                         contentDescription = currentSide.name,
-                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)),
+                                        contentScale = ContentScale.Fit,
+                                        alignment = Alignment.Center
                                     )
                                 } else {
                                     AsyncImage(
                                         model = currentPath,
                                         contentDescription = currentSide.name,
-                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp))
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)),
+                                        contentScale = ContentScale.Fit,
+                                        alignment = Alignment.Center
                                     )
                                 }
                                 Box(
@@ -630,7 +701,7 @@ fun EditorPlaceHolder(
                                                             // 1) tap on an existing button selects it (inner disc only)
                                                             val hitIdx = curButtons.indexOfFirst { btn ->
                                                                 if ((buttonImgs[btn.style] ?: buttonImgs[0]) == null) return@indexOfFirst false
-                                                                val bBase = 0.05f * minOf(bwPx, bhPx)
+                                                                val bBase = 0.05f * minOf(bwPx, bhPx) * scale
                                                                 val bTarget = (bBase * btn.scale).coerceIn(bBase * minScaleFor(btn.style), bBase * maxScaleFor(btn.style))
                                                                 val c = garmentToOverlay(btn.pos.x, btn.pos.y)
                                                                 val dx = pos.x - c.x
@@ -673,7 +744,7 @@ fun EditorPlaceHolder(
                                     ) {
                                         val imgs = buttonImgs
                                         if (imgs.isNotEmpty()) {
-                                            val base = 0.05f * minOf(size.width, size.height)
+                                            val base = 0.05f * minOf(size.width, size.height) * scale
                                             curButtons.forEachIndexed { i, btn ->
                                                 val b = imgs[btn.style] ?: imgs[0] ?: return@forEachIndexed
                                                 val (cw, ch) = buttonContent[btn.style] ?: buttonContent[0] ?: (b.width.toFloat() to b.height.toFloat())
@@ -698,8 +769,10 @@ fun EditorPlaceHolder(
                         } else {
                             Text("No image", color = Color(0xFF999999))
                         }
-
                     }
+
+
+
                 }
 
                 Spacer(modifier = Modifier.height(10.dp))
@@ -716,7 +789,7 @@ fun EditorPlaceHolder(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Cyan)
                                 .clickable {
-                                    scale = 1.35f; offset = Offset.Zero
+                                    scale = 1.4f; offset = Offset.Zero
                                     currentSide = GarmentSideId.BACK
                                     dyeMap[GarmentSideId.BACK]?.let { dyeColor = it.color; dyeStrength = it.strength }
                                 }
@@ -757,7 +830,7 @@ fun EditorPlaceHolder(
                                 .clip(RoundedCornerShape(16.dp))
                                 .background(Cyan)
                                 .clickable {
-                                    scale = 1.35f; offset = Offset.Zero
+                                    scale = 1.4f; offset = Offset.Zero
                                     currentSide = GarmentSideId.FRONT
                                     dyeMap[GarmentSideId.FRONT]?.let { dyeColor = it.color; dyeStrength = it.strength }
                                 }
@@ -793,178 +866,179 @@ fun EditorPlaceHolder(
                     }
                 }
 
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .padding(top = 8.dp)
-                ) {
-                    if (selectedTool == 0) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color.White)
-                                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Text("Dye whole garment", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                                dyeColors.forEach { c ->
-                                    Box(
-                                        modifier = Modifier
-                                            .size(28.dp)
-                                            .clip(CircleShape)
-                                            .background(c)
-                                            .border(
-                                                2.dp,
-                                                if (dyeActive && dyeColor == c) MidnightBlue else Color.Transparent,
-                                                CircleShape
-                                            )
-                                            .clickable {
-                                                if (dyeActive && dyeColor == c) {
-                                                    dyeActive = false
-                                                } else {
-                                                    dyeColor = c
-                                                    dyeActive = true
-                                                }
-                                            }
-                                    )
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Strength", color = Color.Gray, fontSize = 11.sp)
-                            Slider(
-                                value = dyeStrength,
-                                onValueChange = { dyeStrength = it },
-                                valueRange = 0.2f..0.85f,
-                                modifier = Modifier.height(24.dp)
-                            )
-                        }
-                    }
-                    if (selectedTool == 1) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color.White)
-                                .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
-                                .padding(horizontal = 12.dp, vertical = 8.dp)
-                        ) {
-                            Text("Patch", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Text("Style", color = MidnightBlue, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                            Spacer(modifier = Modifier.height(6.dp))
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                LazyRow(
-                                    modifier = Modifier.weight(1f),
-                                    horizontalArrangement = Arrangement.spacedBy(10.dp)
-                                ) {
-                                    listOf(0 to "Round", 1 to "Square", 2 to "Black", 3 to "Ghost", 4 to "Bear", 5 to "Skate", 6 to "Smile").forEach { (style, name) ->
-                                        item(key = style) {
-                                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .size(44.dp)
-                                                        .clip(RoundedCornerShape(12.dp))
-                                                        .background(Color(0xFFF0F0F0))
-                                                        .border(
-                                                            2.dp,
-                                                            if (buttonStyle == style) MidnightBlue else Color.Transparent,
-                                                            RoundedCornerShape(12.dp)
-                                                        )
-                                                        .clickable { selectStyle(style) }
-                                                        .padding(6.dp),
-                                                    contentAlignment = Alignment.Center
-                                                ) {
-                                                    val bmp = buttonImgs[style]
-                                                    if (bmp != null) {
-                                                        Image(
-                                                            bitmap = bmp,
-                                                            contentDescription = name,
-                                                            modifier = Modifier.fillMaxSize()
-                                                        )
-                                                    }
-                                                }
-                                                Text(
-                                                    text = name,
-                                                    color = if (buttonStyle == style) MidnightBlue else Color.Gray,
-                                                    fontSize = 10.sp
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                val hasSelection = selectedButtonIdx in buttonMap[currentSide].orEmpty().indices
-                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(44.dp)
-                                            .clip(RoundedCornerShape(12.dp))
-                                            .background(if (hasSelection) Cyan else Color(0xFFE8E8E8))
-                                            .clickable(enabled = hasSelection) { deleteSelectedButton() },
-                                        contentAlignment = Alignment.Center
-                                    ) {
-                                        Icon(
-                                            painter = painterResource(id = R.drawable.deletedesign),
-                                            contentDescription = "Remove",
-                                            tint = if (hasSelection) MidnightBlue else Color.Gray,
-                                            modifier = Modifier.size(22.dp)
+
+
+                Spacer(modifier = Modifier.height(8.dp))
+                if (selectedTool == 0) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.White)
+                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text("Dye whole garment", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                            dyeColors.forEach { c ->
+                                Box(
+                                    modifier = Modifier
+                                        .size(28.dp)
+                                        .clip(CircleShape)
+                                        .background(c)
+                                        .border(
+                                            2.dp,
+                                            if (dyeActive && dyeColor == c) MidnightBlue else Color.Transparent,
+                                            CircleShape
                                         )
+                                        .clickable {
+                                            if (dyeActive && dyeColor == c) {
+                                                dyeActive = false
+                                            } else {
+                                                dyeColor = c
+                                                dyeActive = true
+                                            }
+                                        }
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        Text("Strength", color = Color.Gray, fontSize = 11.sp)
+                        Slider(
+                            value = dyeStrength,
+                            onValueChange = { dyeStrength = it },
+                            valueRange = 0.2f..0.85f,
+                            modifier = Modifier.height(24.dp)
+                        )
+                    }
+                }
+                if (selectedTool == 1) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(Color.White)
+                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 12.dp, vertical = 8.dp)
+                    ) {
+                        Text("Patch", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            LazyRow(
+                                modifier = Modifier.weight(1f).padding(end = 8.dp),
+                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            ) {
+                                listOf(0 to "Round", 1 to "Square", 2 to "Black", 3 to "Ghost", 4 to "Bear", 5 to "Skate", 6 to "Smile").forEach { (style, name) ->
+                                    item(key = style) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(44.dp)
+                                                    .clip(RoundedCornerShape(12.dp))
+                                                    .background(Color(0xFFF0F0F0))
+                                                    .border(
+                                                        2.dp,
+                                                        if (buttonStyle == style) MidnightBlue else Color.Transparent,
+                                                        RoundedCornerShape(12.dp)
+                                                    )
+                                                    .clickable { selectStyle(style) }
+                                                    .padding(6.dp),
+                                                contentAlignment = Alignment.Center
+                                            ) {
+                                                val bmp = buttonImgs[style]
+                                                if (bmp != null) {
+                                                    Image(
+                                                        bitmap = bmp,
+                                                        contentDescription = name,
+                                                        modifier = Modifier.fillMaxSize()
+                                                    )
+                                                }
+                                            }
+                                            Text(
+                                                text = name,
+                                                color = if (buttonStyle == style) MidnightBlue else Color.Gray,
+                                                fontSize = 10.sp
+                                            )
+                                        }
                                     }
-                                    Text(
-                                        text = "Remove",
-                                        color = if (hasSelection) MidnightBlue else Color.Gray,
-                                        fontSize = 10.sp
-                                    )
                                 }
                             }
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Size", color = Color.Gray, fontSize = 11.sp)
-                            val scaleMax = maxScaleFor(buttonStyle)
-                            val scaleMin = minScaleFor(buttonStyle)
-                            Slider(
-                                value = buttonScale.coerceIn(scaleMin, scaleMax),
-                                onValueChange = {
-                                    buttonScale = it.coerceIn(scaleMin, scaleMax)
-                                    val list = buttonMap[currentSide].orEmpty()
-                                    if (selectedButtonIdx in list.indices) {
-                                        if (sizeDragStart == null) {
-                                            sizeDragStart = list[selectedButtonIdx].scale
-                                            pushHistory()
+                            val hasSelection = selectedButtonIdx in buttonMap[currentSide].orEmpty().indices
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp)
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .background(if (hasSelection) Cyan else Color(0xFFE8E8E8))
+                                        .clickable(enabled = hasSelection) { deleteSelectedButton() },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = R.drawable.deletedesign),
+                                        contentDescription = "Remove",
+                                        tint = if (hasSelection) MidnightBlue else Color.Gray,
+                                        modifier = Modifier.size(22.dp)
+                                    )
+                                }
+                                Text(
+                                    text = "Remove",
+                                    color = if (hasSelection) MidnightBlue else Color.Gray,
+                                    fontSize = 10.sp
+                                )
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(2.dp))
+                        val scaleMax = maxScaleFor(buttonStyle)
+                        val scaleMin = minScaleFor(buttonStyle)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Size", color = Color.Gray, fontSize = 11.sp)
+                                Slider(
+                                    value = buttonScale.coerceIn(scaleMin, scaleMax),
+                                    onValueChange = {
+                                        buttonScale = it.coerceIn(scaleMin, scaleMax)
+                                        val list = buttonMap[currentSide].orEmpty()
+                                        if (selectedButtonIdx in list.indices) {
+                                            if (sizeDragStart == null) {
+                                                sizeDragStart = list[selectedButtonIdx].scale
+                                                pushHistory()
+                                            }
+                                            buttonMap = buttonMap + (currentSide to list.toMutableList().also { m -> m[selectedButtonIdx] = m[selectedButtonIdx].copy(scale = buttonScale) })
                                         }
-                                        buttonMap = buttonMap + (currentSide to list.toMutableList().also { m -> m[selectedButtonIdx] = m[selectedButtonIdx].copy(scale = buttonScale) })
-                                    }
-                                },
-                                onValueChangeFinished = { sizeDragStart = null },
-                                valueRange = scaleMin..scaleMax,
-                                modifier = Modifier.height(24.dp)
-                            )
-                            Spacer(modifier = Modifier.height(2.dp))
-                            Text("Rotate", color = Color.Gray, fontSize = 11.sp)
-                            Slider(
-                                value = buttonRotation,
-                                onValueChange = {
-                                    buttonRotation = it.coerceIn(-180f, 180f)
-                                    val list = buttonMap[currentSide].orEmpty()
-                                    if (selectedButtonIdx in list.indices) {
-                                        if (rotDragStart == null) {
-                                            rotDragStart = list[selectedButtonIdx].rotation
-                                            pushHistory()
+                                    },
+                                    onValueChangeFinished = { sizeDragStart = null },
+                                    valueRange = scaleMin..scaleMax,
+                                    modifier = Modifier.height(24.dp)
+                                )
+                            }
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text("Rotate", color = Color.Gray, fontSize = 11.sp)
+                                Slider(
+                                    value = buttonRotation,
+                                    onValueChange = {
+                                        buttonRotation = it.coerceIn(-180f, 180f)
+                                        val list = buttonMap[currentSide].orEmpty()
+                                        if (selectedButtonIdx in list.indices) {
+                                            if (rotDragStart == null) {
+                                                rotDragStart = list[selectedButtonIdx].rotation
+                                                pushHistory()
+                                            }
+                                            buttonMap = buttonMap + (currentSide to list.toMutableList().also { m -> m[selectedButtonIdx] = m[selectedButtonIdx].copy(rotation = buttonRotation) })
                                         }
-                                        buttonMap = buttonMap + (currentSide to list.toMutableList().also { m -> m[selectedButtonIdx] = m[selectedButtonIdx].copy(rotation = buttonRotation) })
-                                    }
-                                },
-                                onValueChangeFinished = { rotDragStart = null },
-                                valueRange = -180f..180f,
-                                modifier = Modifier.height(24.dp)
-                            )
-                            Text("Select a style above, then tap garment to place", color = Color.Gray, fontSize = 11.sp)
+                                    },
+                                    onValueChangeFinished = { rotDragStart = null },
+                                    valueRange = -180f..180f,
+                                    modifier = Modifier.height(24.dp)
+                                )
+                            }
                         }
                     }
                 }
@@ -1008,14 +1082,30 @@ fun EditorPlaceHolder(
                                 val backFile = File(backPath)
                                 val dyeSaved = dyeMap.mapValues { SavedDye(it.value.color.toArgb(), it.value.strength) }
                                 val btnSaved = buttonMap.mapValues { entry -> entry.value.map { SavedButton(it.pos.x, it.pos.y, it.scale, it.color.toArgb(), it.style, it.rotation) } }
-                                repo.saveDesign(
-                                    name = saveName.ifBlank { "Untitled design" },
-                                    frontFile = frontFile,
-                                    backFile = backFile,
-                                    dye = dyeSaved,
-                                    buttons = btnSaved
-                                )
-                                Toast.makeText(context, "Design saved!", Toast.LENGTH_SHORT).show()
+                                val existingId = viewModel.openDesignId
+                                if (existingId != null) {
+                                    val updated = repo.updateDesign(
+                                        rowId = existingId,
+                                        name = saveName.ifBlank { viewModel.openDesignName },
+                                        frontFile = frontFile,
+                                        backFile = backFile,
+                                        dye = dyeSaved,
+                                        buttons = btnSaved
+                                    )
+                                    viewModel.openDesignName = updated.name
+                                    Toast.makeText(context, "Design updated!", Toast.LENGTH_SHORT).show()
+                                } else {
+                                    val created = repo.saveDesign(
+                                        name = saveName.ifBlank { "Untitled design" },
+                                        frontFile = frontFile,
+                                        backFile = backFile,
+                                        dye = dyeSaved,
+                                        buttons = btnSaved
+                                    )
+                                    viewModel.openDesignId = created.id
+                                    viewModel.openDesignName = created.name
+                                    Toast.makeText(context, "Design saved!", Toast.LENGTH_SHORT).show()
+                                }
                             } catch (e: Exception) {
                                 Toast.makeText(context, "Save failed: ${e.message}", Toast.LENGTH_SHORT).show()
                             } finally {
@@ -1045,6 +1135,13 @@ fun EditorPlaceHolder(
         visible = showAiChat,
         onDismiss = { showAiChat = false }
     )
+
+    if (showVton) {
+        VtonDialog(
+            garmentFile = vtonFile,
+            onDismiss = { showVton = false }
+        )
+    }
 }
 
 private fun minScaleFor(style: Int): Float = if (style < 3) 0.125f else 0.5f

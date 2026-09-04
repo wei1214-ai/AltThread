@@ -64,6 +64,7 @@ fun ContinueDesignsScreen(
     val repo = remember { DesignRepository() }
     val scope = rememberCoroutineScope()
     var designs by remember { mutableStateOf<List<DesignRow>>(emptyList()) }
+    var thumbs by remember { mutableStateOf(mapOf<String, java.io.File>()) }
     var isLoading by remember { mutableStateOf(true) }
     var error by remember { mutableStateOf<String?>(null) }
     var deleteTarget by remember { mutableStateOf<DesignRow?>(null) }
@@ -73,6 +74,14 @@ fun ContinueDesignsScreen(
         error = null
         try {
             designs = repo.listMyDesigns()
+            val rendered = mutableMapOf<String, java.io.File>()
+            designs.forEach { row ->
+                runCatching {
+                    val front = repo.ensureFrontFile(context, row)
+                    rendered[row.id] = renderDesignThumb(context, row, front)
+                }
+            }
+            thumbs = rendered
         } catch (e: Exception) {
             error = e.message ?: "Failed to load designs"
         } finally {
@@ -176,6 +185,7 @@ fun ContinueDesignsScreen(
                         items(designs, key = { it.id }) { row ->
                             DesignBlock(
                                 row = row,
+                                thumbFile = thumbs[row.id],
                                 onClick = { onOpenDesign(row) },
                                 onLongPress = { deleteTarget = row }
                             )
@@ -191,6 +201,7 @@ fun ContinueDesignsScreen(
 @Composable
 private fun DesignBlock(
     row: DesignRow,
+    thumbFile: java.io.File?,
     onClick: () -> Unit,
     onLongPress: () -> Unit
 ) {
@@ -218,7 +229,7 @@ private fun DesignBlock(
                     .clip(RoundedCornerShape(16.dp))
             ) {
                 AsyncImage(
-                    model = row.frontUrl,
+                    model = thumbFile?.takeIf { it.exists() } ?: row.frontUrl,
                     contentDescription = row.name,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize()

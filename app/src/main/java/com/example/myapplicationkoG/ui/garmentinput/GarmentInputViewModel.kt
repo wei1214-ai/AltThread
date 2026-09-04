@@ -39,6 +39,15 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
 
     private val runId: String = UUID.randomUUID().toString()
 
+    var openDesignId: String? = null
+    var openDesignName: String = ""
+
+    fun openSavedDesign(id: String, name: String, front: File, back: File) {
+        openDesignId = id
+        openDesignName = name
+        loadDesignPaths(front, back)
+    }
+
     fun loadDesignPaths(front: File, back: File) {
         _state.update {
             it.copy(
@@ -58,6 +67,8 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         _state.value.backCutoutPath?.let { runCatching { File(it).delete() } }
         // Keep cacheDir but clear state
         _state.value = GarmentInputUiState()
+        openDesignId = null
+        openDesignName = ""
     }
 
     fun onPickedImage(side: GarmentSideId, uri: Uri) {

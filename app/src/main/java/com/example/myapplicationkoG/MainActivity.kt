@@ -416,7 +416,7 @@ fun AltThreadApp(
                         val repo = DesignRepository()
                         MainScope().launch {
                             val (front, back) = repo.ensureLocalFiles(ctx, row)
-                            garmentInputVm.loadDesignPaths(front, back)
+                            garmentInputVm.openSavedDesign(row.id, row.name, front, back)
                             DesignSession.stage(
                                 dye = row.state.dye.mapKeys {
                                     com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)

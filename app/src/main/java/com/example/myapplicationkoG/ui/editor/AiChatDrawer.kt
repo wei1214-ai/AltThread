@@ -20,6 +20,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -42,9 +45,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.window.Dialog
@@ -59,6 +65,7 @@ import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
 
+@OptIn(ExperimentalComposeUiApi::class)
 @Composable
 fun AiChatDrawer(
     visible: Boolean,
@@ -72,6 +79,39 @@ fun AiChatDrawer(
     val scope = rememberCoroutineScope()
     val repo = remember { AiRepository() }
     val listState = rememberLazyListState()
+    val focusManager = LocalFocusManager.current
+    val keyboardController = LocalSoftwareKeyboardController.current
+    val view = LocalView.current
+    fun hideKeyboard() {
+        keyboardController?.hide()
+        focusManager.clearFocus()
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.R) {
+            runCatching {
+                view.windowInsetsController?.hide(android.view.WindowInsets.Type.ime())
+                view.clearFocus()
+            }
+        }
+    }
+    fun doSend() {
+        val text = inputText.trim()
+        if (text.isEmpty() || isLoading) return
+        hideKeyboard()
+        inputText = ""
+        errorText = null
+        messages = messages + ChatMessage("user", text, true)
+        isLoading = true
+        scope.launch {
+            try {
+                val history = messages.dropLast(1)
+                val reply = repo.sendMessage(text, history)
+                messages = messages + ChatMessage("model", reply, false)
+            } catch (e: Exception) {
+                errorText = e.message ?: "Failed to get response"
+            } finally {
+                isLoading = false
+            }
+        }
+    }
 
     LaunchedEffect(messages.size) {
         if (messages.isNotEmpty()) {
@@ -252,6 +292,8 @@ fun AiChatDrawer(
                             onValueChange = { inputText = it },
                             placeholder = { Text("Ask about your design...", fontSize = 13.sp, color = Color.Gray) },
                             modifier = Modifier.weight(1f),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
+                            keyboardActions = KeyboardActions(onSend = { doSend() }),
                             shape = RoundedCornerShape(24.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MidnightBlue,
@@ -267,23 +309,7 @@ fun AiChatDrawer(
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(if (inputText.isNotBlank() && !isLoading) MidnightBlue else Color(0xFFE0E0E0))
                                 .clickable(enabled = inputText.isNotBlank() && !isLoading) {
-                                    val text = inputText.trim()
-                                    if (text.isEmpty()) return@clickable
-                                    inputText = ""
-                                    errorText = null
-                                    messages = messages + ChatMessage("user", text, true)
-                                    isLoading = true
-                                    scope.launch {
-                                        try {
-                                            val history = messages.dropLast(1)
-                                            val reply = repo.sendMessage(text, history)
-                                            messages = messages + ChatMessage("model", reply, false)
-                                        } catch (e: Exception) {
-                                            errorText = e.message ?: "Failed to get response"
-                                        } finally {
-                                            isLoading = false
-                                        }
-                                    }
+                                    doSend()
                                 },
                             contentAlignment = Alignment.Center
                         ) {

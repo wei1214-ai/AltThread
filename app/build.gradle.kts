@@ -8,7 +8,6 @@ plugins {
 }
 
 kotlin {
-    // 💡 匹配您电脑本地已安装的 JDK 20，避免找不到 JDK 17 的构建错误
     jvmToolchain(20)
 }
 
@@ -32,6 +31,10 @@ android {
             ?: (project.findProperty("openrouterApiKey") as String?)
             ?: System.getenv("OPENROUTER_API_KEY") ?: ""
         buildConfigField("String", "OPENROUTER_API_KEY", "\"$openrouterKey\"")
+        val hfToken: String = (localProps.getProperty("hfToken") as String?)
+            ?: (project.findProperty("hfToken") as String?)
+            ?: System.getenv("HF_TOKEN") ?: ""
+        buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
     }
 
     buildTypes {

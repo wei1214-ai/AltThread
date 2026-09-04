@@ -43,6 +43,15 @@ private data class DesignInsert(
 )
 
 @Serializable
+private data class DesignUpdate(
+    val name: String,
+    @SerialName("front_url") val frontUrl: String,
+    @SerialName("back_url") val backUrl: String,
+    val state: DesignState,
+    @SerialName("updated_at") val updatedAt: String
+)
+
+@Serializable
 data class DesignRow(
     val id: String = "",
     @SerialName("user_id") val userId: String = "",
@@ -89,6 +98,35 @@ class DesignRepository {
             DesignInsert(id, userId, finalName, frontUrl, backUrl, state)
         )
         DesignRow(id, userId, finalName, frontUrl, backUrl, state)
+    }
+
+    suspend fun updateDesign(
+        rowId: String,
+        name: String,
+        frontFile: File,
+        backFile: File,
+        dye: Map<GarmentSideId, SavedDye>,
+        buttons: Map<GarmentSideId, List<SavedButton>>
+    ): DesignRow = withContext(Dispatchers.IO) {
+        val userId = supabase.auth.currentUserOrNull()?.id ?: error("Please log in first")
+        val bucket = supabase.storage.from(bucketName)
+        val frontPath = "$userId/$rowId/front.png"
+        val backPath = "$userId/$rowId/back.png"
+        bucket.upload(frontPath, frontFile.readBytes()) { upsert = true }
+        bucket.upload(backPath, backFile.readBytes()) { upsert = true }
+        val frontUrl = bucket.publicUrl(frontPath)
+        val backUrl = bucket.publicUrl(backPath)
+        val finalName = name.ifBlank { "Untitled design" }
+        val state = DesignState(
+            dye = dye.mapKeys { it.key.name },
+            buttons = buttons.mapKeys { it.key.name }
+        )
+        supabase.from("designs").update(
+            DesignUpdate(finalName, frontUrl, backUrl, state, java.time.Instant.now().toString())
+        ) {
+            filter { eq("id", rowId) }
+        }
+        DesignRow(rowId, userId, finalName, frontUrl, backUrl, state)
     }
 
     suspend fun listMyDesigns(): List<DesignRow> = withContext(Dispatchers.IO) {
