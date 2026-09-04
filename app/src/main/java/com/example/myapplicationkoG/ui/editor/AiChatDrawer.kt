@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.AiRepository
 import com.example.myapplicationkoG.ChatMessage
+import com.example.myapplicationkoG.R
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
@@ -314,7 +315,7 @@ fun AiChatDrawer(
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                painter = painterResource(id = R.drawable.send),
                                 contentDescription = "Send",
                                 tint = if (inputText.isNotBlank() && !isLoading) Color.White else Color.Gray,
                                 modifier = Modifier.size(20.dp)

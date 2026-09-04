@@ -35,6 +35,10 @@ android {
             ?: (project.findProperty("hfToken") as String?)
             ?: System.getenv("HF_TOKEN") ?: ""
         buildConfigField("String", "HF_TOKEN", "\"$hfToken\"")
+        val hfToken2: String = (localProps.getProperty("hfToken2") as String?)
+            ?: (project.findProperty("hfToken2") as String?)
+            ?: System.getenv("HF_TOKEN2") ?: ""
+        buildConfigField("String", "HF_TOKEN2", "\"$hfToken2\"")
     }
 
     buildTypes {

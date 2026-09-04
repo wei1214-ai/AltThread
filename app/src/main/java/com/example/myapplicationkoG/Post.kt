@@ -45,6 +45,12 @@ data class Post(
     @SerialName("created_at")
     val createdAt: String = "",
 
+    @SerialName("design_id")
+    val designId: String? = null,
+
+    @SerialName("challenge_post_id")
+    val challengePostId: String? = null,
+
     // UI state helper fields (ignored during direct Supabase JSON parsing)
     @Transient
     val isLikedByCurrentUser: Boolean = false,

@@ -282,7 +282,7 @@ fun ProfileScreen(
                                 .background(Cyan)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Edit,
+                                painter = painterResource(id = R.drawable.edit),
                                 contentDescription = "Change avatar",
                                 tint = Color.Black,
                                 modifier = Modifier.size(16.dp)
@@ -451,7 +451,7 @@ fun ProfileScreen(
                                         .padding(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Collections,
+                                        painter = painterResource(id = R.drawable.collections),
                                         contentDescription = "Multiple Images",
                                         tint = Color.White,
                                         modifier = Modifier.size(14.dp)
@@ -520,7 +520,7 @@ fun ProfileScreen(
                                         .padding(4.dp)
                                 ) {
                                     Icon(
-                                        imageVector = Icons.Default.Collections,
+                                        painter = painterResource(id = R.drawable.collections),
                                         contentDescription = "Multiple Images",
                                         tint = Color.White,
                                         modifier = Modifier.size(14.dp)

@@ -26,21 +26,30 @@ object DesignSession {
 }
 
 object ChallengeSession {
+    @Volatile var postId: String? = null
     @Volatile var title: String? = null
     @Volatile var description: String? = null
 
-    fun stage(title: String, description: String) {
+    fun stage(postId: String, title: String, description: String) {
+        this.postId = postId
         this.title = title
         this.description = description
     }
 
-    fun consume(): Pair<String?, String?> {
-        val t = title
-        val d = description
-        title = null
-        description = null
-        return t to d
+    fun stage(title: String, description: String) {
+        stage("", title, description)
     }
 
-    fun peek(): Pair<String?, String?> = title to description
+    fun consume(): Triple<String?, String?, String?> {
+        val id = postId
+        val t = title
+        val d = description
+        postId = null
+        title = null
+        description = null
+        return Triple(id, t, d)
+    }
+
+    fun peek(): Triple<String?, String?, String?> = Triple(postId, title, description)
+    fun peekPair(): Pair<String?, String?> = title to description
 }

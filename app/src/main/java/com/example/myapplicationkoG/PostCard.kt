@@ -71,6 +71,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -488,7 +489,7 @@ fun PostCard(
                             modifier = Modifier.size(32.dp)
                         ) {
                             Icon(
-                                imageVector = Icons.Default.MoreVert,
+                                painter = painterResource(id = R.drawable.morevert),
                                 contentDescription = "More options",
                                 tint = textColorForTheme(MidnightBlue),
                                 modifier = Modifier.size(22.dp)
@@ -791,9 +792,10 @@ fun PostCard(
                             }
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Send,
+                                painter = painterResource(id = R.drawable.send),
                                 contentDescription = "Send Comment",
-                                tint = MidnightBlue
+                                tint = MidnightBlue,
+                                modifier = Modifier.size(24.dp)
                             )
                         }
                     }

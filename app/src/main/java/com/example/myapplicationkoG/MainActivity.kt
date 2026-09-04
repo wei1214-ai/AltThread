@@ -8,11 +8,9 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Scaffold
 import androidx.compose.runtime.Composable
@@ -217,7 +215,6 @@ fun AltThreadApp(
 
     Scaffold(
         modifier = Modifier.fillMaxSize(),
-        contentWindowInsets = WindowInsets.safeDrawing,
         bottomBar = {
             if (currentRoute in bottomBarRoutes && currentRoute != Screen.Upload.route && currentRoute?.startsWith("other_user_profile") != true) {
                 BottomNavBar(navController = navController, currentRoute = currentRoute)
@@ -322,7 +319,6 @@ fun AltThreadApp(
             }
             composable(Screen.Profile.route) {
                 ProfileScreen(
-                    refreshKey = postsRefreshKey,
                     onEditProfile = { navController.navigate(Screen.EditProfile.route) },
                     onShowFollowers = { userId -> navController.navigate("followers/$userId") },
                     onShowFollowing = { userId -> navController.navigate("following/$userId") },
@@ -416,7 +412,7 @@ fun AltThreadApp(
                         val repo = DesignRepository()
                         MainScope().launch {
                             val (front, back) = repo.ensureLocalFiles(ctx, row)
-                            garmentInputVm.openSavedDesign(row.id, row.name, front, back)
+                            garmentInputVm.loadDesignPaths(front, back)
                             DesignSession.stage(
                                 dye = row.state.dye.mapKeys {
                                     com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)

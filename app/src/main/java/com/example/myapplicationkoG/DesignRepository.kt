@@ -29,7 +29,8 @@ data class SavedButton(
 @Serializable
 data class DesignState(
     val dye: Map<String, SavedDye> = emptyMap(),
-    val buttons: Map<String, List<SavedButton>> = emptyMap()
+    val buttons: Map<String, List<SavedButton>> = emptyMap(),
+    val challengePostId: String? = null
 )
 
 @Serializable
@@ -78,7 +79,8 @@ class DesignRepository {
         frontFile: File,
         backFile: File,
         dye: Map<GarmentSideId, SavedDye>,
-        buttons: Map<GarmentSideId, List<SavedButton>>
+        buttons: Map<GarmentSideId, List<SavedButton>>,
+        challengePostId: String? = com.example.myapplicationkoG.ui.editor.ChallengeSession.postId
     ): DesignRow = withContext(Dispatchers.IO) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: error("Please log in first")
         val id = UUID.randomUUID().toString()
@@ -92,7 +94,8 @@ class DesignRepository {
         val finalName = name.ifBlank { "Untitled design" }
         val state = DesignState(
             dye = dye.mapKeys { it.key.name },
-            buttons = buttons.mapKeys { it.key.name }
+            buttons = buttons.mapKeys { it.key.name },
+            challengePostId = challengePostId?.takeIf { it.isNotBlank() }
         )
         supabase.from("designs").insert(
             DesignInsert(id, userId, finalName, frontUrl, backUrl, state)
@@ -106,7 +109,8 @@ class DesignRepository {
         frontFile: File,
         backFile: File,
         dye: Map<GarmentSideId, SavedDye>,
-        buttons: Map<GarmentSideId, List<SavedButton>>
+        buttons: Map<GarmentSideId, List<SavedButton>>,
+        challengePostId: String? = com.example.myapplicationkoG.ui.editor.ChallengeSession.postId
     ): DesignRow = withContext(Dispatchers.IO) {
         val userId = supabase.auth.currentUserOrNull()?.id ?: error("Please log in first")
         val bucket = supabase.storage.from(bucketName)
@@ -119,7 +123,8 @@ class DesignRepository {
         val finalName = name.ifBlank { "Untitled design" }
         val state = DesignState(
             dye = dye.mapKeys { it.key.name },
-            buttons = buttons.mapKeys { it.key.name }
+            buttons = buttons.mapKeys { it.key.name },
+            challengePostId = challengePostId?.takeIf { it.isNotBlank() }
         )
         supabase.from("designs").update(
             DesignUpdate(finalName, frontUrl, backUrl, state, java.time.Instant.now().toString())

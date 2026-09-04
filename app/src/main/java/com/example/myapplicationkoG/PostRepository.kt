@@ -73,7 +73,13 @@ private data class NewPost(
     val caption: String,
 
     @SerialName("like_count")
-    val likeCount: Int = 0
+    val likeCount: Int = 0,
+
+    @SerialName("design_id")
+    val designId: String? = null,
+
+    @SerialName("challenge_post_id")
+    val challengePostId: String? = null
 )
 
 /**
@@ -270,7 +276,9 @@ class PostRepository {
         category: String,
         bio: String,
         postType: String = "Post",
-        isChallenge: Boolean = false
+        isChallenge: Boolean = false,
+        designId: String? = null,
+        challengePostId: String? = null
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             if (imageUris.isEmpty()) {
@@ -291,6 +299,15 @@ class PostRepository {
 
             val primaryMediaUrl = uploadedPublicUrls.firstOrNull() ?: ""
 
+            val effectivePostType = when {
+                designId != null -> "Design"
+                isChallenge -> "Challenge"
+                else -> postType
+            }
+            val effectiveChallengeId = challengePostId ?: if (designId != null) {
+                // auto-reference if design was created from a challenge
+                ShareDesignSession.selected?.state?.challengePostId
+            } else null
             val newPost = NewPost(
                 userId = user.id,
                 username = profile.username?.ifBlank { "User" } ?: "User",
@@ -300,9 +317,11 @@ class PostRepository {
                 isVideo = hasVideo, // 💡 Dynamically pass video detection status
                 clothingTitle = title.trim(),
                 clothingCategory = category,
-                postType = if (isChallenge) "Challenge" else postType,
+                postType = effectivePostType,
                 caption = bio.trim(),
-                likeCount = 0
+                likeCount = 0,
+                designId = designId,
+                challengePostId = effectiveChallengeId
             )
 
             supabase.from("posts").insert(newPost)

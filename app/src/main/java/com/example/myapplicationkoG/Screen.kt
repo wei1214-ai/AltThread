@@ -17,4 +17,5 @@ sealed class Screen(val route: String) {
     object Editor : Screen("editor")
     
     object ContinueDesigns : Screen("continue_designs")
+    object SelectDesignForShare : Screen("select_design_for_share")
 }

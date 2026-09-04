@@ -328,19 +328,7 @@ fun HomeScreen(
                     PostCard(
                         post = post,
                         onUserClick = onUserClick,
-                        onAcceptChallenge = onAcceptChallenge,
-                        onLikeStateChanged = { postId, isLiked, likeCount ->
-                            posts = posts.map { currentPost ->
-                                if (currentPost.id == postId) {
-                                    currentPost.copy(
-                                        isLikedByCurrentUser = isLiked,
-                                        likeCount = likeCount
-                                    )
-                                } else {
-                                    currentPost
-                                }
-                            }
-                        }
+                        onAcceptChallenge = onAcceptChallenge
                     )
                 }
             }

@@ -33,6 +33,11 @@ object VtonConfig {
     const val BASE_URL = "https://yisol-idm-vton.hf.space"
     const val API = "tryon"
     val TOKEN: String get() = BuildConfig.HF_TOKEN
+    val TOKEN2: String get() = BuildConfig.HF_TOKEN2
+    fun tokens(): List<String> = listOfNotNull(
+        TOKEN.takeIf { it.isNotBlank() },
+        TOKEN2.takeIf { it.isNotBlank() }
+    )
 }
 
 class VtonRepository {
@@ -45,15 +50,15 @@ class VtonRepository {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    private fun auth(url: String): Request.Builder {
+    private fun auth(url: String, token: String = VtonConfig.TOKEN): Request.Builder {
         val b = Request.Builder().url(url)
-        if (VtonConfig.TOKEN.isNotBlank()) {
-            b.header("Authorization", "Bearer ${VtonConfig.TOKEN}")
+        if (token.isNotBlank()) {
+            b.header("Authorization", "Bearer $token")
         }
         return b
     }
 
-    private suspend fun uploadImage(file: File): String = withContext(Dispatchers.IO) {
+    private suspend fun uploadImage(file: File, token: String = VtonConfig.TOKEN): String = withContext(Dispatchers.IO) {
         val body = MultipartBody.Builder()
             .setType(MultipartBody.FORM)
             .addFormDataPart(
@@ -61,12 +66,17 @@ class VtonRepository {
                 file.asRequestBody("image/jpeg".toMediaType())
             )
             .build()
-        val req = auth("${VtonConfig.BASE_URL}/upload?upload_id=${UUID.randomUUID().toString().replace("-", "")}")
+        val req = auth("${VtonConfig.BASE_URL}/upload?upload_id=${UUID.randomUUID().toString().replace("-", "")}", token)
             .post(body)
             .build()
         val resp = client.newCall(req).execute()
         val respBody = resp.body?.string() ?: error("Empty upload response")
-        if (!resp.isSuccessful) error("Upload failed (${resp.code}): $respBody")
+        if (!resp.isSuccessful) {
+            if (resp.code == 429 || respBody.contains("quota", ignoreCase = true)) {
+                error("QUOTA_EXCEEDED")
+            }
+            error("Upload failed (${resp.code}): $respBody")
+        }
         json.parseToJsonElement(respBody).jsonArray.first().jsonPrimitive.content
     }
 
@@ -103,9 +113,31 @@ class VtonRepository {
         personFile: File,
         garmentFile: File,
         prompt: String = "a photo of a garment"
+    ): File {
+        var lastError: Exception? = null
+        for (token in VtonConfig.tokens().ifEmpty { listOf("") }) {
+            try {
+                return runTryOnWithToken(personFile, garmentFile, prompt, token)
+            } catch (e: Exception) {
+                val msg = e.message ?: ""
+                if (msg.contains("QUOTA_EXCEEDED") || msg.contains("quota", ignoreCase = true) || msg.contains("429")) {
+                    lastError = e
+                    continue
+                }
+                throw e
+            }
+        }
+        throw lastError ?: error("Try-on failed: no token available")
+    }
+
+    private suspend fun runTryOnWithToken(
+        personFile: File,
+        garmentFile: File,
+        prompt: String,
+        token: String
     ): File = withContext(Dispatchers.IO) {
-        val personPath = uploadImage(padToRatio(personFile))
-        val garmentPath = uploadImage(padToRatio(garmentFile))
+        val personPath = uploadImage(padToRatio(personFile), token)
+        val garmentPath = uploadImage(padToRatio(garmentFile), token)
 
         fun fileData(path: String) = buildJsonObject {
             put("path", path)
@@ -129,15 +161,18 @@ class VtonRepository {
             put("session_hash", sessionHash)
         }.toString()
 
-        val joinReq = auth("${VtonConfig.BASE_URL}/queue/join")
+        val joinReq = auth("${VtonConfig.BASE_URL}/queue/join", token)
             .post(payload.toRequestBody("application/json".toMediaType()))
             .header("Content-Type", "application/json")
             .build()
         val joinResp = client.newCall(joinReq).execute()
         val joinBody = joinResp.body?.string() ?: error("Empty join response")
-        if (!joinResp.isSuccessful) error("Queue join failed (${joinResp.code}): $joinBody")
+        if (!joinResp.isSuccessful) {
+            if (joinResp.code == 429 || joinBody.contains("quota", ignoreCase = true)) error("QUOTA_EXCEEDED")
+            error("Queue join failed (${joinResp.code}): $joinBody")
+        }
 
-        val streamReq = auth("${VtonConfig.BASE_URL}/queue/data?session_hash=$sessionHash")
+        val streamReq = auth("${VtonConfig.BASE_URL}/queue/data?session_hash=$sessionHash", token)
             .header("Accept", "text/event-stream")
             .get()
             .build()

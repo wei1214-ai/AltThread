@@ -182,7 +182,7 @@ fun SearchScreen() {
                         },
                         trailingIcon = {
                             if (selectedSortBy == "latest") {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = MidnightBlue)
+                                Icon(painter = painterResource(id = R.drawable.check), contentDescription = null, tint = MidnightBlue)
                             }
                         }
                     )
@@ -195,7 +195,7 @@ fun SearchScreen() {
                         },
                         trailingIcon = {
                             if (selectedSortBy == "highest_likes") {
-                                Icon(imageVector = Icons.Default.Check, contentDescription = null, tint = MidnightBlue)
+                                Icon(painter = painterResource(id = R.drawable.check), contentDescription = null, tint = MidnightBlue)
                             }
                         }
                     )
