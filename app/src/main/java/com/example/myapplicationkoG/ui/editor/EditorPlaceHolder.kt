@@ -220,13 +220,36 @@ fun EditorPlaceHolder(
         dyedImage = result?.asImageBitmap()
     }
 
-    // Button texture: black background keyed out once
+    // Button texture: vector-safe decode (patch.xml is vector, clothbutton was bitmap)
     LaunchedEffect(Unit) {
         buttonImg = withContext(Dispatchers.Default) {
             runCatching {
-                BitmapFactory.decodeResource(context.resources, R.drawable.patch)
-                    ?.let { keyOutBlack(it).asImageBitmap() }
-            }.getOrNull()
+                // 1) try bitmap (old clothbutton)
+                BitmapFactory.decodeResource(context.resources, R.drawable.patch)?.let { keyOutBlack(it).asImageBitmap() }
+                    ?: run {
+                        // 2) fallback for vector drawable: render to bitmap
+                        val d = androidx.appcompat.content.res.AppCompatResources.getDrawable(context, R.drawable.patch) ?: return@run null
+                        val w = d.intrinsicWidth.coerceAtLeast(96).coerceAtMost(256)
+                        val h = d.intrinsicHeight.coerceAtLeast(96).coerceAtMost(256)
+                        val bmp = android.graphics.Bitmap.createBitmap(w, h, android.graphics.Bitmap.Config.ARGB_8888)
+                        val canvas = android.graphics.Canvas(bmp)
+                        d.setBounds(0, 0, w, h)
+                        d.draw(canvas)
+                        keyOutBlack(bmp).asImageBitmap()
+                    }
+            }.getOrNull() ?: run {
+                // 3) last fallback: simple white circle bitmap
+                val s = 128
+                val bmp = android.graphics.Bitmap.createBitmap(s, s, android.graphics.Bitmap.Config.ARGB_8888)
+                val c = android.graphics.Canvas(bmp)
+                val p = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+                c.drawCircle(s / 2f, s / 2f, s / 2f - 4f, p)
+                p.style = android.graphics.Paint.Style.STROKE
+                p.strokeWidth = 4f
+                p.color = android.graphics.Color.parseColor("#1A237E")
+                c.drawCircle(s / 2f, s / 2f, s / 2f - 4f, p)
+                bmp.asImageBitmap()
+            }
         }
     }
     val curButtons = buttonMap[currentSide].orEmpty()
