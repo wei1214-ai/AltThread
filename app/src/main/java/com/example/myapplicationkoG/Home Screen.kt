@@ -172,7 +172,7 @@ fun HomeScreen(
         "Streetwear"
     )
 
-    var showAiChat by remember { mutableStateOf(false) }
+    var showAiChat by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
     val backgroundColor = MaterialTheme.colorScheme.background
 
     // Fetch posts whenever selectedFilter or refreshKey changes

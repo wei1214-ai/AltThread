@@ -134,13 +134,12 @@ fun UploadScreen(
         unfocusedContainerColor = contentSurface
     )
 
-    var selectedTab by remember { mutableStateOf("Post") } // Post, Challenge, Design
+    var selectedTab by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("Post") } // Post, Challenge, Design
 
     // Post states
-    var selectedUris by remember { mutableStateOf<List<Uri>>(emptyList()) }
-    var showPublishDialog by remember { mutableStateOf(false) }
-    var captionInput by remember { mutableStateOf("") }
-    var selectedCategory by remember { mutableStateOf("Streetwear") }
+    var selectedUris by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(emptyList<Uri>()) }
+    var captionInput by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
+    var selectedCategory by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("Streetwear") }
     var isUploading by remember { mutableStateOf(false) }
     val categoriesList = listOf("Trend", "Vintage", "Streetwear")
 
@@ -980,16 +979,6 @@ fun UploadScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
-        }
-    }
-
-    if (showPublishDialog) {
-        Dialog(onDismissRequest = { if (!isUploading) showPublishDialog = false }) {
-            Box(
-                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(MaterialTheme.colorScheme.surface).padding(20.dp)
-            ) {
-                Text("Legacy dialog", color = textColorForTheme(Color.Gray))
-            }
         }
     }
 }
