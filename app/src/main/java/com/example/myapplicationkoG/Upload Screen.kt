@@ -117,8 +117,9 @@ fun UploadScreen(
     val isDarkTheme = MaterialTheme.colorScheme.background.luminance() < 0.5f
     val screenBackground = MaterialTheme.colorScheme.background
     val contentSurface = if (isDarkTheme) MaterialTheme.colorScheme.surface else Color.White
-    val pickerSurface = if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else Color(0xFFF8F8F8)
-    val pickerBorder = if (isDarkTheme) MaterialTheme.colorScheme.outline else Color(0xFFE0E0E0)
+    // Match Challenge picker block: use surface/outline directly so Post and Challenge have same color in dark mode
+    val pickerSurface = MaterialTheme.colorScheme.surface
+    val pickerBorder = MaterialTheme.colorScheme.outline
     val tabBackground = if (isDarkTheme) MaterialTheme.colorScheme.surfaceVariant else LightGray
     val textFieldColors = OutlinedTextFieldDefaults.colors(
         focusedTextColor = textColorForTheme(Color.Black),
@@ -825,32 +826,13 @@ fun UploadScreen(
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = pickedDesign.name.ifBlank { "Untitled design" },
-                        fontWeight = FontWeight.Bold,
-                        fontSize = 14.sp,
-                        color = textColorForTheme(MidnightBlue)
-                    )
-                    val linkedChallenge = pickedDesign.state.challengePostId
-                    if (!linkedChallenge.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(6.dp))
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(Cyan)
-                                .padding(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Text("�?In↳ In response to a Challenge", fontSize = 11.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
-                        }
-                    }
-
                     Spacer(modifier = Modifier.height(16.dp))
                     Text("Extra photos (optional) - ${designExtraUris.size}/7", fontWeight = FontWeight.SemiBold, fontSize = 13.sp, color = textColorForTheme(MidnightBlue))
                     Spacer(modifier = Modifier.height(8.dp))
                     Box(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(if (designExtraUris.isEmpty()) 120.dp else 150.dp)
+                            .height(if (designExtraUris.isEmpty()) 180.dp else 200.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(pickerSurface)
                             .border(1.dp, pickerBorder, RoundedCornerShape(16.dp))

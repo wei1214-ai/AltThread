@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -63,6 +64,7 @@ import androidx.compose.ui.unit.sp
 import com.example.myapplicationkoG.AiRepository
 import com.example.myapplicationkoG.ChatMessage
 import com.example.myapplicationkoG.R
+import com.example.myapplicationkoG.textColorForTheme
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
@@ -156,7 +158,7 @@ fun AiChatDrawer(
                         .navigationBarsPadding()
                         .imePadding()
                         .clip(RoundedCornerShape(topStart = 20.dp, bottomStart = 20.dp))
-                        .background(Color.White)
+                        .background(MaterialTheme.colorScheme.surface)
                 ) {
                     // Header
                     Row(
@@ -225,13 +227,13 @@ fun AiChatDrawer(
                                     text = "Hi! I'm your AI Stylist",
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 15.sp,
-                                    color = MidnightBlue
+                                    color = textColorForTheme(MidnightBlue)
                                 )
                                 Spacer(modifier = Modifier.height(6.dp))
                                 Text(
                                     text = "Ask me about colors, fabrics, or design ideas!",
                                     fontSize = 13.sp,
-                                    color = Color.Gray,
+                                    color = textColorForTheme(Color.Gray),
                                     lineHeight = 18.sp
                                 )
                             }
@@ -257,7 +259,7 @@ fun AiChatDrawer(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp))
-                                                .background(Color(0xFFF0F0F0))
+                                                .background(MaterialTheme.colorScheme.surfaceVariant)
                                                 .padding(horizontal = 14.dp, vertical = 10.dp)
                                         ) {
                                             Row(
@@ -269,7 +271,7 @@ fun AiChatDrawer(
                                                     color = MidnightBlue,
                                                     strokeWidth = 2.dp
                                                 )
-                                                Text("Thinking...", fontSize = 13.sp, color = Color.Gray)
+                                                Text("Thinking...", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
                                             }
                                         }
                                     }
@@ -291,7 +293,7 @@ fun AiChatDrawer(
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .background(Color.White)
+                            .background(MaterialTheme.colorScheme.surface)
                             .padding(horizontal = 10.dp, vertical = 10.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -299,16 +301,18 @@ fun AiChatDrawer(
                         OutlinedTextField(
                             value = inputText,
                             onValueChange = { inputText = it },
-                            placeholder = { Text("Ask about your design...", fontSize = 13.sp, color = Color.Gray) },
+                            placeholder = { Text("Ask about your design...", fontSize = 13.sp, color = textColorForTheme(Color.Gray)) },
                             modifier = Modifier.weight(1f),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
                             keyboardActions = KeyboardActions(onSend = { doSend() }),
                             shape = RoundedCornerShape(24.dp),
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedBorderColor = MidnightBlue,
-                                unfocusedBorderColor = Color(0xFFE0E0E0),
-                                focusedContainerColor = Color(0xFFF8F8F8),
-                                unfocusedContainerColor = Color(0xFFF8F8F8)
+                                unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                focusedTextColor = textColorForTheme(Color.Black),
+                                unfocusedTextColor = textColorForTheme(Color.Black)
                             ),
                             maxLines = 3
                         )
@@ -350,12 +354,12 @@ private fun ChatBubble(msg: ChatMessage) {
                     if (isUser) RoundedCornerShape(16.dp, 16.dp, 4.dp, 16.dp)
                     else RoundedCornerShape(16.dp, 16.dp, 16.dp, 4.dp)
                 )
-                .background(if (isUser) MidnightBlue else Color(0xFFF0F0F0))
+                .background(if (isUser) MidnightBlue else MaterialTheme.colorScheme.surfaceVariant)
                 .padding(horizontal = 14.dp, vertical = 10.dp)
         ) {
             Text(
                 text = msg.text,
-                color = if (isUser) Color.White else Color(0xFF222222),
+                color = if (isUser) Color.White else textColorForTheme(Color(0xFF222222)),
                 fontSize = 13.sp,
                 lineHeight = 18.sp
             )

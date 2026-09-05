@@ -28,6 +28,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -71,6 +72,7 @@ import com.example.myapplicationkoG.DesignRepository
 import com.example.myapplicationkoG.SavedButton
 import com.example.myapplicationkoG.SavedDye
 import com.example.myapplicationkoG.domain.model.GarmentSideId
+import com.example.myapplicationkoG.textColorForTheme
 import com.example.myapplicationkoG.ui.garmentinput.GarmentInputViewModel
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
@@ -411,31 +413,73 @@ fun EditorPlaceHolder(
                 .background(Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
+            var showBriefDialog by remember { mutableStateOf(false) }
             val challengeBrief = remember { ChallengeSession.peekPair() }
             val challengeTitle = challengeBrief.first
             val challengeDesc = challengeBrief.second
             if (!challengeTitle.isNullOrBlank() || !challengeDesc.isNullOrBlank()) {
-                Column(
+                Row(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
                         .background(Cyan.copy(alpha = 0.18f))
                         .border(1.dp, Cyan, RoundedCornerShape(16.dp))
-                        .padding(horizontal = 14.dp, vertical = 10.dp)
+                        .clickable { showBriefDialog = true }
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text("Challenge Brief", color = MidnightBlue, fontWeight = FontWeight.ExtraBold, fontSize = 12.sp)
-                    if (!challengeTitle.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(challengeTitle, color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text(
+                        "Challenge Brief",
+                        color = MidnightBlue,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontSize = 16.sp,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(Cyan)
+                            .padding(horizontal = 14.dp, vertical = 7.dp)
+                    ) {
+                        Text("View", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
-                    if (!challengeDesc.isNullOrBlank()) {
-                        Spacer(modifier = Modifier.height(2.dp))
-                        Text(challengeDesc, color = Color(0xFF333333), fontSize = 12.sp, lineHeight = 16.sp)
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text("Design according to the brief above", color = Color.Gray, fontSize = 10.sp, fontStyle = androidx.compose.ui.text.font.FontStyle.Italic)
                 }
                 Spacer(modifier = Modifier.height(10.dp))
+                if (showBriefDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showBriefDialog = false },
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(20.dp),
+                        title = {
+                            Text(
+                                "Challenge Brief",
+                                fontWeight = FontWeight.ExtraBold,
+                                fontSize = 18.sp,
+                                color = textColorForTheme(Color.Black)
+                            )
+                        },
+                        text = {
+                            Column {
+                                if (!challengeTitle.isNullOrBlank()) {
+                                    Text(challengeTitle, fontWeight = FontWeight.Bold, fontSize = 15.sp, color = textColorForTheme(Color.Black))
+                                }
+                                if (!challengeDesc.isNullOrBlank()) {
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Text(challengeDesc, fontSize = 14.sp, lineHeight = 20.sp, color = textColorForTheme(Color.Gray))
+                                }
+                                if (challengeTitle.isNullOrBlank() && challengeDesc.isNullOrBlank()) {
+                                    Text("No details", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
+                                }
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(onClick = { showBriefDialog = false }) {
+                                Text("Close", color = Cyan, fontWeight = FontWeight.ExtraBold, fontSize = 14.sp)
+                            }
+                        }
+                    )
+                }
             }
             Column(
                 modifier = Modifier

@@ -262,13 +262,14 @@ private fun DesignBlock(
                             .padding(6.dp)
                             .size(30.dp)
                             .clip(RoundedCornerShape(9.dp))
-                            .background(MaterialTheme.colorScheme.surface)
+                            .background(com.example.myapplicationkoG.ui.theme.Cyan)
                             .clickable { onLongPress() },
                         contentAlignment = Alignment.Center
                     ) {
-                        androidx.compose.foundation.Image(
-                            painter = androidx.compose.ui.res.painterResource(id = com.example.myapplicationkoG.R.drawable.deletedesign),
+                        Icon(
+                            painter = painterResource(id = com.example.myapplicationkoG.R.drawable.deletedesign),
                             contentDescription = "Delete design",
+                            tint = com.example.myapplicationkoG.ui.theme.MidnightBlue,
                             modifier = Modifier.size(16.dp)
                         )
                     }

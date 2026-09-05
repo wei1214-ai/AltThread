@@ -27,6 +27,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Collections
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,7 +78,7 @@ fun CustomTabBar(
     selectedTabIndex: Int,
     onTabSelected: (Int) -> Unit
 ) {
-    val tabs = listOf("Post & Challenge", "Saved")
+    val tabs = listOf("Uploaded", "Saved")
     val activeColor = textColorForTheme(MidnightBlue)
     val inactiveColor = textColorForTheme(Color.Gray)
 
@@ -289,13 +290,13 @@ fun ProfileScreen(
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
                                 .size(28.dp)
-                                .clip(RoundedCornerShape(8.dp))
+                                .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                         ) {
                             Icon(
                                 painter = painterResource(id = R.drawable.edit),
                                 contentDescription = "Change avatar",
-                                tint = Color.Black,
+                                tint = MidnightBlue,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -338,9 +339,13 @@ fun ProfileScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(bottom = 16.dp),
-                    shape = RoundedCornerShape(12.dp)
+                    shape = RoundedCornerShape(12.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Cyan,
+                        contentColor = MidnightBlue
+                    )
                 ) {
-                    Text("Edit profile")
+                    Text("Edit profile", fontWeight = FontWeight.Bold, color = MidnightBlue)
                 }
 
                 if (errorMessage.isNotBlank()) {
@@ -426,7 +431,7 @@ fun ProfileScreen(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "No posts or challenges yet.",
+                                text = "No uploaded posts yet.",
                                 color = textColorForTheme(Color.Gray)
                             )
                         }
@@ -434,7 +439,6 @@ fun ProfileScreen(
                 } else {
                     items(myPosts, key = { it.id }) { post ->
                         val coverUrl = post.mediaUrls.firstOrNull() ?: post.mediaUrl
-                        val isMultiImage = post.mediaUrls.size > 1
 
                         Box(
                             modifier = Modifier
@@ -457,23 +461,6 @@ fun ProfileScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            if (isMultiImage) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.Black.copy(alpha = 0.5f))
-                                        .padding(4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.collections),
-                                        contentDescription = "Multiple Images",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
                         }
                     }
                 }
@@ -508,7 +495,6 @@ fun ProfileScreen(
                 } else {
                     items(savedPosts, key = { it.id }) { post ->
                         val coverUrl = post.mediaUrls.firstOrNull() ?: post.mediaUrl
-                        val isMultiImage = post.mediaUrls.size > 1
 
                         Box(
                             modifier = Modifier
@@ -526,23 +512,6 @@ fun ProfileScreen(
                                 modifier = Modifier.fillMaxSize()
                             )
 
-                            if (isMultiImage) {
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.TopEnd)
-                                        .padding(6.dp)
-                                        .clip(RoundedCornerShape(6.dp))
-                                        .background(Color.Black.copy(alpha = 0.5f))
-                                        .padding(4.dp)
-                                ) {
-                                    Icon(
-                                        painter = painterResource(id = R.drawable.collections),
-                                        contentDescription = "Multiple Images",
-                                        tint = Color.White,
-                                        modifier = Modifier.size(14.dp)
-                                    )
-                                }
-                            }
                         }
                     }
                 }

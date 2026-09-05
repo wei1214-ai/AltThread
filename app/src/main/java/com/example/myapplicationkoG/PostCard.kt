@@ -512,7 +512,7 @@ fun PostCard(
                         Icon(
                             imageVector = if (isLiked) Icons.Filled.Favorite else Icons.Outlined.FavoriteBorder,
                             contentDescription = "Like",
-                            tint = if (isLiked) Color.Red else MidnightBlue,
+                            tint = if (isLiked) Color.Red else textColorForTheme(MidnightBlue),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -530,7 +530,7 @@ fun PostCard(
                         Icon(
                             imageVector = Icons.Outlined.ModeComment,
                             contentDescription = "Comment",
-                            tint = MidnightBlue,
+                            tint = textColorForTheme(MidnightBlue),
                             modifier = Modifier.size(24.dp)
                         )
                     }
@@ -546,7 +546,7 @@ fun PostCard(
                         Icon(
                             imageVector = if (isSaved) Icons.Filled.Bookmark else Icons.Outlined.BookmarkBorder,
                             contentDescription = "Favorite",
-                            tint = MidnightBlue,
+                            tint = if (isSaved) MidnightBlue else textColorForTheme(MidnightBlue),
                             modifier = Modifier.size(24.dp)
                         )
                     }
