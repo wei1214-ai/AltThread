@@ -47,7 +47,7 @@ import io.github.jan.supabase.auth.handleDeeplinks
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
-import kotlinx.coroutines.MainScope
+import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
@@ -69,7 +69,7 @@ class MainActivity : ComponentActivity() {
                 mutableStateOf(ThemeMode.SYSTEM.name)
             }
 
-            val themeMode = ThemeMode.valueOf(savedThemeMode)
+            val themeMode = runCatching { ThemeMode.valueOf(savedThemeMode) }.getOrElse { ThemeMode.SYSTEM }
 
             AltThreadTheme(themeMode = themeMode) {
                 val sharedPostId = sharedPostIdState.value
@@ -136,6 +136,7 @@ fun AltThreadApp(
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
 
     var sharedPost by remember { mutableStateOf<Post?>(null) }
     var postsRefreshKey by remember { mutableIntStateOf(0) }
@@ -272,7 +273,7 @@ fun AltThreadApp(
                     },
                     onAcceptChallenge = { post ->
                         val ctx = navController.context
-                        MainScope().launch {
+                        scope.launch {
                             try {
                                 val urls = post.allMediaUrls.ifEmpty { listOf(post.mediaUrl) }
                                 val rawFront = urls.getOrNull(0)?.trim().orEmpty()
@@ -285,8 +286,10 @@ fun AltThreadApp(
                                 val frontFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawFront, "challenge_front") }
                                 val backFile = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { downloadUrlToFile(ctx, rawBack, "challenge_back") }
                                 if (frontFile.length() == 0L || backFile.length() == 0L) error("Downloaded file is empty")
-                                com.example.myapplicationkoG.ui.editor.ChallengeSession.stage(post.id, post.clothingTitle, post.caption)
-                                garmentInputVm.clearAll()
+                                // Use ViewModel for rotation survival (singleton delegates to same SessionHolder for compat)
+                                runCatching { garmentInputVm.stageChallenge(post.id, post.clothingTitle, post.caption) }
+                                    .onFailure { com.example.myapplicationkoG.ui.editor.ChallengeSession.stage(post.id, post.clothingTitle, post.caption) }
+                                garmentInputVm.clearAll(deleteFiles = false)
                                 garmentInputVm.loadDesignPaths(frontFile, backFile)
                                 navController.navigate(Screen.Editor.route)
                             } catch (e: Exception) {
@@ -303,9 +306,11 @@ fun AltThreadApp(
             composable(Screen.Studio.route) {
                 StudioScreen(
                     onStartDesign = {
+                        runCatching { garmentInputVm.clearChallenge() }
+                        // keep singleton in sync for backward compat
                         com.example.myapplicationkoG.ui.editor.ChallengeSession.title = null
                         com.example.myapplicationkoG.ui.editor.ChallengeSession.description = null
-                        garmentInputVm.clearAll()
+                        garmentInputVm.clearAll(deleteFiles = false)
                         navController.navigate(Screen.GarmentInput.route)
                     },
                     onAcceptChallenge = {
@@ -413,8 +418,9 @@ fun AltThreadApp(
                 ContinueDesignsScreen(
                     onOpenDesign = { row ->
                         val repo = DesignRepository()
-                        MainScope().launch {
+                        scope.launch {
                             val (front, back) = repo.ensureLocalFiles(ctx, row)
+                            runCatching { garmentInputVm.clearChallenge() }
                             com.example.myapplicationkoG.ui.editor.ChallengeSession.postId = null
                             garmentInputVm.openSavedDesign(
                                 id = row.id,
@@ -423,18 +429,19 @@ fun AltThreadApp(
                                 back = back,
                                 challengePostId = row.state.challengePostId
                             )
-                            DesignSession.stage(
-                                dye = row.state.dye.mapKeys {
-                                    com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)
-                                }.mapValues { (_, v) ->
-                                    DyeState(color = androidx.compose.ui.graphics.Color(v.color), strength = v.strength)
-                                },
-                                buttons = row.state.buttons.mapKeys {
-                                    com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(it.key)
-                                }.mapValues { (_, list) ->
-                                    list.map { PlacedButton(pos = Offset(it.x, it.y), scale = it.scale, color = androidx.compose.ui.graphics.Color(it.color), style = it.style, rotation = it.rotation) }
-                                }
-                            )
+                            val dyeMap = row.state.dye.mapKeys { entry ->
+                                runCatching { com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(entry.key) }.getOrElse { com.example.myapplicationkoG.domain.model.GarmentSideId.FRONT }
+                            }.mapValues { (_, v) ->
+                                DyeState(color = androidx.compose.ui.graphics.Color(v.color), strength = v.strength)
+                            }
+                            val buttonMap = row.state.buttons.mapKeys { entry ->
+                                runCatching { com.example.myapplicationkoG.domain.model.GarmentSideId.valueOf(entry.key) }.getOrElse { com.example.myapplicationkoG.domain.model.GarmentSideId.FRONT }
+                            }.mapValues { (_, list) ->
+                                list.map { PlacedButton(pos = Offset(it.x, it.y), scale = it.scale, color = androidx.compose.ui.graphics.Color(it.color), style = it.style, rotation = it.rotation) }
+                            }
+                            // Use ViewModel for rotation survival (singleton kept for backward compat)
+                            runCatching { garmentInputVm.stageDesignTyped(dyeMap, buttonMap) }
+                                .onFailure { DesignSession.stage(dye = dyeMap, buttons = buttonMap) }
                             navController.navigate(Screen.Editor.route)
                         }
                     },
@@ -446,7 +453,8 @@ fun AltThreadApp(
                     viewModel = garmentInputVm,
                     onOpenEditor = { navController.navigate(Screen.Editor.route) },
                     onBack = {
-                        garmentInputVm.clearAll()
+                        // Defer deletion: keep cache files until explicit clear or new design loaded (LRU)
+                        garmentInputVm.clearForBack()
                         navController.popBackStack()
                     },
                 )

@@ -5,6 +5,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,9 +43,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.material3.MaterialTheme
 import coil.compose.AsyncImage
-import com.example.myapplicationkoG.VtonConfig
 import com.example.myapplicationkoG.VtonRepository
+import com.example.myapplicationkoG.textColorForTheme
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import kotlinx.coroutines.launch
@@ -77,11 +79,11 @@ fun VtonDialog(
             modifier = Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(20.dp))
-                .background(Color.White)
+                .background(MaterialTheme.colorScheme.surface)
                 .padding(20.dp)
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Virtual Try-On", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = MidnightBlue)
+                Text("Virtual Try-On", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = textColorForTheme(MidnightBlue))
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
@@ -89,14 +91,15 @@ fun VtonDialog(
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("You", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
+                        Text("You", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColorForTheme(MidnightBlue))
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(140.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF0F0F0)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .clickable { pickPerson.launch("image/*") },
                             contentAlignment = Alignment.Center
                         ) {
                             if (personUri != null) {
@@ -107,21 +110,19 @@ fun VtonDialog(
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
-                                TextButton(onClick = { pickPerson.launch("image/*") }) {
-                                    Text("Pick photo", color = MidnightBlue, fontSize = 12.sp)
-                                }
+                                Text("Pick photo", color = textColorForTheme(MidnightBlue), fontSize = 12.sp)
                             }
                         }
                     }
                     Column(modifier = Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("Garment", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = MidnightBlue)
+                        Text("Garment", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = textColorForTheme(MidnightBlue))
                         Spacer(modifier = Modifier.height(4.dp))
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(140.dp)
                                 .clip(RoundedCornerShape(12.dp))
-                                .background(Color(0xFFF0F0F0)),
+                                .background(MaterialTheme.colorScheme.surfaceVariant),
                             contentAlignment = Alignment.Center
                         ) {
                             if (garmentFile?.exists() == true) {
@@ -132,7 +133,7 @@ fun VtonDialog(
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
-                                Text("No garment", color = Color.Gray, fontSize = 12.sp)
+                                Text("No garment", color = textColorForTheme(Color.Gray), fontSize = 12.sp)
                             }
                         }
                     }
@@ -144,13 +145,13 @@ fun VtonDialog(
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(modifier = Modifier.size(20.dp), color = MidnightBlue, strokeWidth = 2.dp)
                         Spacer(modifier = Modifier.padding(4.dp))
-                        Text("Trying on... (free queue, ~1-2 min)", fontSize = 13.sp, color = Color.Gray)
+                        Text("Trying on... (free queue, ~1-2 min)", fontSize = 13.sp, color = textColorForTheme(Color.Gray))
                     }
                 } else if (resultFile != null) {
                     AsyncImage(
                         model = resultFile,
                         contentDescription = "Try-on result",
-                        modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(12.dp)).background(Color(0xFFF0F0F0)),
+                        modifier = Modifier.fillMaxWidth().height(300.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.surfaceVariant),
                         contentScale = ContentScale.Fit
                     )
                     Spacer(modifier = Modifier.height(10.dp))
@@ -171,10 +172,10 @@ fun VtonDialog(
                             },
                             enabled = !saving
                         ) {
-                            Text(if (saving) "Saving..." else "Save image", color = MidnightBlue, fontWeight = FontWeight.Bold)
+                            Text(if (saving) "Saving..." else "Save image", color = textColorForTheme(MidnightBlue), fontWeight = FontWeight.Bold)
                         }
                         TextButton(onClick = onDismiss) {
-                            Text("Close", color = Color.Gray)
+                            Text("Close", color = textColorForTheme(Color.Gray))
                         }
                     }
                 } else {
@@ -211,7 +212,7 @@ fun VtonDialog(
                     }
                     Spacer(modifier = Modifier.height(4.dp))
                     TextButton(onClick = onDismiss) {
-                        Text("Cancel", color = Color.Gray)
+                        Text("Cancel", color = textColorForTheme(Color.Gray))
                     }
                 }
             }

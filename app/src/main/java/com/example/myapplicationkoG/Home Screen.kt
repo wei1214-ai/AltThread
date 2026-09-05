@@ -35,6 +35,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
@@ -122,11 +123,16 @@ fun FilterChip(
     onClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Box(
         modifier = modifier
             .height(40.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(if (isSelected) Cyan else Color.LightGray)
+            .background(
+                if (isSelected) Cyan
+                else if (isDark) MaterialTheme.colorScheme.surfaceVariant
+                else Color.LightGray
+            )
             .clickable { onClick() }
             .padding(horizontal = 16.dp),
         contentAlignment = Alignment.Center
@@ -134,7 +140,7 @@ fun FilterChip(
         Text(
             text = label,
             fontWeight = FontWeight.SemiBold,
-            color = textColorForTheme(if (isSelected) MidnightBlue else Color.Gray),
+            color = if (isSelected) MidnightBlue else if (isDark) Color(0xFFD0D0D0) else Color.Gray,
             maxLines = 1
         )
     }

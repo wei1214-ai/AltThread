@@ -23,6 +23,8 @@ import androidx.compose.material.icons.filled.ArrowBack
 import android.graphics.BitmapFactory
 import android.widget.Toast
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -78,6 +80,7 @@ import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.graphics.luminance
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -123,8 +126,8 @@ fun EditorPlaceHolder(
         saveDialogVisible = true
     }
 
-    // Tool + dye editing state
-    var selectedTool by remember { mutableStateOf<Int?>(0) }
+    // Tool + dye editing state - default no tool open, no dim
+    var selectedTool by remember { mutableStateOf<Int?>(null) }
     var dyeColor by remember { mutableStateOf(Color(0xFF1A237E)) }
     var dyeStrength by remember { mutableFloatStateOf(0.55f) }
     var dyeMap by remember { mutableStateOf(mapOf<GarmentSideId, DyeState>()) }
@@ -341,78 +344,30 @@ fun EditorPlaceHolder(
     }
     val curButtons = buttonMap[currentSide].orEmpty()
 
+    val isDarkDesign = MaterialTheme.colorScheme.background.luminance() < 0.5f
     Scaffold(
-        containerColor = Color.White,
-        topBar = {
-            CenterAlignedTopAppBar(
-                title = { Text("Design Space", fontWeight = FontWeight.ExtraBold, color = MidnightBlue, fontSize = 24.sp) },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(containerColor = Color.White),
-                navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = MidnightBlue)
-                    }
-                }
-            )
-        },
-        bottomBar = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 24.dp, vertical = 16.dp)
-                    .clip(RoundedCornerShape(24.dp))
-                    .background(Color.White)
-                    .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(24.dp))
-                    .padding(vertical = 12.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(24.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    val toolIcons = listOf(R.drawable.dye, R.drawable.patch)
-                    val toolNames = listOf("Dye", "Patch")
-                    toolIcons.forEachIndexed { idx, iconRes ->
-                        val isSelected = selectedTool == idx
-                        Column(
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(4.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(56.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
-                                    .clickable {
-                                        selectedTool = if (isSelected) null else idx
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Icon(
-                                    painter = painterResource(id = iconRes),
-                                    contentDescription = toolNames[idx],
-                                    tint = if (isSelected) MidnightBlue else Color.Gray,
-                                    modifier = Modifier.size(26.dp)
-                                )
-                            }
-                            Text(
-                                text = toolNames[idx],
-                                color = if (isSelected) MidnightBlue else Color.Gray,
-                                fontWeight = FontWeight.SemiBold,
-                                fontSize = 12.sp
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        containerColor = if (isDarkDesign) Color.Black else Color.White,
     ) { padding ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color.White)
+                .background(if (isDarkDesign) Color.Black else Color.White)
                 .padding(horizontal = 16.dp, vertical = 12.dp)
+                .verticalScroll(rememberScrollState())
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                IconButton(onClick = onBack) {
+                    Icon(painter = painterResource(id = R.drawable.arrowleft), contentDescription = "Back", tint = if (isDarkDesign) Color.White else MidnightBlue, modifier = Modifier.size(24.dp))
+                }
+                Text("Design Space", fontWeight = FontWeight.ExtraBold, color = if (isDarkDesign) Color.White else MidnightBlue, fontSize = 24.sp, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                Spacer(modifier = Modifier.size(48.dp))
+            }
+            Spacer(modifier = Modifier.height(8.dp))
             var showBriefDialog by remember { mutableStateOf(false) }
             val challengeBrief = remember { ChallengeSession.peekPair() }
             val challengeTitle = challengeBrief.first
@@ -422,18 +377,18 @@ fun EditorPlaceHolder(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(16.dp))
-                        .background(Cyan.copy(alpha = 0.18f))
-                        .border(1.dp, Cyan, RoundedCornerShape(16.dp))
+                        .background(if (isDarkDesign) Cyan.copy(alpha = 0.35f) else Cyan.copy(alpha = 0.18f))
+                        .border(1.5.dp, Cyan, RoundedCornerShape(16.dp))
                         .clickable { showBriefDialog = true }
-                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
                         "Challenge Brief",
-                        color = MidnightBlue,
+                        color = if (isDarkDesign) Color.White else MidnightBlue,
                         fontWeight = FontWeight.ExtraBold,
-                        fontSize = 16.sp,
+                        fontSize = 17.sp,
                         modifier = Modifier.weight(1f)
                     )
                     Box(
@@ -631,8 +586,8 @@ fun EditorPlaceHolder(
                         modifier = Modifier
                             .fillMaxSize()
                             .clip(RoundedCornerShape(20.dp))
-                            .background(Color.White)
-                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
+                            .background(if (isDarkDesign) Color(0xFF121212) else Color.White)
+                            .border(1.dp, if (isDarkDesign) Color(0xFF333333) else Color(0xFFE0E0E0), RoundedCornerShape(20.dp)),
                         contentAlignment = Alignment.Center
                     ) {
                         if (currentPath != null) {
@@ -650,7 +605,7 @@ fun EditorPlaceHolder(
                                     Image(
                                         bitmap = dyedImage!!,
                                         contentDescription = currentSide.name,
-                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)),
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).padding(16.dp),
                                         contentScale = ContentScale.Fit,
                                         alignment = Alignment.Center
                                     )
@@ -658,7 +613,7 @@ fun EditorPlaceHolder(
                                     AsyncImage(
                                         model = currentPath,
                                         contentDescription = currentSide.name,
-                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)),
+                                        modifier = Modifier.fillMaxSize().clip(RoundedCornerShape(20.dp)).padding(16.dp),
                                         contentScale = ContentScale.Fit,
                                         alignment = Alignment.Center
                                     )
@@ -920,11 +875,11 @@ fun EditorPlaceHolder(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color.White)
-                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+                            .background(if (isDarkDesign) Color(0xFF121212) else Color.White)
+                            .border(1.dp, if (isDarkDesign) Color(0xFF333333) else Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Dye whole garment", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Dye whole garment", color = if (isDarkDesign) Color.White else MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                             dyeColors.forEach { c ->
@@ -964,11 +919,11 @@ fun EditorPlaceHolder(
                         modifier = Modifier
                             .fillMaxWidth()
                             .clip(RoundedCornerShape(14.dp))
-                            .background(Color.White)
-                            .border(1.dp, Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
+                            .background(if (isDarkDesign) Color(0xFF121212) else Color.White)
+                            .border(1.dp, if (isDarkDesign) Color(0xFF333333) else Color(0xFFE0E0E0), RoundedCornerShape(14.dp))
                             .padding(horizontal = 12.dp, vertical = 8.dp)
                     ) {
-                        Text("Patch", color = MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text("Patch", color = if (isDarkDesign) Color.White else MidnightBlue, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                         Spacer(modifier = Modifier.height(6.dp))
                         Row(
                             modifier = Modifier.fillMaxWidth(),
@@ -1083,6 +1038,55 @@ fun EditorPlaceHolder(
                                     onValueChangeFinished = { rotDragStart = null },
                                     valueRange = -180f..180f,
                                     modifier = Modifier.height(24.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.height(16.dp))
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(24.dp))
+                        .background(if (isDarkDesign) Color(0xFF121212) else Color.White)
+                        .border(1.dp, if (isDarkDesign) Color(0xFF333333) else Color(0xFFE0E0E0), RoundedCornerShape(24.dp))
+                        .padding(vertical = 12.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(24.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        val toolIcons = listOf(R.drawable.dye, R.drawable.patch)
+                        val toolNames = listOf("Dye", "Patch")
+                        toolIcons.forEachIndexed { idx, iconRes ->
+                            val isSelected = selectedTool == idx
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(56.dp)
+                                        .clip(RoundedCornerShape(16.dp))
+                                        .background(if (isSelected) Cyan else Color(0xFFF0F0F0))
+                                        .clickable {
+                                            selectedTool = if (isSelected) null else idx
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(
+                                        painter = painterResource(id = iconRes),
+                                        contentDescription = toolNames[idx],
+                                        tint = if (isSelected) MidnightBlue else Color.Gray,
+                                        modifier = Modifier.size(26.dp)
+                                    )
+                                }
+                                Text(
+                                    text = toolNames[idx],
+                                    color = if (isSelected) MidnightBlue else Color.Gray,
+                                    fontWeight = FontWeight.SemiBold,
+                                    fontSize = 12.sp
                                 )
                             }
                         }

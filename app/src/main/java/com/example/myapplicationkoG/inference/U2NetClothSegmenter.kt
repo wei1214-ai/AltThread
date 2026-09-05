@@ -52,8 +52,9 @@ class U2NetClothSegmenter(context: Context) {
         }
     }
 
-    private var session: OrtSession? = null
+    @Volatile private var session: OrtSession? = null
 
+    @Synchronized
     private fun getSession(file: File): OrtSession {
         session?.let { return it }
         val opts = OrtSession.SessionOptions().apply {

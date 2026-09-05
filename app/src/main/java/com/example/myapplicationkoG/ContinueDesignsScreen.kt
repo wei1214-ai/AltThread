@@ -249,12 +249,27 @@ private fun DesignBlock(
                     .weight(1f)
                     .clip(RoundedCornerShape(16.dp))
             ) {
-                AsyncImage(
-                    model = thumbFile?.takeIf { it.exists() } ?: row.frontUrl,
-                    contentDescription = row.name,
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier.fillMaxSize()
-                )
+                val imageModel = thumbFile?.takeIf { it.exists() } ?: row.frontUrl?.takeIf { it.isNotBlank() }
+                if (imageModel != null) {
+                    AsyncImage(
+                        model = imageModel,
+                        contentDescription = row.name,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier.fillMaxSize()
+                    )
+                } else {
+                    Box(
+                        modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.surfaceVariant),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            painter = painterResource(id = R.drawable.studio),
+                            contentDescription = "No image",
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(32.dp)
+                        )
+                    }
+                }
                 if (!pickMode) {
                     Box(
                         modifier = Modifier

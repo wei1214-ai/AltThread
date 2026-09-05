@@ -15,6 +15,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -45,6 +46,7 @@ fun BottomNavBar(
     navController: NavController,
     currentRoute: String?
 ) {
+    val isDark = MaterialTheme.colorScheme.background.luminance() < 0.5f
     NavigationBar(
         modifier = Modifier
             .fillMaxWidth()
@@ -82,7 +84,7 @@ fun BottomNavBar(
                 },
                 colors = NavigationBarItemDefaults.colors(
                     selectedIconColor = MidnightBlue,
-                    selectedTextColor = MidnightBlue,
+                    selectedTextColor = if (isDark) Cyan else MidnightBlue,
                     indicatorColor = Cyan,
                     unselectedIconColor = Color.Gray,
                     unselectedTextColor = Color.Gray

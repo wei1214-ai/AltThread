@@ -48,13 +48,29 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
+import android.util.Patterns
+import androidx.compose.material3.MaterialTheme
 import com.example.myapplicationkoG.ui.theme.Cyan
 import com.example.myapplicationkoG.ui.theme.LightGray
 import com.example.myapplicationkoG.ui.theme.MidnightBlue
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import kotlinx.coroutines.launch
+
+private fun String.isValidGmail(): Boolean {
+    val t = trim()
+    if (t.isBlank() || t.length > 254) return false
+    if (!Patterns.EMAIL_ADDRESS.matcher(t).matches()) return false
+    val lower = t.lowercase()
+    if (!lower.endsWith("@gmail.com")) return false
+    val local = lower.substringBefore("@")
+    if (local.length < 6 || local.length > 30) return false
+    if (local.startsWith(".") || local.endsWith(".") || local.contains("..")) return false
+    if (!local.matches(Regex("^[a-z0-9._]+$"))) return false
+    return true
+}
 
 
 @Composable
@@ -151,10 +167,10 @@ fun AuthScreen(
     onLoginSuccess: () -> Unit = {},
     onForgotPassword: () -> Unit = {}
 ) {
-    var isLogin by remember { mutableStateOf( true) }
-    var email by remember { mutableStateOf("") }
-    var password by remember { mutableStateOf("") }
-    var confirmPassword by remember { mutableStateOf("") }
+    var isLogin by rememberSaveable { mutableStateOf(true) }
+    var email by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var confirmPassword by rememberSaveable { mutableStateOf("") }
     var emailError by remember { mutableStateOf<String?>(null) }
     var passwordError by remember { mutableStateOf<String?>(null) }
     var confirmPasswordError by remember { mutableStateOf<String?>(null) }
@@ -181,7 +197,7 @@ fun AuthScreen(
     fun validateLogin(): Boolean{
         emailError = when {
             email.isBlank() -> "Email is required"
-            !email.contains("@") -> "Enter valid email address."
+            !email.trim().isValidGmail() -> "Enter a valid Gmail address (e.g. name@gmail.com)."
             else -> null
         }
         if (emailError != null) {
@@ -199,7 +215,7 @@ fun AuthScreen(
     fun validateRegister(): Boolean{
         emailError = when{
             email.isBlank()->"Email is required."
-            !email.contains("@")-> "Enter valid email address."
+            !email.trim().isValidGmail()-> "Enter a valid Gmail address (e.g. name@gmail.com)."
             else -> null
         }
         if (emailError != null) {
@@ -293,7 +309,7 @@ fun AuthScreen(
                         .fillMaxWidth()
                         .height(50.dp)
                         .clip(shape = RoundedCornerShape(size = 25.dp))
-                        .background(color = LightGray)
+                        .background(color = MaterialTheme.colorScheme.surfaceVariant)
                 ) {
                     AuthTabItem(
                         text = "Log In",
@@ -342,12 +358,12 @@ fun AuthScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isBannerSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
+                                    .background(if (isBannerSuccess) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer)
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
                                     text = bannerMessage ?: "",
-                                    color = if (isBannerSuccess) Color(0xFF2E7D32) else Color.Red,
+                                    color = if (isBannerSuccess) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -422,12 +438,12 @@ fun AuthScreen(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .clip(RoundedCornerShape(6.dp))
-                                    .background(if (isBannerSuccess) Color(0xFFE8F5E9) else Color(0xFFFFEBEE))
+                                    .background(if (isBannerSuccess) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.errorContainer)
                                     .padding(horizontal = 10.dp, vertical = 6.dp)
                             ) {
                                 Text(
                                     text = bannerMessage ?: "",
-                                    color = if (isBannerSuccess) Color(0xFF2E7D32) else Color.Red,
+                                    color = if (isBannerSuccess) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onErrorContainer,
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )

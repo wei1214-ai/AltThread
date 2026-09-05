@@ -71,9 +71,12 @@ fun GarmentInputScreen(
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var frontCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var backCameraUri by remember { mutableStateOf<Uri?>(null) }
-    var pendingCameraSide by remember { mutableStateOf<GarmentSideId?>(null) }
+    var frontCameraUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Uri?>(null) }
+    var backCameraUri by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf<Uri?>(null) }
+    var pendingCameraSide by androidx.compose.runtime.saveable.rememberSaveable(stateSaver = androidx.compose.runtime.saveable.Saver(
+        save = { it?.name },
+        restore = { it?.let { runCatching { GarmentSideId.valueOf(it) }.getOrNull() } }
+    )) { mutableStateOf<GarmentSideId?>(null) }
 
     val pickFrontAlbum = rememberLauncherForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
         uri?.let { viewModel.onPickedImage(GarmentSideId.FRONT, it) }
@@ -103,6 +106,8 @@ fun GarmentInputScreen(
                     }
                 }
             }
+        } else {
+            android.widget.Toast.makeText(context, "Camera permission required", android.widget.Toast.LENGTH_SHORT).show()
         }
         pendingCameraSide = null
     }

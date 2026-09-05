@@ -143,8 +143,9 @@ fun UploadScreen(
     var isUploading by remember { mutableStateOf(false) }
     val categoriesList = listOf("Trend", "Vintage", "Streetwear")
 
-    // Challenge states
+    // Challenge states - separate caption from Post to avoid sharing
     var challengeTitleInput by remember { mutableStateOf("") }
+    var challengeCaptionInput by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf("") }
     var frontOrigUri by remember { mutableStateOf<Uri?>(null) }
     var backOrigUri by remember { mutableStateOf<Uri?>(null) }
     var frontCutoutPath by remember { mutableStateOf<String?>(null) }
@@ -208,6 +209,11 @@ fun UploadScreen(
         file.parentFile?.mkdirs()
         return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
     }
+    fun createVideoUri(): Uri {
+        val file = File(context.cacheDir, "camera_${System.currentTimeMillis()}.mp4")
+        file.parentFile?.mkdirs()
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
 
     // Check if URI is a video
     fun isVideoUri(uri: Uri): Boolean {
@@ -250,6 +256,13 @@ fun UploadScreen(
             } else {
                 Toast.makeText(context, "Max 9 photos allowed", Toast.LENGTH_SHORT).show()
             }
+        }
+    }
+    var showPostCameraChoice by remember { mutableStateOf(false) }
+    val capturePostVideo = rememberLauncherForActivityResult(ActivityResultContracts.CaptureVideo()) { success ->
+        if (success) postCameraUri?.let { uri ->
+            selectedUris = listOf(uri)
+            Toast.makeText(context, "Captured 1 video", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -523,10 +536,10 @@ fun UploadScreen(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                // Bio / Description input
+                // Bio / Description input - capped at 5 lines, fixed height, internal scroll
                 OutlinedTextField(
                     value = captionInput,
-                    onValueChange = { captionInput = it },
+                    onValueChange = { if (it.lines().size <= 5) captionInput = it },
                     label = { Text("Description / Bio") },
                     placeholder = { Text("pink color cartoon clothes") },
                     modifier = Modifier.fillMaxWidth().height(120.dp),
@@ -616,7 +629,7 @@ fun UploadScreen(
                                 .size(36.dp)
                                 .clip(RoundedCornerShape(10.dp))
                                 .background(Cyan)
-                                .clickable { launchCamera("post") },
+                                .clickable { showPostCameraChoice = true },
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(painter = painterResource(id = R.drawable.addfromcamera), contentDescription = "Camera", tint = MidnightBlue, modifier = Modifier.size(18.dp))
@@ -715,8 +728,8 @@ fun UploadScreen(
                 )
                 Spacer(modifier = Modifier.height(12.dp))
                 OutlinedTextField(
-                    value = captionInput,
-                    onValueChange = { captionInput = it },
+                    value = challengeCaptionInput,
+                    onValueChange = { if (it.lines().size <= 4) challengeCaptionInput = it },
                     label = { Text("Description") },
                     placeholder = { Text("Tell us your story...") },
                     modifier = Modifier.fillMaxWidth().height(100.dp),
@@ -748,7 +761,7 @@ fun UploadScreen(
                                     imageUris = uris,
                                     title = challengeTitleInput,
                                     category = "Challenge",
-                                    bio = captionInput,
+                                    bio = challengeCaptionInput,
                                     isChallenge = true
                                 )
                                 if (success) {
@@ -907,7 +920,7 @@ fun UploadScreen(
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedTextField(
                         value = designCaptionInput,
-                        onValueChange = { designCaptionInput = it },
+                        onValueChange = { if (it.lines().size <= 5) designCaptionInput = it },
                         label = { Text("Description") },
                         placeholder = { Text("Tell us about your design...") },
                         modifier = Modifier.fillMaxWidth().height(120.dp),
@@ -979,6 +992,49 @@ fun UploadScreen(
             }
 
             Spacer(modifier = Modifier.height(32.dp))
+        }
+    }
+
+    if (showPostCameraChoice) {
+        androidx.compose.ui.window.Dialog(onDismissRequest = { showPostCameraChoice = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(MaterialTheme.colorScheme.surface)
+                    .padding(20.dp)
+            ) {
+                Column {
+                    Text("Capture", fontWeight = FontWeight.Bold, fontSize = 16.sp, color = textColorForTheme(MidnightBlue))
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                showPostCameraChoice = false
+                                val uri = createCameraUri()
+                                postCameraUri = uri
+                                takePostPicture.launch(uri)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue)
+                        ) { Text("Photo", fontWeight = FontWeight.Bold) }
+                        androidx.compose.material3.Button(
+                            onClick = {
+                                showPostCameraChoice = false
+                                val uri = createVideoUri()
+                                postCameraUri = uri
+                                capturePostVideo.launch(uri)
+                            },
+                            modifier = Modifier.weight(1f),
+                            colors = androidx.compose.material3.ButtonDefaults.buttonColors(containerColor = Cyan, contentColor = MidnightBlue)
+                        ) { Text("Video", fontWeight = FontWeight.Bold) }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    androidx.compose.material3.TextButton(onClick = { showPostCameraChoice = false }, modifier = Modifier.fillMaxWidth()) {
+                        Text("Cancel", color = Color.Gray)
+                    }
+                }
+            }
         }
     }
 }

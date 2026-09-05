@@ -40,8 +40,14 @@ class ClothingInferencePipeline(context: Context) {
             val clothFile = runCatching { clothNet.modelFile() }.getOrNull()
                 ?: error("cloth_segmentation.onnx missing. Please add the model to assets.")
             Log.d("ClothingPipeline", "U2NET model=${clothFile.absolutePath}")
-            val mask = clothNet.segment(sourceBitmap)
+            var mask = clothNet.segment(sourceBitmap)
             try {
+                // Fill interior holes (e.g. white T-shirt pattern predicted as background)
+                val filled = fillMaskHoles(mask)
+                if (filled !== mask) {
+                    runCatching { if (!mask.isRecycled) mask.recycle() }
+                    mask = filled
+                }
                 val coverage = maskCoverage(mask)
                 if (coverage < 0.20f) {
                     error("Invalid photo: garment not fully visible. Please lay the garment flat and fill the frame.")

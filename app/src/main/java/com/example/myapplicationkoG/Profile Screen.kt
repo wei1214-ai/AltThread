@@ -289,7 +289,7 @@ fun ProfileScreen(
                             onClick = { avatarPicker.launch("image/*") },
                             modifier = Modifier
                                 .align(Alignment.BottomEnd)
-                                .size(28.dp)
+                                .size(36.dp)
                                 .clip(RoundedCornerShape(12.dp))
                                 .background(Cyan)
                         ) {
@@ -297,7 +297,7 @@ fun ProfileScreen(
                                 painter = painterResource(id = R.drawable.edit),
                                 contentDescription = "Change avatar",
                                 tint = MidnightBlue,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }

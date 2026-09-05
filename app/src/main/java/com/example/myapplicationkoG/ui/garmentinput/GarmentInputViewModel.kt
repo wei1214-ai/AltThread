@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.File
 import java.util.UUID
@@ -38,10 +40,64 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
     val state: StateFlow<GarmentInputUiState> = _state.asStateFlow()
 
     private val runId: String = UUID.randomUUID().toString()
+    private val pickerMutex = Mutex()
 
     var openDesignId: String? = null
     var openDesignName: String = ""
     var openDesignChallengePostId: String? = null
+
+    // Deferred deletion: keep cache files until new design successfully loaded.
+    // OnBack / navigation should keep files (LRU or explicit clear will clean up).
+    private val pendingDeletionPaths = mutableListOf<String>()
+
+    // Editor state that survives rotation via ViewModel (alternative to rememberSaveable).
+    // Types are defined in ui.editor but referenced here for StateFlow survival.
+    // Safe Kotlin: no !!, use ?.let and runCatching.
+
+    // ChallengeSession fields moved to ViewModel for rotation survival.
+    private val _challengePostId = MutableStateFlow<String?>(null)
+    val challengePostIdFlow: StateFlow<String?> = _challengePostId.asStateFlow()
+    var challengePostId: String?
+        get() = _challengePostId.value
+        set(value) { _challengePostId.value = value }
+    private val _challengeTitle = MutableStateFlow<String?>(null)
+    val challengeTitleFlow: StateFlow<String?> = _challengeTitle.asStateFlow()
+    var challengeTitle: String?
+        get() = _challengeTitle.value
+        set(value) { _challengeTitle.value = value }
+    private val _challengeDescription = MutableStateFlow<String?>(null)
+    val challengeDescriptionFlow: StateFlow<String?> = _challengeDescription.asStateFlow()
+    var challengeDescription: String?
+        get() = _challengeDescription.value
+        set(value) { _challengeDescription.value = value }
+
+    fun stageChallenge(postId: String, title: String, description: String) {
+        _challengePostId.value = postId
+        _challengeTitle.value = title
+        _challengeDescription.value = description
+        // Also keep singleton in sync for screens that still read ChallengeSession directly
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.postId = postId
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.title = title
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.description = description
+    }
+
+    fun clearChallenge() {
+        _challengePostId.value = null
+        _challengeTitle.value = null
+        _challengeDescription.value = null
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.postId = null
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.title = null
+        com.example.myapplicationkoG.ui.editor.ChallengeSession.description = null
+    }
+
+    fun peekChallengePair(): Pair<String?, String?> = _challengeTitle.value to _challengeDescription.value
+
+    fun stageDesignTyped(
+        dye: Map<GarmentSideId, com.example.myapplicationkoG.ui.editor.DyeState>,
+        buttons: Map<GarmentSideId, List<com.example.myapplicationkoG.ui.editor.PlacedButton>>
+    ) {
+        com.example.myapplicationkoG.ui.editor.DesignSession.stage(dye, buttons)
+    }
 
     fun openSavedDesign(
         id: String,
@@ -57,6 +113,9 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun loadDesignPaths(front: File, back: File) {
+        // Capture old paths before update for deferred deletion check
+        val oldFront = _state.value.frontCutoutPath
+        val oldBack = _state.value.backCutoutPath
         _state.update {
             it.copy(
                 frontCutoutPath = front.absolutePath,
@@ -67,12 +126,48 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
                 loadingSide = null
             )
         }
+        // New design successfully loaded -> now safe to delete old files
+        // Includes any paths queued by prior clearAll(keepFiles=true)
+        val toDelete = mutableListOf<String>()
+        // queued pending deletions
+        toDelete.addAll(pendingDeletionPaths)
+        pendingDeletionPaths.clear()
+        oldFront?.let { if (it != front.absolutePath) toDelete.add(it) }
+        oldBack?.let { if (it != back.absolutePath) toDelete.add(it) }
+        toDelete.forEach { path ->
+            if (path != front.absolutePath && path != back.absolutePath) {
+                runCatching { File(path).delete() }
+            }
+        }
+        // LRU: keep cacheDir bounded - delete oldest files if >20 files
+        runCatching {
+            val files = cacheDir.listFiles()?.sortedBy { it.lastModified() } ?: emptyList()
+            if (files.size > 20) {
+                files.take(files.size - 20).forEach { f -> runCatching { f.delete() } }
+            }
+        }
     }
 
-    fun clearAll() {
-        // Delete cached files and reset state so re-entering Design Space is clean
-        _state.value.frontCutoutPath?.let { runCatching { File(it).delete() } }
-        _state.value.backCutoutPath?.let { runCatching { File(it).delete() } }
+    /**
+     * Clears UI state. By default keeps cache files (deferred deletion) so onBack
+     * does not immediately delete files. Files are deleted when a new design is
+     * successfully loaded or when [deleteFiles] is true (explicit clear / LRU).
+     */
+    fun clearAll(deleteFiles: Boolean = false) {
+        if (deleteFiles) {
+            // Explicit clear: delete immediately
+            _state.value.frontCutoutPath?.let { runCatching { File(it).delete() } }
+            _state.value.backCutoutPath?.let { runCatching { File(it).delete() } }
+            pendingDeletionPaths.clear()
+            // also clear any queued pending files
+            runCatching {
+                pendingDeletionPaths.forEach { p -> runCatching { File(p).delete() } }
+            }
+        } else {
+            // Defer deletion: queue current paths for deletion after next successful load
+            _state.value.frontCutoutPath?.let { pendingDeletionPaths.add(it) }
+            _state.value.backCutoutPath?.let { pendingDeletionPaths.add(it) }
+        }
         // Keep cacheDir but clear state
         _state.value = GarmentInputUiState()
         openDesignId = null
@@ -80,9 +175,20 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
         openDesignChallengePostId = null
     }
 
+    /** Back navigation: clear state but keep cache files until explicit clear or LRU. */
+    fun clearForBack() {
+        clearAll(deleteFiles = false)
+    }
+
+    /** Explicit user clear that should delete files now. */
+    fun clearAllExplicit() {
+        clearAll(deleteFiles = true)
+    }
+
     fun onPickedImage(side: GarmentSideId, uri: Uri) {
         if (_state.value.isLoading) return
         viewModelScope.launch {
+            pickerMutex.withLock {
             _state.update {
                 when (side) {
                     GarmentSideId.FRONT -> it.copy(isLoading = true, loadingSide = GarmentSideId.FRONT, frontError = null)
@@ -136,6 +242,7 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
                     }
                 }
             }
+            }
         }
     }
 
@@ -145,8 +252,15 @@ class GarmentInputViewModel(app: Application) : AndroidViewModel(app) {
             getApplication<Application>().contentResolver.openInputStream(uri)?.use { input ->
                 target.outputStream().use { input.copyTo(it) }
             }
+            if (target.length() == 0L) return null
+            if (target.length() > 12 * 1024 * 1024) {
+                runCatching { target.delete() }
+                error("Image too large (max 12MB)")
+            }
             if (target.length() > 0L) target else null
         } catch (t: Throwable) {
+            runCatching { target.delete() }
+            if (t.message?.contains("too large") == true) throw t
             null
         }
     }
